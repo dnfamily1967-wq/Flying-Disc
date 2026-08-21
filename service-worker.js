@@ -1,4 +1,4 @@
-const CACHE_NAME = "disc-team-maker-v1";
+const CACHE_NAME = "disc-team-maker-v2";
 const urlsToCache = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -17,20 +17,17 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Network-first: always try to get the latest file from the internet first.
+// Falls back to the cached copy only when there's no internet (offline use).
 self.addEventListener("fetch", (event) => {
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request)
-          .then((response) => {
-            return caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, response.clone());
-              return response;
-            });
-          })
-          .catch(() => cached)
-      );
-    })
+    fetch(event.request)
+      .then((response) => {
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      })
+      .catch(() => caches.match(event.request))
   );
 });
