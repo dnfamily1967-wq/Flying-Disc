@@ -579,7 +579,7 @@ function render() {
         <span class="rating">${p.rating}</span>
       </div>
       <div class="actrow">
-        ${p.absent ? '<span class="chip absent on">absent</span>' : ''}
+        ${p.absent ? '<span class="chip absent on">absent</span>' : '<span class="chip" style="visibility:hidden">absent</span>'}
       </div>
     </li>`;
   }).join('');
