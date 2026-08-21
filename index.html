@@ -637,7 +637,7 @@ function makeTeams() {
   }
   errEl.style.display = 'none';
 
-  const sorted = shuffle(present).sort((a, b) => b.rating - a.rating);
+  const sorted = shuffle(present).sort((a, b) => a.rating - b.rating);
   const teamA = [], teamB = [];
   let turn = 0;
   sorted.forEach(p => {
