@@ -322,22 +322,30 @@
     .card h2 { font-size: 17px; }
     .addRow input { font-size: 18px; padding: 16px 16px; border-radius: 14px; }
     .addRow button { padding: 0 22px; border-radius: 14px; font-size: 17px; }
-    .pname { font-size: 30px; }
-    .rating { width: 66px; font-size: 23px; padding: 14px 4px; border-radius: 14px; }
-    .chip { font-size: 16px; padding: 13px 10px; width: 92px; text-align: center; border-radius: 22px; }
-    .del { font-size: 34px; }
+    .pname {
+      font-size: 21px;
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .rating { width: 50px; flex-shrink: 0; font-size: 17px; padding: 11px 3px; border-radius: 12px; }
+    .chip { font-size: 12.5px; padding: 9px 6px; width: 70px; text-align: center; border-radius: 18px; flex-shrink: 0; }
+    .del { font-size: 26px; flex-shrink: 0; }
     ul.plist li {
       background: #FCFBF7;
       border: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
       border-radius: 16px;
-      padding: 14px 12px;
-      margin-bottom: 10px;
+      padding: 13px 10px;
+      margin-bottom: 8px;
       box-shadow: 0 1px 4px rgba(30,30,20,0.04);
+      flex-wrap: nowrap;
     }
     ul.plist li:last-child { margin-bottom: 0; }
-    .pgroup { gap: 10px; }
-    .actrow { gap: 8px; }
+    .pgroup { gap: 8px; flex: 1; min-width: 0; }
+    .actrow { gap: 6px; }
     .legend { font-size: 13.5px; }
     button { padding: 18px; font-size: 18px; border-radius: 15px; }
     .sortLabel { font-size: 13.5px; }
