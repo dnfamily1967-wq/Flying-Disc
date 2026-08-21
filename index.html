@@ -63,13 +63,32 @@
     box-shadow: 0 6px 24px rgba(20,40,25,0.18);
   }
   .hero::after {
-    content: "🥏";
+    content: "";
     position: absolute;
-    font-size: 130px;
-    opacity: 0.10;
-    right: -20px;
-    top: -22px;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #FF9A5A 0%, var(--orange) 55%, #C6491C 100%);
+    opacity: 0.16;
+    right: -30px;
+    top: -25px;
     transform: rotate(15deg);
+  }
+  .admin-btn {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    width: auto;
+    margin: 0;
+    z-index: 3;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 11px;
+    border-radius: 20px;
+    box-shadow: none;
   }
 .hero-logo {
     width: 64px;
@@ -154,6 +173,7 @@
   .actrow { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; }
 
   .rating {
+    display: inline-block;
     width: 42px;
     text-align: center;
     border: 1.5px solid var(--line);
@@ -371,7 +391,7 @@
       align-items: center;
       gap: 24px;
     }
-    .hero::after { font-size: 170px; right: 10px; top: -30px; }
+    .hero::after { width: 190px; height: 190px; right: 10px; top: -30px; }
     .hero-logo { width: 88px; height: 88px; margin-bottom: 0; flex-shrink: 0; }
     .hero-text { display: flex; flex-direction: column; }
     h1 { font-size: 40px; }
@@ -396,6 +416,7 @@
 <body>
 
 <div class="hero">
+  <button id="adminBtn" class="admin-btn">🔒 Admin</button>
   <img src="icon-192.png" alt="Morning Walkers logo" class="hero-logo">
   <div class="hero-text">
   <div class="tag">Daily flying disc</div>
@@ -406,10 +427,12 @@
 <div class="wrap">
 
   <div class="card">
+    <div id="addPlayerBlock">
     <h2>➕ Add a player</h2>
     <div class="addRow">
       <input id="nameInput" placeholder="Player name" />
       <button id="addBtn">Add</button>
+    </div>
     </div>
     <div class="sortRow">
       <span class="sortLabel">Sort:</span>
@@ -423,7 +446,7 @@
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="resetCard">
     <button id="makeBtn">🏆 Make Teams</button>
     <button class="secondary" id="reshuffleBtn" style="display:none;">🔀 Reshuffle</button>
     <button class="secondary" id="resetBtn">↺ Reset to Default Numbers</button>
@@ -452,6 +475,42 @@ const DEFAULT_NAMES = [
 
 let players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, absent: false }));
 const plistEl = document.getElementById('plist');
+
+// ---- Admin mode (only admin can edit; everyone else sees a view-only list) ----
+const ADMIN_PIN = "1234"; // TODO: change this to your own PIN
+let isAdmin = localStorage.getItem('disc-team-admin') === 'yes';
+
+function applyAdminVisibility() {
+  const adminBtn = document.getElementById('adminBtn');
+  adminBtn.textContent = isAdmin ? '🔓 Admin' : '🔒 Admin';
+  document.getElementById('addPlayerBlock').style.display = isAdmin ? '' : 'none';
+  document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
+  document.getElementById('resetBtn').style.display = isAdmin ? '' : 'none';
+}
+
+document.getElementById('adminBtn').addEventListener('click', () => {
+  if (isAdmin) {
+    if (confirm('Admin mode band karein? (Sirf aapke is phone/browser par)')) {
+      isAdmin = false;
+      localStorage.setItem('disc-team-admin', 'no');
+      applyAdminVisibility();
+      render();
+    }
+    return;
+  }
+  const pin = prompt('Admin PIN daalein:');
+  if (pin === null) return;
+  if (pin === ADMIN_PIN) {
+    isAdmin = true;
+    localStorage.setItem('disc-team-admin', 'yes');
+    applyAdminVisibility();
+    render();
+  } else {
+    alert('Galat PIN');
+  }
+});
+
+applyAdminVisibility();
 const nameInput = document.getElementById('nameInput');
 const errEl = document.getElementById('err');
 const teamsOut = document.getElementById('teamsOut');
@@ -493,7 +552,9 @@ document.getElementById('sortNumBtn').addEventListener('click', () => setSort('n
 function render() {
   sortPlayers();
   updateSortButtons();
-  plistEl.innerHTML = players.map((p, i) => `
+  plistEl.innerHTML = players.map((p, i) => {
+    if (isAdmin) {
+      return `
     <li>
       <div class="pgroup">
         <span class="pname ${p.absent ? 'absent' : ''}">${p.name}</span>
@@ -503,8 +564,19 @@ function render() {
         <button class="chip absent ${p.absent ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
         <button class="del" data-i="${i}" data-act="del">&times;</button>
       </div>
-    </li>
-  `).join('');
+    </li>`;
+    }
+    return `
+    <li>
+      <div class="pgroup">
+        <span class="pname ${p.absent ? 'absent' : ''}">${p.name}</span>
+        <span class="rating">${p.rating}</span>
+      </div>
+      <div class="actrow">
+        ${p.absent ? '<span class="chip absent on">absent</span>' : ''}
+      </div>
+    </li>`;
+  }).join('');
 }
 
 plistEl.addEventListener('click', (e) => {
