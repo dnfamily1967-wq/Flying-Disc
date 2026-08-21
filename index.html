@@ -78,17 +78,23 @@
     position: absolute;
     top: 14px;
     right: 16px;
-    width: auto;
+    width: 62px;
+    height: 62px;
     margin: 0;
     z-index: 3;
-    background: rgba(255,255,255,0.14);
-    border: 1px solid rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 35% 30%, #FF9A5A 0%, var(--orange) 55%, #C6491C 100%);
+    border: 2px solid rgba(255,255,255,0.5);
     color: #fff;
     font-size: 11px;
-    font-weight: 700;
-    padding: 6px 11px;
-    border-radius: 20px;
-    box-shadow: none;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    padding: 0;
+    border-radius: 50%;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
 .hero-logo {
     width: 64px;
@@ -416,7 +422,7 @@
 <body>
 
 <div class="hero">
-  <button id="adminBtn" class="admin-btn">🔒 Admin</button>
+  <button id="adminBtn" class="admin-btn">Admin</button>
   <img src="icon-192.png" alt="Morning Walkers logo" class="hero-logo">
   <div class="hero-text">
   <div class="tag">Daily flying disc</div>
@@ -477,12 +483,12 @@ let players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, absent: fal
 const plistEl = document.getElementById('plist');
 
 // ---- Admin mode (only admin can edit; everyone else sees a view-only list) ----
-const ADMIN_PIN = "1234"; // TODO: change this to your own PIN
+const ADMIN_PIN = "3648";
 let isAdmin = localStorage.getItem('disc-team-admin') === 'yes';
 
 function applyAdminVisibility() {
   const adminBtn = document.getElementById('adminBtn');
-  adminBtn.textContent = isAdmin ? '🔓 Admin' : '🔒 Admin';
+  adminBtn.textContent = isAdmin ? 'Admin ✓' : 'Admin';
   document.getElementById('addPlayerBlock').style.display = isAdmin ? '' : 'none';
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('resetBtn').style.display = isAdmin ? '' : 'none';
