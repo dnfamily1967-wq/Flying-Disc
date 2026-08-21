@@ -120,6 +120,7 @@
   .addRow { display: flex; gap: 8px; }
   .addRow input {
     flex: 1;
+    min-width: 0;
     border: 1.5px solid var(--line);
     border-radius: 12px;
     padding: 12px 14px;
@@ -320,8 +321,9 @@
     .sub { font-size: 15.5px; }
     .card { padding: 20px 14px; border-radius: 20px; }
     .card h2 { font-size: 17px; }
-    .addRow input { font-size: 18px; padding: 16px 16px; border-radius: 14px; }
-    .addRow button { padding: 0 22px; border-radius: 14px; font-size: 17px; }
+    .addRow { gap: 6px; }
+    .addRow input { font-size: 15px; padding: 12px 12px; border-radius: 12px; min-width: 0; }
+    .addRow button { padding: 0 14px; border-radius: 12px; font-size: 14px; }
     .pname {
       font-size: 21px;
       flex: 1;
@@ -398,7 +400,6 @@
   <div class="hero-text">
   <div class="tag">Daily flying disc</div>
   <h1>Team Maker</h1>
-  <div class="sub">Add names, set skill numbers, and teams get made automatically 🥏</div>
   </div>
 </div>
 
