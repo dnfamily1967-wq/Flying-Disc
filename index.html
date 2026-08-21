@@ -488,6 +488,7 @@ function makeTeams() {
 document.getElementById('makeBtn').addEventListener('click', makeTeams);
 reshuffleBtn.addEventListener('click', makeTeams);
 document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('Pakka? Isse sabki current list/ratings mit jayengi aur default list wapas aa jayegi — ye sabhi phones mein bhi ho jayega.')) return;
   players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, absent: false }));
   render();
   save();
@@ -506,8 +507,13 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const playersDocRef = db.collection('disc_team').doc('players');
 let suppressNextSnapshot = false; // avoid re-render loop right after our own save
+let cloudReady = false; // true once we've received the real latest data from the cloud at least once
 
 function save() {
+  if (!cloudReady) {
+    alert('Abhi data load ho raha hai, thoda ruk kar dobara try karo (2-3 second).');
+    return;
+  }
   try {
     localStorage.setItem('disc-team-players', JSON.stringify(players));
   } catch (e) {
@@ -541,6 +547,7 @@ function load() {
   render();
 
   playersDocRef.onSnapshot((doc) => {
+    cloudReady = true;
     if (suppressNextSnapshot) { suppressNextSnapshot = false; return; }
     if (doc.exists && Array.isArray(doc.data().list)) {
       players = doc.data().list;
@@ -549,6 +556,7 @@ function load() {
     }
   }, (err) => {
     console.error('Cloud sync error (using local data):', err);
+    cloudReady = true; // allow local-only use if cloud is unreachable
   });
 }
 
