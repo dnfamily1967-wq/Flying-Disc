@@ -304,15 +304,73 @@
     border-color: var(--green-mid);
     color: #fff;
   }
+
+  /* ===== Desktop layout — wider, two-column, more "professional" feel ===== */
+  @media (min-width: 860px) {
+    body { padding: 30px 0 60px; }
+    .hero {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 40px 48px 46px;
+      border-radius: 26px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .hero::after { font-size: 170px; right: 10px; top: -30px; }
+    .hero-logo { width: 88px; height: 88px; margin-bottom: 0; flex-shrink: 0; }
+    .hero-text { display: flex; flex-direction: column; }
+    h1 { font-size: 40px; }
+    .sub { font-size: 15px; margin-top: 8px; }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 28px auto 0;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 1.35fr 400px;
+      grid-template-areas:
+        "players teams"
+        "players results"
+        "players hint";
+      gap: 22px;
+      align-items: start;
+    }
+    .wrap > .card:nth-of-type(1) { grid-area: players; margin-top: 0; padding: 26px; border-radius: 22px; }
+    .wrap > .card:nth-of-type(2) {
+      grid-area: teams;
+      margin-top: 0;
+      padding: 24px;
+      border-radius: 22px;
+      position: sticky;
+      top: 24px;
+    }
+    #teamsOut { grid-area: results; margin-top: 0; flex-direction: column; }
+    .install-hint { grid-area: hint; margin-top: 0; text-align: left; padding: 0; }
+
+    .addRow input { font-size: 15.5px; padding: 13px 16px; }
+    button { font-size: 15px; cursor: pointer; }
+    button:hover { filter: brightness(1.05); }
+    ul.plist li:hover { background: #FAF8F0; border-radius: 8px; }
+
+    /* Two-column player list once there's real width to spare */
+    ul.plist {
+      column-count: 2;
+      column-gap: 28px;
+    }
+    ul.plist li { break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
 
 <div class="hero">
   <img src="icon-192.png" alt="Morning Walkers logo" class="hero-logo">
+  <div class="hero-text">
   <div class="tag">Daily flying disc</div>
   <h1>Team Maker</h1>
   <div class="sub">Add names, set skill numbers, and teams get made automatically 🥏</div>
+  </div>
 </div>
 
 <div class="wrap">
