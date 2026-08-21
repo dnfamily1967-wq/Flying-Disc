@@ -47,7 +47,10 @@
     color: var(--ink);
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
+    max-width: 100%;
+    overflow-x: hidden;
   }
+  * { max-width: 100%; }
   body {
     padding: env(safe-area-inset-top, 0) 0 40px;
   }
@@ -307,7 +310,7 @@
 
   /* ===== Desktop layout — wider, two-column, more "professional" feel ===== */
   /* ===== Mobile — everything bigger, fills the screen more like an app ===== */
-  @media (max-width: 859px) {
+  @media (max-width: 1023px) {
     .wrap { padding: 0 10px; }
     .hero { padding: 26px 16px 30px; }
     h1 { font-size: 34px; }
@@ -332,7 +335,7 @@
     .saved-msg { font-size: 14px; }
   }
 
-  @media (min-width: 860px) {
+  @media (min-width: 1024px) {
     body { padding: 30px 0 60px; }
     .hero {
       max-width: 1080px;
@@ -354,7 +357,7 @@
       margin: 28px auto 0;
       padding: 0 24px;
       display: grid;
-      grid-template-columns: 1.35fr 400px;
+      grid-template-columns: 1.35fr minmax(280px, 400px);
       grid-template-areas:
         "players teams"
         "players results"
