@@ -510,6 +510,15 @@ function load() {
 
 render();
 load();
+
+// Offline support: register service worker so the app works without internet after first load
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(function(err) {
+      console.log('Service worker registration failed:', err);
+    });
+  });
+}
 </script>
 </body>
 </html>
