@@ -16,6 +16,10 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="manifest" href="manifest.json">
 
+<!-- Firebase (cloud sync so data is shared across everyone's phones) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -489,13 +493,33 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   save();
 });
 
+// ---- Firebase / Firestore cloud sync ----
+const firebaseConfig = {
+  apiKey: "AIzaSyDDl9nYHaOokHC0Uqk25l0EH__RkNZiVSY",
+  authDomain: "flying-disc-1e8c2.firebaseapp.com",
+  projectId: "flying-disc-1e8c2",
+  storageBucket: "flying-disc-1e8c2.firebasestorage.app",
+  messagingSenderId: "774852929390",
+  appId: "1:774852929390:web:509d7f6e6d85cba5a6037f"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const playersDocRef = db.collection('disc_team').doc('players');
+let suppressNextSnapshot = false; // avoid re-render loop right after our own save
+
 function save() {
   try {
     localStorage.setItem('disc-team-players', JSON.stringify(players));
-    showSaved();
   } catch (e) {
-    console.error('Save failed', e);
+    console.error('Local save failed', e);
   }
+  suppressNextSnapshot = true;
+  playersDocRef.set({ list: players, updatedAt: Date.now() })
+    .then(() => showSaved())
+    .catch((e) => {
+      console.error('Cloud save failed', e);
+      showSaved(); // still saved locally, so don't alarm the user
+    });
 }
 
 let savedTimer;
@@ -509,15 +533,23 @@ function showSaved() {
 document.getElementById('saveBtn').addEventListener('click', save);
 
 function load() {
+  // Fast local render first (works offline), then live cloud listener keeps everyone in sync
   try {
     const raw = localStorage.getItem('disc-team-players');
-    if (raw) {
-      players = JSON.parse(raw);
-    }
-  } catch (e) {
-    save();
-  }
+    if (raw) players = JSON.parse(raw);
+  } catch (e) { /* ignore */ }
   render();
+
+  playersDocRef.onSnapshot((doc) => {
+    if (suppressNextSnapshot) { suppressNextSnapshot = false; return; }
+    if (doc.exists && Array.isArray(doc.data().list)) {
+      players = doc.data().list;
+      try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
+      render();
+    }
+  }, (err) => {
+    console.error('Cloud sync error (using local data):', err);
+  });
 }
 
 render();
