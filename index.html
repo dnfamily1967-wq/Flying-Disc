@@ -565,13 +565,20 @@ function setSort(mode) {
 document.getElementById('sortNameBtn').addEventListener('click', () => setSort('name'));
 document.getElementById('sortNumBtn').addEventListener('click', () => setSort('number'));
 
+function ratingColor(r) {
+  const rating = Math.max(1, Math.min(9, Number(r) || 1));
+  const hue = 120 - ((rating - 1) / 8) * 120; // 1=green(120) ... 9=red(0)
+  return `hsl(${hue}, 65%, 90%)`;
+}
+
 function render() {
   sortPlayers();
   updateSortButtons();
   plistEl.innerHTML = players.map((p, i) => {
+    const bg = ratingColor(p.rating);
     if (isAdmin) {
       return `
-    <li>
+    <li style="background:${bg}">
       <span class="pname ${p.absent ? 'absent' : ''}">${p.name}</span>
       <div class="ratingMid">
         <input class="rating" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="9" value="${p.rating}" data-i="${i}" />
@@ -583,7 +590,7 @@ function render() {
     </li>`;
     }
     return `
-    <li>
+    <li style="background:${bg}">
       <span class="pname ${p.absent ? 'absent' : ''}">${p.name}</span>
       <div class="ratingMid">
         <span class="rating">${p.rating}</span>
@@ -612,6 +619,7 @@ plistEl.addEventListener('change', (e) => {
   let val = parseInt(e.target.value, 10);
   if (isNaN(val) || val < 1) val = 1;
   players[i].rating = val;
+  render();
   save();
 });
 
