@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Disc Team Maker</title>
+<title>Flying Disc Morning Walkers — Jubilee Park</title>
 
 <!-- Mobile "app" behaviour: lets people Add to Home Screen and it opens full-screen like an app -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Disc Teams">
+<meta name="apple-mobile-web-app-title" content="Morning Walkers">
 <meta name="theme-color" content="#1F4B33">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -129,6 +129,7 @@
     color: #fff;
     margin: 4px 0 0;
     letter-spacing: -0.5px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.18);
   }
   .sub { color: #C9DACB; font-size: 13.5px; margin-top: 6px; }
 
@@ -266,6 +267,19 @@
     width: auto;
   }
   .del:hover { color: var(--red); }
+  .rowActions { display: flex; gap: 2px; justify-content: center; white-space: nowrap; }
+  .edit {
+    background: none;
+    border: none;
+    color: #C4C2B6;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+    margin: 0;
+    width: auto;
+  }
+  .edit:hover { color: var(--green-mid); }
 
   button {
     margin-top: 12px;
@@ -439,7 +453,7 @@
     font-size: 18px;
   }
   .modalLabel { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 6px; }
-  .modalCard select, .modalCard input[type="password"] {
+  .modalCard select, .modalCard input {
     width: 100%;
     border: 1.5px solid var(--line);
     border-radius: 12px;
@@ -447,10 +461,12 @@
     font-size: 15px;
     font-family: inherit;
     background: #FCFBF7;
+    box-sizing: border-box;
   }
   .modalCard select:focus, .modalCard input:focus { outline: none; border-color: var(--green-mid); background: #fff; }
   .modalBtnRow { display: flex; gap: 10px; margin-top: 18px; }
   .modalBtnRow button { margin-top: 0; }
+  .modalScroll { max-height: 60vh; overflow-y: auto; padding-right: 2px; }
 
   .login-status {
     color: #C9DACB;
@@ -717,10 +733,11 @@
 
 <div class="hero">
   <button id="adminBtn" class="admin-btn">Admin</button>
-  <img src="icon-192.png" alt="Morning Walkers logo" class="hero-logo">
+  <img src="icon-192.png" alt="Flying Disc Morning Walkers logo" class="hero-logo">
   <div class="hero-text">
-  <div class="tag">Daily flying disc</div>
-  <h1>Team Maker</h1>
+  <div class="tag">🥏 Flying Disc</div>
+  <h1>Morning Walkers</h1>
+  <div class="sub" style="margin-top:0;">Jubilee Park</div>
   <div class="login-status" id="loginStatus"></div>
   </div>
 </div>
@@ -827,13 +844,20 @@
     <div class="acctMeta" id="accountsMeta"></div>
   </div>
 
+  <div class="card accent-blue" id="accountsDuesCard" style="display:none;">
+    <h2 id="accountsDuesTitle">📋 DUES</h2>
+    <div id="accountsDuesResult"></div>
+  </div>
+
   <div class="card accent-green">
     <h2>💰 CONTRIBUTIONS</h2>
+    <div id="accountsContribAddRow" style="display:none;"><button class="secondary" id="addPersonBtn">➕ ADD / EDIT PERSON</button></div>
     <div id="accountsContribResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
   </div>
 
   <div class="card accent-red">
     <h2>🧾 EXPENSE LEDGER</h2>
+    <div id="accountsExpAddRow" style="display:none;"><button class="secondary" id="addExpenseBtn">➕ ADD ENTRY</button></div>
     <div id="accountsExpResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
   </div>
   </div>
@@ -878,6 +902,41 @@
         <button class="secondary" id="setPassCancelBtn" type="button">✖ CANCEL</button>
         <button id="setPassSubmitBtn" type="button">💾 SAVE &amp; LOGIN</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modalOverlay" id="personModalOverlay">
+  <div class="modalCard">
+    <h2 id="personModalTitle">➕ ADD PERSON</h2>
+    <label class="modalLabel">Name</label>
+    <input type="text" id="personModalName" placeholder="Player name">
+    <div class="modalScroll" id="personModalMonths"></div>
+    <div class="modalBtnRow">
+      <button class="secondary" id="personModalCancelBtn" type="button">✖ CANCEL</button>
+      <button id="personModalSaveBtn" type="button">💾 SAVE</button>
+    </div>
+  </div>
+</div>
+
+<div class="modalOverlay" id="expenseModalOverlay">
+  <div class="modalCard">
+    <h2 id="expenseModalTitle">➕ ADD EXPENSE ENTRY</h2>
+    <label class="modalLabel">Date</label>
+    <input type="text" id="expModalDate" placeholder="e.g. 27-08-2026">
+    <label class="modalLabel">Head / Description</label>
+    <input type="text" id="expModalHead" placeholder="e.g. Ground fee">
+    <label class="modalLabel">Received (₹)</label>
+    <input type="text" id="expModalReceived" placeholder="leave blank if none" inputmode="decimal">
+    <label class="modalLabel">Expense (₹)</label>
+    <input type="text" id="expModalExp" placeholder="leave blank if none" inputmode="decimal">
+    <label class="modalLabel">Balance (₹)</label>
+    <input type="text" id="expModalBalance" placeholder="running balance" inputmode="decimal">
+    <label class="modalLabel">Remark</label>
+    <input type="text" id="expModalRemark" placeholder="optional note">
+    <div class="modalBtnRow">
+      <button class="secondary" id="expenseModalCancelBtn" type="button">✖ CANCEL</button>
+      <button id="expenseModalSaveBtn" type="button">💾 SAVE</button>
     </div>
   </div>
 </div>
@@ -1768,7 +1827,13 @@ const accountsStatusEl = document.getElementById('accountsUploadStatus');
 const accountsMetaEl = document.getElementById('accountsMeta');
 const accountsBalanceCard = document.getElementById('accountsBalanceCard');
 const accountsBalanceValueEl = document.getElementById('accountsBalanceValue');
+const accountsDuesCard = document.getElementById('accountsDuesCard');
+const accountsDuesTitleEl = document.getElementById('accountsDuesTitle');
+const accountsDuesResultEl = document.getElementById('accountsDuesResult');
+const accountsContribAddRow = document.getElementById('accountsContribAddRow');
+const accountsExpAddRow = document.getElementById('accountsExpAddRow');
 let accountsData = null;
+let lastContributionKeepIdx = []; // filtered-column-position -> real index in accountsData.contribution.months
 
 function sheetToRows(ws) {
   return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
@@ -1905,17 +1970,20 @@ function parseWorkbookToAccounts(workbook) {
 
 // Applies the Aug-2026 cutoff to whatever's already stored/synced too (not just fresh uploads),
 // so already-loaded data is trimmed the same way as soon as it renders.
+// Returns the filtered view plus keepIdx (filtered-column-position -> real index in the
+// unfiltered accountsData.contribution.months), so edits made against the filtered view can be
+// written back to the correct real column.
 function filterContributionByCutoff(contribution) {
-  if (!contribution || !Array.isArray(contribution.months)) return contribution;
+  if (!contribution || !Array.isArray(contribution.months)) return { months: [], people: [], summary: {}, keepIdx: [] };
   const keepIdx = contribution.months.map((_, i) => i).filter((i) => {
     const ym = monthLabelToYYYYMM(contribution.months[i]);
     return ym === null || ym >= ACCOUNTS_CUTOFF_YYYYMM;
   });
   const months = keepIdx.map((i) => contribution.months[i]);
-  const people = (contribution.people || []).map((p) => ({ name: p.name, values: keepIdx.map((i) => p.values[i]) }));
+  const people = (contribution.people || []).map((p) => ({ name: p.name, values: keepIdx.map((i) => (p.values && p.values[i]) || '') }));
   const summary = {};
   Object.keys(contribution.summary || {}).forEach((k) => { summary[k] = keepIdx.map((i) => contribution.summary[k][i]); });
-  return { months, people, summary };
+  return { months, people, summary, keepIdx };
 }
 
 // Returns [{ e, idx }] — idx is the entry's real position in accountsData.expenses, kept around
@@ -1950,28 +2018,62 @@ function deleteExpenseEntry(idx) {
   });
 }
 
-// One delegated listener per table handles clicks on any row's delete button, since rows are
-// re-rendered fresh every time accountsData changes.
+// One delegated listener per table handles clicks on any row's delete/edit button, since rows
+// are re-rendered fresh every time accountsData changes.
 accountsResultEl.addEventListener('click', (e) => {
-  const btn = e.target.closest('.rowDeleteBtn');
-  if (!btn) return;
-  deleteContributionPerson(btn.dataset.name);
+  const delBtn = e.target.closest('.rowDeleteBtn');
+  if (delBtn) { deleteContributionPerson(delBtn.dataset.name); return; }
+  const editBtn = e.target.closest('.rowEditBtn');
+  if (editBtn) { openPersonModal(editBtn.dataset.name); }
 });
 accountsExpResultEl.addEventListener('click', (e) => {
-  const btn = e.target.closest('.rowDeleteBtn');
-  if (!btn) return;
-  deleteExpenseEntry(Number(btn.dataset.idx));
+  const delBtn = e.target.closest('.rowDeleteBtn');
+  if (delBtn) { deleteExpenseEntry(Number(delBtn.dataset.idx)); return; }
+  const editBtn = e.target.closest('.rowEditBtn');
+  if (editBtn) { openExpenseModal(Number(editBtn.dataset.idx)); }
 });
 
+// ---- Dues: shows, for the most recent (current) month column, who has and hasn't paid yet ----
+function renderAccountsDues(contribution) {
+  if (!contribution || !contribution.people || !contribution.people.length || !contribution.months.length) {
+    accountsDuesCard.style.display = 'none';
+    return;
+  }
+  const lastIdx = contribution.months.length - 1;
+  const monthLabel = contribution.months[lastIdx];
+  const rows = contribution.people.map((p) => {
+    const val = String(p.values[lastIdx] || '').trim();
+    const paid = !!val && val !== '—';
+    return `<div class="fineRow ${paid ? '' : 'fined'}">
+      <span class="fineName">${p.name}</span>
+      <span class="fineCounts">${paid ? ('Paid ₹' + val) : 'Not yet paid'}</span>
+      <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ Due'}</span>
+    </div>`;
+  }).join('');
+  const dueCount = contribution.people.filter((p) => {
+    const val = String(p.values[lastIdx] || '').trim();
+    return !val || val === '—';
+  }).length;
+  accountsDuesCard.style.display = '';
+  accountsDuesTitleEl.textContent = `📋 ${monthLabel} DUES${dueCount ? ' (' + dueCount + ' pending)' : ' — all paid ✅'}`;
+  accountsDuesResultEl.innerHTML = rows;
+}
+
 function renderAccounts() {
+  accountsContribAddRow.style.display = isAdmin ? '' : 'none';
+  accountsExpAddRow.style.display = isAdmin ? '' : 'none';
   if (!accountsData) {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
     accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
     accountsBalanceCard.style.display = 'none';
+    accountsDuesCard.style.display = 'none';
+    lastContributionKeepIdx = [];
     return;
   }
   const { updatedAt, uploadedBy } = accountsData;
   const contribution = filterContributionByCutoff(accountsData.contribution);
+  lastContributionKeepIdx = contribution.keepIdx;
+  renderAccountsDues(contribution);
   const expensePairs = filterExpensesByCutoff(accountsData.expenses); // [{ e, idx }], idx = real position for delete
   const expenses = expensePairs.map((p) => p.e);
 
@@ -1999,7 +2101,7 @@ function renderAccounts() {
     const escName = (n) => String(n).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
     const headCells = ['NAME', ...contribution.months].map((h) => `<th>${h}</th>`).join('') + (isAdmin ? '<th></th>' : '');
     const bodyRows = contribution.people.map((p) => `
-      <tr><td>${p.name}</td>${p.values.map((v) => `<td>${v || '—'}</td>`).join('')}${isAdmin ? `<td><button class="del rowDeleteBtn" data-name="${escName(p.name)}" title="Delete ${escName(p.name)}'s row">&times;</button></td>` : ''}</tr>`).join('');
+      <tr><td>${p.name}</td>${p.values.map((v) => `<td>${v || '—'}</td>`).join('')}${isAdmin ? `<td><div class="rowActions"><button class="edit rowEditBtn" data-name="${escName(p.name)}" title="Edit ${escName(p.name)}'s row">✏️</button><button class="del rowDeleteBtn" data-name="${escName(p.name)}" title="Delete ${escName(p.name)}'s row">&times;</button></div></td>` : ''}</tr>`).join('');
     const summaryOrder = ['OLD BALANCE', 'TOTAL', 'EXP', 'BALANCE'];
     const summaryRows = summaryOrder.filter((k) => contribution.summary[k]).map((k) => `
       <tr class="acctSummary${k === 'BALANCE' ? ' balance' : ''}"><td>${k}</td>${contribution.summary[k].map((v) => `<td>${v || '—'}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`).join('');
@@ -2017,7 +2119,7 @@ function renderAccounts() {
         <td class="num">${e.exp || ''}</td>
         <td class="num">${e.balance || ''}</td>
         <td>${e.remark || ''}</td>
-        ${isAdmin ? `<td><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></td>` : ''}
+        ${isAdmin ? `<td><div class="rowActions"><button class="edit rowEditBtn" data-idx="${idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></div></td>` : ''}
       </tr>`).join('');
     accountsExpResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable expTable"><thead><tr><th>DATE</th><th>HEAD</th><th>RECEIVED</th><th>EXP</th><th>BALANCE</th><th>REMARK</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>`;
   } else {
@@ -2031,6 +2133,101 @@ function loadAccounts() {
     renderAccounts();
   }, (err) => console.error('Accounts sync error', err));
 }
+
+// ---- Admin: manual add / edit for Contributions (a "person" row) and Expense Ledger entries ----
+function currentMonthLabelFor(d = new Date()) {
+  return MONTH_NAMES_3[d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
+}
+
+const personModalOverlay = document.getElementById('personModalOverlay');
+const personModalTitleEl = document.getElementById('personModalTitle');
+const personModalNameInput = document.getElementById('personModalName');
+const personModalMonthsEl = document.getElementById('personModalMonths');
+let personModalEditName = null; // null = adding a new person; otherwise the original name being edited
+
+function openPersonModal(name) {
+  personModalEditName = name || null;
+  personModalTitleEl.textContent = name ? `✏️ EDIT ${name}` : '➕ ADD PERSON';
+  personModalNameInput.value = name || '';
+  const contribution = accountsData && accountsData.contribution;
+  const filtered = (contribution && contribution.months && contribution.months.length)
+    ? filterContributionByCutoff(contribution)
+    : { months: [currentMonthLabelFor()], people: [] };
+  const filteredPerson = name ? filtered.people.find((p) => p.name === name) : null;
+  personModalMonthsEl.innerHTML = filtered.months.map((m, i) => `
+    <label class="modalLabel">${m}</label>
+    <input type="text" class="personMonthInput" data-month-idx="${i}" placeholder="₹ amount" value="${filteredPerson ? (filteredPerson.values[i] || '') : ''}">
+  `).join('');
+  personModalOverlay.classList.add('show');
+}
+function closePersonModal() { personModalOverlay.classList.remove('show'); }
+document.getElementById('addPersonBtn').addEventListener('click', () => openPersonModal(null));
+document.getElementById('personModalCancelBtn').addEventListener('click', closePersonModal);
+document.getElementById('personModalSaveBtn').addEventListener('click', () => {
+  const name = personModalNameInput.value.trim().toUpperCase();
+  if (!name) { alert('Please enter a name.'); return; }
+  const existingContribution = accountsData && accountsData.contribution;
+  const contribution = existingContribution
+    ? { months: existingContribution.months.slice(), people: existingContribution.people.map((p) => ({ name: p.name, values: (p.values || []).slice() })), summary: existingContribution.summary || {} }
+    : { months: [currentMonthLabelFor()], people: [], summary: {} };
+
+  let values = new Array(contribution.months.length).fill('');
+  if (personModalEditName) {
+    const existing = contribution.people.find((p) => p.name === personModalEditName);
+    if (existing) values = existing.values.slice();
+  }
+  document.querySelectorAll('.personMonthInput').forEach((inp) => {
+    const filteredIdx = Number(inp.dataset.monthIdx);
+    const realIdx = lastContributionKeepIdx.length ? lastContributionKeepIdx[filteredIdx] : filteredIdx;
+    if (realIdx !== undefined) values[realIdx] = inp.value.trim();
+  });
+
+  const removeName = personModalEditName || name;
+  contribution.people = contribution.people.filter((p) => p.name !== removeName && p.name !== name);
+  contribution.people.push({ name, values });
+
+  accountsDocRef.set({ contribution, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' }, { merge: true })
+    .then(closePersonModal)
+    .catch((err) => { console.error('Save person failed', err); alert('Save failed: ' + err.message); });
+});
+
+const expenseModalOverlay = document.getElementById('expenseModalOverlay');
+const expenseModalTitleEl = document.getElementById('expenseModalTitle');
+let expenseModalEditIdx = null; // null = adding a new entry; otherwise the real index in accountsData.expenses being edited
+
+function openExpenseModal(editIdx) {
+  expenseModalEditIdx = (typeof editIdx === 'number' && !isNaN(editIdx)) ? editIdx : null;
+  const isEdit = expenseModalEditIdx !== null;
+  const entry = isEdit && accountsData && accountsData.expenses ? accountsData.expenses[expenseModalEditIdx] : null;
+  expenseModalTitleEl.textContent = isEdit ? '✏️ EDIT EXPENSE ENTRY' : '➕ ADD EXPENSE ENTRY';
+  document.getElementById('expModalDate').value = entry ? entry.date : '';
+  document.getElementById('expModalHead').value = entry ? entry.head : '';
+  document.getElementById('expModalReceived').value = entry ? entry.received : '';
+  document.getElementById('expModalExp').value = entry ? entry.exp : '';
+  const lastBal = (accountsData && Array.isArray(accountsData.expenses) && accountsData.expenses.length)
+    ? accountsData.expenses[accountsData.expenses.length - 1].balance : '';
+  document.getElementById('expModalBalance').value = entry ? entry.balance : lastBal;
+  document.getElementById('expModalRemark').value = entry ? entry.remark : '';
+  expenseModalOverlay.classList.add('show');
+}
+function closeExpenseModal() { expenseModalOverlay.classList.remove('show'); }
+document.getElementById('addExpenseBtn').addEventListener('click', () => openExpenseModal(null));
+document.getElementById('expenseModalCancelBtn').addEventListener('click', closeExpenseModal);
+document.getElementById('expenseModalSaveBtn').addEventListener('click', () => {
+  const date = document.getElementById('expModalDate').value.trim();
+  const head = document.getElementById('expModalHead').value.trim();
+  const received = document.getElementById('expModalReceived').value.trim();
+  const exp = document.getElementById('expModalExp').value.trim();
+  const balance = document.getElementById('expModalBalance').value.trim();
+  const remark = document.getElementById('expModalRemark').value.trim();
+  if (!date || (!received && !exp)) { alert('Please enter a date and either a Received or Expense amount.'); return; }
+  const entry = { date, head, received, exp, balance, remark };
+  const updated = (accountsData && Array.isArray(accountsData.expenses)) ? accountsData.expenses.slice() : [];
+  if (expenseModalEditIdx !== null) { updated[expenseModalEditIdx] = entry; } else { updated.push(entry); }
+  accountsDocRef.set({ expenses: updated, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' }, { merge: true })
+    .then(closeExpenseModal)
+    .catch((err) => { console.error('Save expense entry failed', err); alert('Save failed: ' + err.message); });
+});
 
 document.getElementById('accountsFileInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
