@@ -748,10 +748,18 @@
   table.acctTable.expTable thead th { background: var(--red-soft); color: #8C2E2E; }
   table.acctTable.expTable th:not(:first-child), table.acctTable.expTable td:not(:first-child) { text-align: left; }
   table.acctTable.expTable td.num { text-align: right; }
-  table.acctTable.expTable { min-width: 300px; }
-  table.acctTable.expTable th, table.acctTable.expTable td { padding: 6px 7px; font-size: 11.5px; }
-  table.acctTable.expTable .credit { color: var(--green-deep); font-weight: 800; }
-  table.acctTable.expTable .debit { color: #8C2E2E; font-weight: 800; }
+  /* Expense Ledger: a flexbox list instead of a table, so every entry fits on one line with no
+     left-right scrolling on mobile — Head/Remark truncate with an ellipsis instead of overflowing. */
+  .expList { margin-top: 10px; }
+  .expRow { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+  .expRow:last-child { border-bottom: none; }
+  .expSelect { width: auto; margin: 0; flex-shrink: 0; accent-color: var(--red); }
+  .expDate { flex-shrink: 0; width: 42px; color: var(--muted); font-size: 10.5px; font-weight: 700; }
+  .expHead { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .expHead .expRemark { color: var(--muted); font-weight: 400; }
+  .expAmt { flex-shrink: 0; font-weight: 800; font-size: 12.5px; white-space: nowrap; }
+  .expAmt.credit { color: var(--green-deep); }
+  .expAmt.debit { color: #8C2E2E; }
 </style>
 </head>
 <body>
@@ -893,7 +901,11 @@
 
   <div class="card accent-red">
     <h2 id="accountsExpTitle">🧾 EXPENSE LEDGER</h2>
-    <div id="accountsExpAddRow" style="display:none;"><button class="secondary" id="addExpenseBtn">➕ ADD ENTRY</button><button class="secondary" id="purgeOldExpBtn" style="margin-top:8px; border-color:var(--red); color:#8C2E2E;">🧹 REMOVE PRE-AUG-2026 ENTRIES</button></div>
+    <div id="accountsExpAddRow" style="display:none;">
+      <button class="secondary" id="addExpenseBtn">➕ ADD ENTRY</button>
+      <button class="secondary" id="bulkDeleteExpBtn" style="display:none; margin-top:8px; border-color:var(--red); color:#8C2E2E;">🗑️ DELETE SELECTED (<span id="bulkDeleteCount">0</span>)</button>
+      <button class="secondary" id="purgeOldExpBtn" style="margin-top:8px; border-color:var(--red); color:#8C2E2E;">🧹 REMOVE PRE-AUG-2026 ENTRIES</button>
+    </div>
     <div id="accountsExpResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
   </div>
   </div>
@@ -2145,6 +2157,32 @@ accountsExpResultEl.addEventListener('click', (e) => {
   if (editBtn) { openExpenseModal(Number(editBtn.dataset.idx)); }
 });
 
+// ---- Bulk delete: select several expense entries via checkbox and remove them in one go ----
+const selectedExpenseIdxs = new Set();
+function updateBulkDeleteBtn() {
+  const btn = document.getElementById('bulkDeleteExpBtn');
+  const countEl = document.getElementById('bulkDeleteCount');
+  if (!btn || !countEl) return;
+  countEl.textContent = selectedExpenseIdxs.size;
+  btn.style.display = selectedExpenseIdxs.size > 0 ? '' : 'none';
+}
+accountsExpResultEl.addEventListener('change', (e) => {
+  const cb = e.target.closest('.expSelect');
+  if (!cb) return;
+  const idx = Number(cb.dataset.idx);
+  if (cb.checked) selectedExpenseIdxs.add(idx); else selectedExpenseIdxs.delete(idx);
+  updateBulkDeleteBtn();
+});
+document.getElementById('bulkDeleteExpBtn').addEventListener('click', () => {
+  if (!accountsData || !Array.isArray(accountsData.expenses) || !selectedExpenseIdxs.size) return;
+  const n = selectedExpenseIdxs.size;
+  if (!confirm(`Delete ${n} selected expense entrie(s)? This cannot be undone.`)) return;
+  const updated = accountsData.expenses.filter((_, i) => !selectedExpenseIdxs.has(i));
+  accountsDocRef.update({ expenses: updated })
+    .then(() => { selectedExpenseIdxs.clear(); updateBulkDeleteBtn(); })
+    .catch((err) => { console.error('Bulk delete failed', err); alert('Delete failed: ' + err.message); });
+});
+
 // ---- Dues helpers: "current month" here means the real, present-day calendar month — not just
 // whatever the last column in the sheet happens to be (so an admin entering next month's column
 // in advance never gets treated as "the current month"), and a person can be behind on more than
@@ -2266,22 +2304,25 @@ function renderAccounts() {
 
   const expTitleEl = document.getElementById('accountsExpTitle');
   if (expTitleEl) expTitleEl.textContent = `🧾 EXPENSE LEDGER — ${currentMonthLabelFor()}`;
+  selectedExpenseIdxs.clear(); // indices can shift meaning after any data change, so drop any old selection
+  updateBulkDeleteBtn();
+  const escHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
   if (displayExpensePairs.length) {
     const rows = displayExpensePairs.slice().reverse().map(({ e, idx }) => {
       const received = String(e.received || '').trim();
       const exp = String(e.exp || '').trim();
-      const amtHtml = received ? `<span class="credit">+₹${received}</span>` : (exp ? `<span class="debit">-₹${exp}</span>` : '—');
+      const amtHtml = received ? `<span class="expAmt credit">+₹${received}</span>` : (exp ? `<span class="expAmt debit">-₹${exp}</span>` : '<span class="expAmt">—</span>');
+      const headText = escHtml(e.head || '—') + (e.remark ? ` <span class="expRemark">— ${escHtml(e.remark)}</span>` : '');
       return `
-      <tr>
-        <td>${e.date || '—'}</td>
-        <td>${e.head || '—'}</td>
-        <td class="num">${amtHtml}</td>
-        <td class="num">${e.balance || ''}</td>
-        <td>${e.remark || ''}</td>
-        ${isAdmin ? `<td><div class="rowActions"><button class="edit rowEditBtn" data-idx="${idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></div></td>` : ''}
-      </tr>`;
+      <div class="expRow">
+        ${isAdmin ? `<input type="checkbox" class="expSelect" data-idx="${idx}">` : ''}
+        <span class="expDate">${e.date || '—'}</span>
+        <span class="expHead" title="${escHtml(e.head || '')}${e.remark ? ' — ' + escHtml(e.remark) : ''}">${headText}</span>
+        ${amtHtml}
+        ${isAdmin ? `<div class="rowActions"><button class="edit rowEditBtn" data-idx="${idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></div>` : ''}
+      </div>`;
     }).join('');
-    accountsExpResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable expTable"><thead><tr><th>DATE</th><th>HEAD</th><th>AMOUNT</th><th>BAL</th><th>REMARK</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    accountsExpResultEl.innerHTML = `<div class="expList">${rows}</div>`;
   } else {
     accountsExpResultEl.innerHTML = `<div class="legend" style="margin-top:0;">No expense entries for ${currentMonthLabelFor()} yet.</div>`;
   }
