@@ -731,7 +731,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const playersDocRef = db.collection('disc_team').doc('players');
-const attendanceColRef = db.collection('disc_team_attendance'); // one doc per date, e.g. "2026-08-27"
+// Attendance ko bhi usi "disc_team" collection mein alag doc id se rakha hai
+// (naya top-level collection banane par Firestore security rules usse block kar sakte hain)
+function attendanceDocRef(dateStr) {
+  return db.collection('disc_team').doc(`attendance_${dateStr}`);
+}
 let suppressNextSnapshot = false; // avoid re-render loop right after our own save
 let cloudReady = false; // true once we've received the real latest data from the cloud at least once
 
@@ -747,11 +751,16 @@ function todayStr() {
 function saveAttendanceSnapshot() {
   const dateStr = todayStr();
   const record = players.map(p => ({ name: p.name, present: !p.absent }));
-  attendanceColRef.doc(dateStr).set({
+  attendanceDocRef(dateStr).set({
     date: dateStr,
     players: record,
     savedAt: Date.now()
-  }).catch((e) => console.error('Attendance save failed', e));
+  }).then(() => {
+    console.log('Attendance saved for', dateStr);
+  }).catch((e) => {
+    console.error('Attendance save failed', e);
+    alert('Attendance cloud mein save nahi ho payi: ' + e.message);
+  });
 }
 
 function save() {
@@ -833,11 +842,11 @@ function renderAttendanceResult(dateStr, data) {
 }
 
 function loadAttendance(dateStr) {
-  attendanceColRef.doc(dateStr).get()
+  attendanceDocRef(dateStr).get()
     .then((doc) => renderAttendanceResult(dateStr, doc.exists ? doc.data() : null))
     .catch((e) => {
       console.error('Attendance load failed', e);
-      renderAttendanceResult(dateStr, null);
+      attnResultEl.innerHTML = `<div class="err" style="display:block;">Load nahi ho paya: ${e.message}</div>`;
     });
 }
 
