@@ -2050,29 +2050,62 @@ accountsExpResultEl.addEventListener('click', (e) => {
   if (editBtn) { openExpenseModal(Number(editBtn.dataset.idx)); }
 });
 
-// ---- Dues: shows, for the most recent (current) month column, who has and hasn't paid yet ----
+// ---- Dues helpers: "current month" here means the real, present-day calendar month — not just
+// whatever the last column in the sheet happens to be (so an admin entering next month's column
+// in advance never gets treated as "the current month"), and a person can be behind on more than
+// one month at once (e.g. August still unpaid when September's column already exists).
+function currentMonthLabelFor(d = new Date()) {
+  return MONTH_NAMES_3[d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
+}
+function isMonthPaid(val) {
+  const v = String(val || '').trim();
+  return !!v && v !== '—' && Number(v) !== 0;
+}
+// Index (within contribution.months) of the latest month that is not later than today's real
+// month — i.e. the real "current month" column if present, else the most recent past one.
+// Any column beyond this (an "advance" month already entered ahead of time) is ignored.
+function currentMonthIndex(contribution) {
+  const curYM = monthLabelToYYYYMM(currentMonthLabelFor());
+  let idx = -1;
+  (contribution.months || []).forEach((m, i) => {
+    const ym = monthLabelToYYYYMM(m);
+    if (ym !== null && ym <= curYM) idx = i;
+  });
+  return idx;
+}
+// All months (labels) up to and including curIdx that this person hasn't paid.
+function pendingMonthsFor(contribution, person, curIdx) {
+  const pending = [];
+  for (let i = 0; i <= curIdx; i++) {
+    if (!isMonthPaid(person.values[i])) pending.push(contribution.months[i]);
+  }
+  return pending;
+}
+
+// ---- Dues: for every month up to the real current month, who still hasn't paid ----
 function renderAccountsDues(contribution) {
   if (!contribution || !contribution.people || !contribution.people.length || !contribution.months.length) {
     accountsDuesCard.style.display = 'none';
     return;
   }
-  const lastIdx = contribution.months.length - 1;
-  const monthLabel = contribution.months[lastIdx];
+  const curIdx = currentMonthIndex(contribution);
+  if (curIdx === -1) {
+    accountsDuesCard.style.display = 'none'; // no month up to today has been entered yet
+    return;
+  }
+  const monthLabel = contribution.months[curIdx];
   const rows = contribution.people.map((p) => {
-    const val = String(p.values[lastIdx] || '').trim();
-    const paid = !!val && val !== '—' && Number(val) !== 0;
+    const pending = pendingMonthsFor(contribution, p, curIdx);
+    const paid = pending.length === 0;
     return `<div class="fineRow ${paid ? '' : 'fined'}">
       <span class="fineName">${p.name}</span>
-      <span class="fineCounts">${paid ? ('Paid ₹' + val) : 'Not yet paid'}</span>
+      <span class="fineCounts">${paid ? ('Paid up to ' + monthLabel) : ('Due: ' + pending.join(', '))}</span>
       <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ Due'}</span>
     </div>`;
   }).join('');
-  const dueCount = contribution.people.filter((p) => {
-    const val = String(p.values[lastIdx] || '').trim();
-    return !val || val === '—' || Number(val) === 0;
-  }).length;
+  const dueCount = contribution.people.filter((p) => pendingMonthsFor(contribution, p, curIdx).length > 0).length;
   accountsDuesCard.style.display = '';
-  accountsDuesTitleEl.textContent = `📋 ${monthLabel} DUES${dueCount ? ' (' + dueCount + ' pending)' : ' — all paid ✅'}`;
+  accountsDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}${dueCount ? ' (' + dueCount + ' pending)' : ' — all paid ✅'}`;
   accountsDuesResultEl.innerHTML = rows;
 }
 
@@ -2178,8 +2211,7 @@ function renderMyDuesAndBalance() {
   }
 
   if (!currentUser || !contribution.months.length) { myDuesCard.style.display = 'none'; return; }
-  const lastIdx = contribution.months.length - 1;
-  const monthLabel = contribution.months[lastIdx];
+  const curIdx = currentMonthIndex(contribution);
   const norm = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
   const myName = norm(currentUser);
   // Exact match first; fall back to a first-name match so small spelling/spacing differences
@@ -2187,17 +2219,23 @@ function renderMyDuesAndBalance() {
   let me = contribution.people.find((p) => norm(p.name) === myName);
   if (!me) me = contribution.people.find((p) => norm(p.name).split(' ')[0] === myName.split(' ')[0]);
   myDuesCard.style.display = '';
-  if (!me) {
-    myDuesTitleEl.textContent = `📋 ${monthLabel} DUES`;
-    myDuesResultEl.innerHTML = `<div class="legend" style="margin-top:0;">You're not listed in the ${monthLabel} contribution sheet yet — ask admin to add you (Accounts → Add/Edit Person).</div>`;
+  if (curIdx === -1) {
+    myDuesTitleEl.textContent = '📋 DUES';
+    myDuesResultEl.innerHTML = `<div class="legend" style="margin-top:0;">No contribution data entered for this month yet.</div>`;
     return;
   }
-  const val = String(me.values[lastIdx] || '').trim();
-  const paid = !!val && val !== '—' && Number(val) !== 0;
-  myDuesTitleEl.textContent = `📋 ${monthLabel} DUES`;
+  const monthLabel = contribution.months[curIdx];
+  if (!me) {
+    myDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}`;
+    myDuesResultEl.innerHTML = `<div class="legend" style="margin-top:0;">You're not listed in the contribution sheet yet — ask admin to add you (Accounts → Add/Edit Person).</div>`;
+    return;
+  }
+  const pending = pendingMonthsFor(contribution, me, curIdx);
+  const paid = pending.length === 0;
+  myDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}`;
   myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? '' : 'fined'}">
     <span class="fineName">${me.name}</span>
-    <span class="fineCounts">${paid ? ('Paid ₹' + val) : 'Not yet paid this month'}</span>
+    <span class="fineCounts">${paid ? ('Paid up to ' + monthLabel) : ('Due: ' + pending.join(', '))}</span>
     <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ Due'}</span>
   </div>`;
 }
@@ -2210,10 +2248,6 @@ function loadAccounts() {
 }
 
 // ---- Admin: manual add / edit for Contributions (a "person" row) and Expense Ledger entries ----
-function currentMonthLabelFor(d = new Date()) {
-  return MONTH_NAMES_3[d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
-}
-
 const personModalOverlay = document.getElementById('personModalOverlay');
 const personModalTitleEl = document.getElementById('personModalTitle');
 const personModalNameInput = document.getElementById('personModalName');
