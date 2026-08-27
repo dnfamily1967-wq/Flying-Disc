@@ -747,6 +747,16 @@
   <div class="myFineCard" id="myFineCard" style="display:none;"></div>
 
   <div class="tabPanel" id="tab-home">
+  <div class="acctBalanceCard" id="homeBalanceCard" style="display:none;">
+    <div class="abTitle">Team Balance</div>
+    <div class="abValue" id="homeBalanceValue">—</div>
+  </div>
+
+  <div class="card accent-blue" id="myDuesCard" style="display:none;">
+    <h2 id="myDuesTitle">📋 YOUR DUES</h2>
+    <div id="myDuesResult"></div>
+  </div>
+
   <div class="card accent-orange">
     <div id="addPlayerBlock">
     <h2>➕ ADD A PLAYER</h2>
@@ -872,7 +882,7 @@
   <button class="navBtn active" data-tab="home"><span class="navIcon">🏠</span><span class="navLabel">Home</span></button>
   <button class="navBtn" data-tab="teams"><span class="navIcon">🏆</span><span class="navLabel">Teams</span></button>
   <button class="navBtn" data-tab="attendance"><span class="navIcon">🗓️</span><span class="navLabel">Attendance</span></button>
-  <button class="navBtn" data-tab="accounts"><span class="navIcon">💰</span><span class="navLabel">Accounts</span></button>
+  <button class="navBtn" id="navAccountsBtn" data-tab="accounts" style="display:none;"><span class="navIcon">💰</span><span class="navLabel">Accounts</span></button>
   <button class="navBtn" id="navHolidayBtn" data-tab="holiday" style="display:none;"><span class="navIcon">🏖️</span><span class="navLabel">Holiday</span></button>
 </nav>
 
@@ -996,6 +1006,11 @@ function applyAdminVisibility() {
     navHolidayBtn.style.display = isAdmin ? '' : 'none';
     if (!isAdmin && navHolidayBtn.classList.contains('active')) showTab('home');
   }
+  const navAccountsBtn = document.getElementById('navAccountsBtn');
+  if (navAccountsBtn) {
+    navAccountsBtn.style.display = isAdmin ? '' : 'none';
+    if (!isAdmin && navAccountsBtn.classList.contains('active')) showTab('home');
+  }
   const loginStatusEl = document.getElementById('loginStatus');
   if (loginStatusEl) {
     loginStatusEl.textContent = currentUser
@@ -1041,6 +1056,7 @@ function completeLogin(name) {
   applyAdminVisibility();
   render();
   refreshMyFineCard();
+  renderMyDuesAndBalance();
 }
 
 function showSetPasswordStep(name) {
@@ -1073,6 +1089,7 @@ document.getElementById('adminBtn').addEventListener('click', () => {
       applyAdminVisibility();
       render();
       refreshMyFineCard();
+      renderMyDuesAndBalance();
     }
     return;
   }
@@ -2125,6 +2142,55 @@ function renderAccounts() {
   } else {
     accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No expense entries found in the uploaded file.</div>';
   }
+  renderMyDuesAndBalance();
+}
+
+// ---- Home dashboard: every player (not just admin) sees the team balance and their own
+// current-month dues status here — the full ledger detail stays admin-only in the Accounts tab.
+function renderMyDuesAndBalance() {
+  const homeBalanceCard = document.getElementById('homeBalanceCard');
+  const homeBalanceValueEl = document.getElementById('homeBalanceValue');
+  const myDuesCard = document.getElementById('myDuesCard');
+  const myDuesTitleEl = document.getElementById('myDuesTitle');
+  const myDuesResultEl = document.getElementById('myDuesResult');
+  if (!homeBalanceCard || !myDuesCard) return; // called before the DOM for these exists yet
+
+  if (!accountsData) {
+    homeBalanceCard.style.display = 'none';
+    myDuesCard.style.display = 'none';
+    return;
+  }
+  const contribution = filterContributionByCutoff(accountsData.contribution);
+  const expensePairs = filterExpensesByCutoff(accountsData.expenses);
+
+  let balance = '';
+  if (expensePairs.length) {
+    balance = expensePairs[expensePairs.length - 1].e.balance;
+  } else if (contribution.summary && contribution.summary['BALANCE']) {
+    const vals = contribution.summary['BALANCE'].filter((v) => v);
+    balance = vals[vals.length - 1] || '';
+  }
+  if (balance) {
+    homeBalanceCard.style.display = '';
+    homeBalanceValueEl.textContent = '₹' + balance;
+  } else {
+    homeBalanceCard.style.display = 'none';
+  }
+
+  if (!currentUser || !contribution.months.length) { myDuesCard.style.display = 'none'; return; }
+  const lastIdx = contribution.months.length - 1;
+  const monthLabel = contribution.months[lastIdx];
+  const me = contribution.people.find((p) => p.name === currentUser.toUpperCase());
+  if (!me) { myDuesCard.style.display = 'none'; return; }
+  const val = String(me.values[lastIdx] || '').trim();
+  const paid = !!val && val !== '—';
+  myDuesCard.style.display = '';
+  myDuesTitleEl.textContent = `📋 ${monthLabel} DUES`;
+  myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? '' : 'fined'}">
+    <span class="fineName">${currentUser}</span>
+    <span class="fineCounts">${paid ? ('Paid ₹' + val) : 'Not yet paid this month'}</span>
+    <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ Due'}</span>
+  </div>`;
 }
 
 function loadAccounts() {
@@ -2297,6 +2363,7 @@ document.querySelectorAll('.navBtn').forEach((btn) => {
   let saved = '';
   try { saved = localStorage.getItem('disc-team-tab') || ''; } catch (e) {}
   if (saved === 'holiday' && !isAdmin) saved = 'home'; // holiday tab is admin-only
+  if (saved === 'accounts' && !isAdmin) saved = 'home'; // accounts detail tab is admin-only
   showTab(saved || 'home');
 })();
 
