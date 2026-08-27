@@ -1774,6 +1774,45 @@ function sheetToRows(ws) {
   return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
 }
 
+// Accounts history cutoff: only Aug-2026 onward is kept (older months/entries are dropped on
+// import). Stored as a YYYYMM number so it's easy to compare against parsed dates/labels.
+const ACCOUNTS_CUTOFF_YYYYMM = 202608;
+const MONTH_NAMES_3 = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+// Turns a month header like "Aug-26" or "Aug-2026" into a comparable 202608-style number.
+// Returns null if it doesn't look like a recognizable month label (kept, never dropped, in that case).
+function monthLabelToYYYYMM(label) {
+  const m = String(label || '').trim().match(/^([A-Za-z]{3})-(\d{2,4})$/);
+  if (!m) return null;
+  const mi = MONTH_NAMES_3.indexOf(m[1].toUpperCase());
+  if (mi < 0) return null;
+  const y = m[2].length === 2 ? 2000 + Number(m[2]) : Number(m[2]);
+  return y * 100 + (mi + 1);
+}
+
+// Turns a ledger date string (various formats seen from Excel exports) into a comparable
+// 202608-style number. Returns null if it can't be confidently parsed — unparseable dates are
+// kept rather than silently dropped, so we never lose a real entry by mistake.
+function expenseDateToYYYYMM(str) {
+  const s = String(str || '').trim();
+  if (!s) return null;
+  let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/); // DD-MM-YYYY / DD/MM/YYYY
+  if (m) {
+    const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    return y * 100 + Number(m[2]);
+  }
+  m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/); // YYYY-MM-DD
+  if (m) return Number(m[1]) * 100 + Number(m[2]);
+  m = s.match(/^(\d{1,2})[\-\/]([A-Za-z]{3})[\-\/](\d{2,4})$/); // D-Mon-YY
+  if (m) {
+    const mi = MONTH_NAMES_3.indexOf(m[2].toUpperCase());
+    if (mi < 0) return null;
+    const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    return y * 100 + (mi + 1);
+  }
+  return null;
+}
+
 // "Account" sheet: a header row has a cell literally "FLYERS" — the name column. Columns to its
 // right whose header looks like a month (e.g. "Aug-26") are the contribution columns. Rows named
 // OLD BALANCE / TOTAL / EXP / BALANCE are the running summary, everything else is a player row.
@@ -1787,11 +1826,16 @@ function parseContributionSheet(ws) {
   if (headerRowIdx === -1) return null;
 
   const headerRow = rows[headerRowIdx];
-  const monthCols = [];
+  let monthCols = [];
   for (let c = nameColIdx + 1; c < headerRow.length; c++) {
     const h = String(headerRow[c] || '').trim();
     if (/^[A-Za-z]{3}-\d{2,4}$/.test(h)) monthCols.push({ col: c, label: h.toUpperCase() });
   }
+  // Keep only Aug-2026 onward (months we can't confidently parse are kept as a safe default).
+  monthCols = monthCols.filter((mc) => {
+    const ym = monthLabelToYYYYMM(mc.label);
+    return ym === null || ym >= ACCOUNTS_CUTOFF_YYYYMM;
+  });
   if (monthCols.length === 0) return null;
 
   const summaryKeys = ['OLD BALANCE', 'TOTAL', 'EXP', 'BALANCE'];
@@ -1843,7 +1887,11 @@ function parseExpenseSheet(ws) {
     if (!date && !head && !received && !exp && !remark) continue;
     entries.push({ date, head, received, exp, balance, remark });
   }
-  return entries;
+  // Keep only Aug-2026 onward (entries whose date we can't confidently parse are kept).
+  return entries.filter((e) => {
+    const ym = expenseDateToYYYYMM(e.date);
+    return ym === null || ym >= ACCOUNTS_CUTOFF_YYYYMM;
+  });
 }
 
 function parseWorkbookToAccounts(workbook) {
@@ -1855,6 +1903,66 @@ function parseWorkbookToAccounts(workbook) {
   return { contribution, expenses };
 }
 
+// Applies the Aug-2026 cutoff to whatever's already stored/synced too (not just fresh uploads),
+// so already-loaded data is trimmed the same way as soon as it renders.
+function filterContributionByCutoff(contribution) {
+  if (!contribution || !Array.isArray(contribution.months)) return contribution;
+  const keepIdx = contribution.months.map((_, i) => i).filter((i) => {
+    const ym = monthLabelToYYYYMM(contribution.months[i]);
+    return ym === null || ym >= ACCOUNTS_CUTOFF_YYYYMM;
+  });
+  const months = keepIdx.map((i) => contribution.months[i]);
+  const people = (contribution.people || []).map((p) => ({ name: p.name, values: keepIdx.map((i) => p.values[i]) }));
+  const summary = {};
+  Object.keys(contribution.summary || {}).forEach((k) => { summary[k] = keepIdx.map((i) => contribution.summary[k][i]); });
+  return { months, people, summary };
+}
+
+// Returns [{ e, idx }] — idx is the entry's real position in accountsData.expenses, kept around
+// so a row can still be deleted correctly by index after filtering.
+function filterExpensesByCutoff(expenses) {
+  if (!Array.isArray(expenses)) return [];
+  return expenses.map((e, idx) => ({ e, idx })).filter(({ e }) => {
+    const ym = expenseDateToYYYYMM(e.date);
+    return ym === null || ym >= ACCOUNTS_CUTOFF_YYYYMM;
+  });
+}
+
+// ---- Admin: delete a single figure (a person's contribution row, or one expense entry) ----
+function deleteContributionPerson(name) {
+  if (!accountsData || !accountsData.contribution || !Array.isArray(accountsData.contribution.people)) return;
+  if (!confirm(`Delete ${name}'s contribution row? This cannot be undone.`)) return;
+  const updatedPeople = accountsData.contribution.people.filter((p) => p.name !== name);
+  accountsDocRef.update({ 'contribution.people': updatedPeople }).catch((err) => {
+    console.error('Delete contribution row failed', err);
+    alert('Delete failed: ' + err.message);
+  });
+}
+
+function deleteExpenseEntry(idx) {
+  if (!accountsData || !Array.isArray(accountsData.expenses)) return;
+  if (!confirm('Delete this expense entry? This cannot be undone.')) return;
+  const updated = accountsData.expenses.slice();
+  updated.splice(idx, 1);
+  accountsDocRef.update({ expenses: updated }).catch((err) => {
+    console.error('Delete expense entry failed', err);
+    alert('Delete failed: ' + err.message);
+  });
+}
+
+// One delegated listener per table handles clicks on any row's delete button, since rows are
+// re-rendered fresh every time accountsData changes.
+accountsResultEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('.rowDeleteBtn');
+  if (!btn) return;
+  deleteContributionPerson(btn.dataset.name);
+});
+accountsExpResultEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('.rowDeleteBtn');
+  if (!btn) return;
+  deleteExpenseEntry(Number(btn.dataset.idx));
+});
+
 function renderAccounts() {
   if (!accountsData) {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
@@ -1862,7 +1970,10 @@ function renderAccounts() {
     accountsBalanceCard.style.display = 'none';
     return;
   }
-  const { contribution, expenses, updatedAt, uploadedBy } = accountsData;
+  const { updatedAt, uploadedBy } = accountsData;
+  const contribution = filterContributionByCutoff(accountsData.contribution);
+  const expensePairs = filterExpensesByCutoff(accountsData.expenses); // [{ e, idx }], idx = real position for delete
+  const expenses = expensePairs.map((p) => p.e);
 
   let currentBalance = '';
   if (Array.isArray(expenses) && expenses.length) {
@@ -1885,19 +1996,20 @@ function renderAccounts() {
   }
 
   if (contribution && contribution.people) {
-    const headCells = ['NAME', ...contribution.months].map((h) => `<th>${h}</th>`).join('');
+    const escName = (n) => String(n).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    const headCells = ['NAME', ...contribution.months].map((h) => `<th>${h}</th>`).join('') + (isAdmin ? '<th></th>' : '');
     const bodyRows = contribution.people.map((p) => `
-      <tr><td>${p.name}</td>${p.values.map((v) => `<td>${v || '—'}</td>`).join('')}</tr>`).join('');
+      <tr><td>${p.name}</td>${p.values.map((v) => `<td>${v || '—'}</td>`).join('')}${isAdmin ? `<td><button class="del rowDeleteBtn" data-name="${escName(p.name)}" title="Delete ${escName(p.name)}'s row">&times;</button></td>` : ''}</tr>`).join('');
     const summaryOrder = ['OLD BALANCE', 'TOTAL', 'EXP', 'BALANCE'];
     const summaryRows = summaryOrder.filter((k) => contribution.summary[k]).map((k) => `
-      <tr class="acctSummary${k === 'BALANCE' ? ' balance' : ''}"><td>${k}</td>${contribution.summary[k].map((v) => `<td>${v || '—'}</td>`).join('')}</tr>`).join('');
+      <tr class="acctSummary${k === 'BALANCE' ? ' balance' : ''}"><td>${k}</td>${contribution.summary[k].map((v) => `<td>${v || '—'}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`).join('');
     accountsResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable"><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}${summaryRows}</tbody></table></div>`;
   } else {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No contribution data found in the uploaded file.</div>';
   }
 
-  if (Array.isArray(expenses) && expenses.length) {
-    const rows = expenses.slice().reverse().map((e) => `
+  if (expensePairs.length) {
+    const rows = expensePairs.slice().reverse().map(({ e, idx }) => `
       <tr>
         <td>${e.date || '—'}</td>
         <td>${e.head || '—'}</td>
@@ -1905,8 +2017,9 @@ function renderAccounts() {
         <td class="num">${e.exp || ''}</td>
         <td class="num">${e.balance || ''}</td>
         <td>${e.remark || ''}</td>
+        ${isAdmin ? `<td><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></td>` : ''}
       </tr>`).join('');
-    accountsExpResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable expTable"><thead><tr><th>DATE</th><th>HEAD</th><th>RECEIVED</th><th>EXP</th><th>BALANCE</th><th>REMARK</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    accountsExpResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable expTable"><thead><tr><th>DATE</th><th>HEAD</th><th>RECEIVED</th><th>EXP</th><th>BALANCE</th><th>REMARK</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>`;
   } else {
     accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No expense entries found in the uploaded file.</div>';
   }
