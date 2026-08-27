@@ -437,6 +437,56 @@
     font-weight: 600;
   }
 
+  .statsRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 0;
+    border-bottom: 1px solid #F2EFE4;
+  }
+  .statsRow:last-child { border-bottom: none; }
+  .statsName {
+    width: 100px;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .statsBarWrap {
+    flex: 1;
+    background: #F2EFE4;
+    border-radius: 8px;
+    height: 10px;
+    overflow: hidden;
+  }
+  .statsBarFill { height: 100%; border-radius: 8px; transition: width 0.3s ease; }
+  .statsPct { width: 38px; text-align: right; font-size: 12.5px; font-weight: 800; flex-shrink: 0; }
+  .statsMeta { font-size: 11px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
+
+  .bulkRow { display: flex; gap: 8px; margin-top: 10px; }
+  .bulkRow input[type="date"] {
+    flex: 1;
+    min-width: 0;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 11px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #FCFBF7;
+  }
+  select#bulkHolidayName {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    background: #FCFBF7;
+    margin-top: 10px;
+  }
+
   /* ===== Desktop layout — wider, two-column, more "professional" feel ===== */
   /* ===== Mobile — everything bigger, fills the screen more like an app ===== */
   @media (max-width: 1023px) {
@@ -575,6 +625,23 @@
     <div class="attnBlock" id="attnResult"></div>
   </div>
 
+  <div class="card">
+    <h2>📊 Attendance Stats</h2>
+    <button class="secondary" id="loadStatsBtn" style="margin-top:0;">🔄 Sabki Stats Dekhein</button>
+    <div id="statsResult" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card" id="bulkHolidayCard">
+    <h2>🏖️ Bulk Holiday (multi-day)</h2>
+    <select id="bulkHolidayName"></select>
+    <div class="bulkRow">
+      <input type="date" id="bulkHolidayStart">
+      <input type="date" id="bulkHolidayEnd">
+    </div>
+    <button id="bulkHolidaySaveBtn">💾 Holiday Range Save Karein</button>
+    <div class="legend" id="bulkHolidayStatus" style="display:none;"></div>
+  </div>
+
   <div class="install-hint">
     📲 To use this like an app on your phone: open your browser menu and tap <b>"Add to Home Screen"</b> or <b>"Install App"</b>.
   </div>
@@ -635,6 +702,7 @@ function applyAdminVisibility() {
   document.getElementById('addPlayerBlock').style.display = isAdmin ? '' : 'none';
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('resetBtn').style.display = isAdmin ? '' : 'none';
+  document.getElementById('bulkHolidayCard').style.display = isAdmin ? '' : 'none';
   const loginStatusEl = document.getElementById('loginStatus');
   if (loginStatusEl) {
     loginStatusEl.textContent = currentUser
@@ -778,6 +846,15 @@ function render() {
       </div>
     </li>`;
   }).join('');
+  populateBulkHolidaySelect();
+}
+
+function populateBulkHolidaySelect() {
+  const sel = document.getElementById('bulkHolidayName');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+  if (current && players.some(p => p.name === current)) sel.value = current;
 }
 
 plistEl.addEventListener('click', (e) => {
@@ -1006,6 +1083,129 @@ document.getElementById('loadAttnBtn').addEventListener('click', () => {
   const dateStr = attnDateInput.value;
   if (!dateStr) return;
   loadAttendance(dateStr);
+});
+
+// ---- Attendance stats: har player ka % present, kitni holiday, kitni absent (sabhi saved dates milakar) ----
+const statsResultEl = document.getElementById('statsResult');
+
+function loadStats() {
+  statsResultEl.innerHTML = '<div class="legend">Load ho raha hai…</div>';
+  db.collection('disc_team')
+    .where(firebase.firestore.FieldPath.documentId(), '>=', 'attendance_')
+    .where(firebase.firestore.FieldPath.documentId(), '<', 'attendance_\uf8ff')
+    .get()
+    .then((snap) => {
+      const totals = {}; // name -> { present, absent, holiday, total }
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (!Array.isArray(data.players)) return;
+        data.players.forEach((p) => {
+          const status = normalizeAttnStatus(p);
+          if (!totals[p.name]) totals[p.name] = { present: 0, absent: 0, holiday: 0, total: 0 };
+          totals[p.name].total++;
+          totals[p.name][status] = (totals[p.name][status] || 0) + 1;
+        });
+      });
+      renderStats(totals, snap.size);
+    })
+    .catch((e) => {
+      console.error('Stats load failed', e);
+      statsResultEl.innerHTML = `<div class="err" style="display:block;">Stats load nahi ho payi: ${e.message}</div>`;
+    });
+}
+
+function renderStats(totals, totalDays) {
+  const names = Object.keys(totals).sort();
+  if (names.length === 0) {
+    statsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">Abhi tak koi attendance save nahi hui. Pehle "Daily Attendance" ke through Save karein.</div>';
+    return;
+  }
+  const rows = names.map((name) => {
+    const t = totals[name];
+    const pct = t.total ? Math.round((t.present / t.total) * 100) : 0;
+    const barColor = pct >= 80 ? '#4CAF50' : (pct >= 50 ? 'var(--gold)' : 'var(--red)');
+    const crown = ADMIN_NAMES.includes(name.toUpperCase()) ? '👑 ' : '';
+    return `
+    <div class="statsRow">
+      <span class="statsName">${crown}${name}</span>
+      <div class="statsBarWrap"><div class="statsBarFill" style="width:${pct}%; background:${barColor};"></div></div>
+      <span class="statsPct">${pct}%</span>
+      <span class="statsMeta">🏖️${t.holiday} ❌${t.absent}</span>
+    </div>`;
+  }).join('');
+  statsResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${totalDays} din ka record · % = present rate · 🏖️ holiday · ❌ absent</div>` + rows;
+}
+
+document.getElementById('loadStatsBtn').addEventListener('click', loadStats);
+
+// ---- Bulk holiday: admin ek player ko ek saath kai dinon ke liye holiday par daal sakta hai ----
+const bulkStatusEl = document.getElementById('bulkHolidayStatus');
+
+function dateRangeList(startStr, endStr) {
+  const start = new Date(startStr + 'T00:00:00');
+  const end = new Date(endStr + 'T00:00:00');
+  const dates = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    dates.push(`${yyyy}-${mm}-${dd}`);
+  }
+  return dates;
+}
+
+async function bulkSetHoliday(name, startStr, endStr) {
+  const dates = dateRangeList(startStr, endStr);
+  if (dates.length === 0) {
+    alert('Sahi date range chunein (end date, start date ke baad ya barabar honi chahiye).');
+    return;
+  }
+  if (!confirm(`${name} ko ${dates.length} din (${dates[0]} se ${dates[dates.length - 1]}) holiday par mark karein?`)) return;
+
+  const btn = document.getElementById('bulkHolidaySaveBtn');
+  btn.disabled = true;
+  bulkStatusEl.style.display = 'block';
+
+  for (let idx = 0; idx < dates.length; idx++) {
+    const dateStr = dates[idx];
+    bulkStatusEl.textContent = `Saving ${idx + 1}/${dates.length} (${dateStr})…`;
+    try {
+      const ref = attendanceDocRef(dateStr);
+      const doc = await ref.get();
+      let record;
+      if (doc.exists && Array.isArray(doc.data().players)) {
+        record = doc.data().players.map(p => ({ name: p.name, status: normalizeAttnStatus(p) }));
+        const i = record.findIndex(p => p.name === name);
+        if (i >= 0) record[i].status = 'holiday';
+        else record.push({ name, status: 'holiday' });
+      } else {
+        record = players.map(p => ({ name: p.name, status: p.name === name ? 'holiday' : 'present' }));
+      }
+      await ref.set({ date: dateStr, players: record, savedAt: Date.now() });
+    } catch (e) {
+      console.error('Bulk holiday failed for', dateStr, e);
+      bulkStatusEl.style.display = 'none';
+      btn.disabled = false;
+      alert(`${dateStr} ke liye save nahi ho paya: ${e.message}`);
+      return;
+    }
+  }
+
+  bulkStatusEl.style.display = 'none';
+  btn.disabled = false;
+  alert(`${name} ke liye ${dates.length} din holiday save ho gayi ✅`);
+  loadAttendance(attnDateInput.value);
+}
+
+document.getElementById('bulkHolidaySaveBtn').addEventListener('click', () => {
+  const name = document.getElementById('bulkHolidayName').value;
+  const startStr = document.getElementById('bulkHolidayStart').value;
+  const endStr = document.getElementById('bulkHolidayEnd').value;
+  if (!name || !startStr || !endStr) {
+    alert('Player aur dono dates (start, end) chunein.');
+    return;
+  }
+  bulkSetHoliday(name, startStr, endStr);
 });
 
 render();
