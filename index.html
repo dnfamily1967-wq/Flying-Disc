@@ -20,6 +20,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 
+<!-- SheetJS (reads the Excel accounts file the admin uploads) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -662,6 +665,52 @@
   .card.accent-red { border-top: 4px solid var(--red); }
   .card.accent-purple { border-top: 4px solid var(--purple); }
   .card.accent-green { border-top: 4px solid var(--green-mid); }
+
+  /* ===== Accounts tab (Excel import) ===== */
+  input[type="file"] {
+    width: 100%;
+    font-size: 12.5px;
+    padding: 10px;
+    border: 1.5px dashed var(--line);
+    border-radius: 12px;
+    background: #FCFBF7;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .acctBalanceCard {
+    background: linear-gradient(135deg, #ffffff 0%, var(--gold-soft) 100%);
+    border: 1.5px solid var(--gold);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-top: 16px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(30,30,20,0.05);
+  }
+  .acctBalanceCard .abTitle { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .acctBalanceCard .abValue { font-family: 'Outfit', sans-serif; font-size: 26px; font-weight: 800; color: var(--green-deep); margin-top: 4px; }
+  .acctMeta { font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; }
+  .acctScroll { overflow-x: auto; margin-top: 10px; -webkit-overflow-scrolling: touch; }
+  table.acctTable { border-collapse: collapse; width: 100%; min-width: 360px; font-size: 12.5px; }
+  table.acctTable th, table.acctTable td {
+    padding: 7px 9px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+    text-align: right;
+  }
+  table.acctTable th:first-child, table.acctTable td:first-child { text-align: left; font-weight: 700; }
+  table.acctTable thead th {
+    background: var(--gold-soft);
+    color: var(--green-deep);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  table.acctTable tbody tr:last-child td { border-bottom: none; }
+  table.acctTable tr.acctSummary td { font-weight: 800; background: #FBFAF4; }
+  table.acctTable tr.acctSummary.balance td { background: var(--gold-soft); color: var(--green-deep); }
+  table.acctTable.expTable thead th { background: var(--red-soft); color: #8C2E2E; }
+  table.acctTable.expTable th:not(:first-child), table.acctTable.expTable td:not(:first-child) { text-align: left; }
+  table.acctTable.expTable td.num { text-align: right; }
 </style>
 </head>
 <body>
@@ -724,6 +773,7 @@
       <button class="secondary" id="loadAttnBtn">👁️ VIEW</button>
     </div>
     <div class="attnBlock" id="attnResult"></div>
+    <button class="secondary" id="resetAttnDayBtn" style="display:none; margin-top:10px; border-color:var(--red); color:#8C2E2E;">🗑️ RESET THIS DAY'S ATTENDANCE</button>
   </div>
 
   <div class="card accent-gold">
@@ -763,6 +813,31 @@
   </div>
   </div>
 
+  <div class="tabPanel" id="tab-accounts" style="display:none;">
+  <div class="card accent-gold" id="accountsUploadCard">
+    <h2>📁 LOAD ACCOUNTS FILE</h2>
+    <div class="legend" style="margin-top:0;">Upload the team's Excel accounts file (.xlsx) — the "Account" sheet (contributions/balance) and "Exp" sheet (expense ledger) load automatically and sync to everyone.</div>
+    <input type="file" id="accountsFileInput" accept=".xlsx,.xls">
+    <div class="legend" id="accountsUploadStatus" style="display:none;"></div>
+  </div>
+
+  <div class="acctBalanceCard" id="accountsBalanceCard" style="display:none;">
+    <div class="abTitle">Current Balance</div>
+    <div class="abValue" id="accountsBalanceValue">—</div>
+    <div class="acctMeta" id="accountsMeta"></div>
+  </div>
+
+  <div class="card accent-green">
+    <h2>💰 CONTRIBUTIONS</h2>
+    <div id="accountsContribResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
+  </div>
+
+  <div class="card accent-red">
+    <h2>🧾 EXPENSE LEDGER</h2>
+    <div id="accountsExpResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
+  </div>
+  </div>
+
   <div class="install-hint">
     📲 TO USE THIS LIKE AN APP ON YOUR PHONE: open your browser menu and tap <b>"Add to Home Screen"</b> or <b>"Install App"</b>.
   </div>
@@ -773,6 +848,7 @@
   <button class="navBtn active" data-tab="home"><span class="navIcon">🏠</span><span class="navLabel">Home</span></button>
   <button class="navBtn" data-tab="teams"><span class="navIcon">🏆</span><span class="navLabel">Teams</span></button>
   <button class="navBtn" data-tab="attendance"><span class="navIcon">🗓️</span><span class="navLabel">Attendance</span></button>
+  <button class="navBtn" data-tab="accounts"><span class="navIcon">💰</span><span class="navLabel">Accounts</span></button>
   <button class="navBtn" id="navHolidayBtn" data-tab="holiday" style="display:none;"><span class="navIcon">🏖️</span><span class="navLabel">Holiday</span></button>
 </nav>
 
@@ -852,6 +928,10 @@ function applyAdminVisibility() {
   document.getElementById('bulkHolidayCard').style.display = isAdmin ? '' : 'none';
   const resetPassCard = document.getElementById('resetPassCard');
   if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
+  const resetAttnDayBtn = document.getElementById('resetAttnDayBtn');
+  if (resetAttnDayBtn) resetAttnDayBtn.style.display = isAdmin ? '' : 'none';
+  const accountsUploadCard = document.getElementById('accountsUploadCard');
+  if (accountsUploadCard) accountsUploadCard.style.display = isAdmin ? '' : 'none';
   const navHolidayBtn = document.getElementById('navHolidayBtn');
   if (navHolidayBtn) {
     navHolidayBtn.style.display = isAdmin ? '' : 'none';
@@ -1275,6 +1355,11 @@ function todayStr() {
 // count stays within this limit, there's NO fine. Holidays never cause a fine.
 const FINE_ABSENT_THRESHOLD = 10;
 
+// ---- Data start date ----
+// Attendance/stats/fine calculations only count records from this date onward (any older
+// data — e.g. test entries before the app went live — is ignored everywhere).
+const DATA_START_DATE = '2026-08-27';
+
 function monthStr(d = new Date()) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -1403,6 +1488,29 @@ document.getElementById('loadAttnBtn').addEventListener('click', () => {
   loadAttendance(dateStr);
 });
 
+// ---- Admin: reset (delete) the attendance record for any chosen day ----
+function resetAttendanceForDay(dateStr) {
+  return attendanceDocRef(dateStr).delete().then(() => {
+    loadAttendance(dateStr);
+    refreshMyFineCard();
+    if (monthlySheetInput && monthlySheetInput.value === dateStr.slice(0, 7)) loadMonthlySheet(monthlySheetInput.value);
+    refreshPlayerListPHA();
+    loadStats();
+  });
+}
+
+document.getElementById('resetAttnDayBtn').addEventListener('click', () => {
+  const dateStr = attnDateInput.value;
+  if (!dateStr) return;
+  if (!confirm(`Reset (delete) the attendance record for ${dateStr}? This cannot be undone.`)) return;
+  resetAttendanceForDay(dateStr)
+    .then(() => alert(`Attendance for ${dateStr} has been reset ✅`))
+    .catch((e) => {
+      console.error('Attendance reset failed', e);
+      alert('Reset failed: ' + e.message);
+    });
+});
+
 // ---- Attendance stats: each player's % present, holiday count, absent count (across all saved dates) ----
 const statsResultEl = document.getElementById('statsResult');
 
@@ -1416,6 +1524,7 @@ function loadStats() {
       const totals = {}; // name -> { present, absent, holiday, total }
       snap.forEach((doc) => {
         const data = doc.data();
+        if (!data.date || data.date < DATA_START_DATE) return;
         if (!Array.isArray(data.players)) return;
         data.players.forEach((p) => {
           const status = normalizeAttnStatus(p);
@@ -1467,6 +1576,7 @@ function computeMonthlyTotals(month, onDone, onErr) {
       let daysCounted = 0;
       snap.forEach((doc) => {
         const data = doc.data();
+        if (!data.date || data.date < DATA_START_DATE) return;
         if (!data.date || !data.date.startsWith(month)) return;
         if (!Array.isArray(data.players)) return;
         daysCounted++;
@@ -1648,6 +1758,208 @@ document.getElementById('resetPassBtn').addEventListener('click', () => {
     });
 });
 
+// ---- Accounts (Excel import) ----
+// Admin uploads the team's Excel accounts file; it's parsed in the browser (SheetJS) and the
+// resulting summary is saved to the cloud so every player sees the same live Accounts tab.
+const accountsDocRef = db.collection('disc_team').doc('accounts');
+const accountsResultEl = document.getElementById('accountsContribResult');
+const accountsExpResultEl = document.getElementById('accountsExpResult');
+const accountsStatusEl = document.getElementById('accountsUploadStatus');
+const accountsMetaEl = document.getElementById('accountsMeta');
+const accountsBalanceCard = document.getElementById('accountsBalanceCard');
+const accountsBalanceValueEl = document.getElementById('accountsBalanceValue');
+let accountsData = null;
+
+function sheetToRows(ws) {
+  return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+}
+
+// "Account" sheet: a header row has a cell literally "FLYERS" — the name column. Columns to its
+// right whose header looks like a month (e.g. "Aug-26") are the contribution columns. Rows named
+// OLD BALANCE / TOTAL / EXP / BALANCE are the running summary, everything else is a player row.
+function parseContributionSheet(ws) {
+  const rows = sheetToRows(ws);
+  let headerRowIdx = -1, nameColIdx = -1;
+  for (let r = 0; r < rows.length; r++) {
+    const idx = rows[r].findIndex((c) => String(c).trim().toUpperCase() === 'FLYERS');
+    if (idx >= 0) { headerRowIdx = r; nameColIdx = idx; break; }
+  }
+  if (headerRowIdx === -1) return null;
+
+  const headerRow = rows[headerRowIdx];
+  const monthCols = [];
+  for (let c = nameColIdx + 1; c < headerRow.length; c++) {
+    const h = String(headerRow[c] || '').trim();
+    if (/^[A-Za-z]{3}-\d{2,4}$/.test(h)) monthCols.push({ col: c, label: h.toUpperCase() });
+  }
+  if (monthCols.length === 0) return null;
+
+  const summaryKeys = ['OLD BALANCE', 'TOTAL', 'EXP', 'BALANCE'];
+  const people = [];
+  const summary = {};
+  for (let r = headerRowIdx + 1; r < rows.length; r++) {
+    const row = rows[r];
+    const name = String(row[nameColIdx] || '').trim();
+    if (!name) continue;
+    const upper = name.toUpperCase();
+    if (summaryKeys.includes(upper)) {
+      summary[upper] = monthCols.map((mc) => String(row[mc.col] || '').trim());
+    } else {
+      people.push({ name: upper, values: monthCols.map((mc) => String(row[mc.col] || '').trim()) });
+    }
+  }
+  return { months: monthCols.map((m) => m.label), people, summary };
+}
+
+// "Exp" sheet: a header row containing DATE / HEAD / EXP / BALANCE columns; every row below with
+// any content is one ledger entry (Received or Exp, running Balance, and a free-text Remark).
+function parseExpenseSheet(ws) {
+  const rows = sheetToRows(ws);
+  let headerRowIdx = -1, headerRow = [];
+  const wanted = ['DATE', 'HEAD', 'EXP', 'BALANCE'];
+  for (let r = 0; r < rows.length; r++) {
+    const upperRow = rows[r].map((c) => String(c).trim().toUpperCase());
+    if (wanted.every((w) => upperRow.includes(w))) { headerRowIdx = r; headerRow = upperRow; break; }
+  }
+  if (headerRowIdx === -1) return [];
+
+  const col = (name) => headerRow.indexOf(name);
+  const dateCol = col('DATE');
+  const headCol = col('HEAD');
+  const recvCol = headerRow.findIndex((h) => h.startsWith('RECIV') || h.startsWith('RECEIV'));
+  const expCol = col('EXP');
+  const balCol = col('BALANCE');
+  const remarkCol = col('REMARK');
+
+  const entries = [];
+  for (let r = headerRowIdx + 1; r < rows.length; r++) {
+    const row = rows[r];
+    const date = dateCol >= 0 ? String(row[dateCol] || '').trim() : '';
+    const head = headCol >= 0 ? String(row[headCol] || '').trim() : '';
+    const received = recvCol >= 0 ? String(row[recvCol] || '').trim() : '';
+    const exp = expCol >= 0 ? String(row[expCol] || '').trim() : '';
+    const balance = balCol >= 0 ? String(row[balCol] || '').trim() : '';
+    const remark = remarkCol >= 0 ? String(row[remarkCol] || '').trim() : '';
+    if (!date && !head && !received && !exp && !remark) continue;
+    entries.push({ date, head, received, exp, balance, remark });
+  }
+  return entries;
+}
+
+function parseWorkbookToAccounts(workbook) {
+  const names = workbook.SheetNames;
+  const accSheetName = names.find((n) => /account/i.test(n)) || names[0];
+  const expSheetName = names.find((n) => /exp/i.test(n));
+  const contribution = parseContributionSheet(workbook.Sheets[accSheetName]);
+  const expenses = expSheetName ? parseExpenseSheet(workbook.Sheets[expSheetName]) : [];
+  return { contribution, expenses };
+}
+
+function renderAccounts() {
+  if (!accountsData) {
+    accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
+    accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
+    accountsBalanceCard.style.display = 'none';
+    return;
+  }
+  const { contribution, expenses, updatedAt, uploadedBy } = accountsData;
+
+  let currentBalance = '';
+  if (Array.isArray(expenses) && expenses.length) {
+    currentBalance = expenses[expenses.length - 1].balance;
+  } else if (contribution && contribution.summary && contribution.summary['BALANCE']) {
+    const vals = contribution.summary['BALANCE'].filter((v) => v);
+    currentBalance = vals[vals.length - 1] || '';
+  }
+  if (currentBalance) {
+    accountsBalanceCard.style.display = '';
+    accountsBalanceValueEl.textContent = '₹' + currentBalance;
+  } else {
+    accountsBalanceCard.style.display = 'none';
+  }
+  if (updatedAt) {
+    const d = new Date(updatedAt);
+    accountsMetaEl.textContent = `Updated ${d.toLocaleDateString()} ${d.toLocaleTimeString()}${uploadedBy ? ' · by ' + uploadedBy : ''}`;
+  } else {
+    accountsMetaEl.textContent = '';
+  }
+
+  if (contribution && contribution.people) {
+    const headCells = ['NAME', ...contribution.months].map((h) => `<th>${h}</th>`).join('');
+    const bodyRows = contribution.people.map((p) => `
+      <tr><td>${p.name}</td>${p.values.map((v) => `<td>${v || '—'}</td>`).join('')}</tr>`).join('');
+    const summaryOrder = ['OLD BALANCE', 'TOTAL', 'EXP', 'BALANCE'];
+    const summaryRows = summaryOrder.filter((k) => contribution.summary[k]).map((k) => `
+      <tr class="acctSummary${k === 'BALANCE' ? ' balance' : ''}"><td>${k}</td>${contribution.summary[k].map((v) => `<td>${v || '—'}</td>`).join('')}</tr>`).join('');
+    accountsResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable"><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}${summaryRows}</tbody></table></div>`;
+  } else {
+    accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No contribution data found in the uploaded file.</div>';
+  }
+
+  if (Array.isArray(expenses) && expenses.length) {
+    const rows = expenses.slice().reverse().map((e) => `
+      <tr>
+        <td>${e.date || '—'}</td>
+        <td>${e.head || '—'}</td>
+        <td class="num">${e.received || ''}</td>
+        <td class="num">${e.exp || ''}</td>
+        <td class="num">${e.balance || ''}</td>
+        <td>${e.remark || ''}</td>
+      </tr>`).join('');
+    accountsExpResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable expTable"><thead><tr><th>DATE</th><th>HEAD</th><th>RECEIVED</th><th>EXP</th><th>BALANCE</th><th>REMARK</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  } else {
+    accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No expense entries found in the uploaded file.</div>';
+  }
+}
+
+function loadAccounts() {
+  accountsDocRef.onSnapshot((doc) => {
+    accountsData = doc.exists ? doc.data() : null;
+    renderAccounts();
+  }, (err) => console.error('Accounts sync error', err));
+}
+
+document.getElementById('accountsFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  accountsStatusEl.style.display = 'block';
+  accountsStatusEl.textContent = 'Reading file…';
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    let parsed;
+    try {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      parsed = parseWorkbookToAccounts(workbook);
+    } catch (err) {
+      console.error('Accounts parse failed', err);
+      accountsStatusEl.style.display = 'none';
+      alert('Could not read this file — please upload a valid .xlsx accounts file.');
+      e.target.value = '';
+      return;
+    }
+    if (!parsed.contribution && parsed.expenses.length === 0) {
+      accountsStatusEl.style.display = 'none';
+      alert('Could not find recognizable Accounts data (an "Account" sheet or "Exp" sheet) in this file.');
+      e.target.value = '';
+      return;
+    }
+    accountsStatusEl.textContent = 'Saving…';
+    accountsDocRef.set({ ...parsed, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' })
+      .then(() => {
+        accountsStatusEl.style.display = 'none';
+        alert('Accounts file loaded ✅');
+      })
+      .catch((err) => {
+        console.error('Accounts save failed', err);
+        accountsStatusEl.style.display = 'none';
+        alert('Save failed: ' + err.message);
+      });
+    e.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
 render();
 load();
 loadPasswords();
@@ -1656,6 +1968,7 @@ loadMonthlySheet(monthlySheetInput.value); // show this month's fine sheet on op
 loadStats(); // show everyone's attendance stats in full detail as soon as the app opens
 refreshMyFineCard(); // show logged-in player's own fine status at the top
 refreshPlayerListPHA(); // show P/A/H mini-stats next to every player's name
+loadAccounts(); // show the latest uploaded accounts (contributions + expenses) as soon as the app opens
 
 // ---- Bottom nav: switch between Home / Teams / Attendance / Holiday sections ----
 function showTab(tab) {
