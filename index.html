@@ -534,7 +534,7 @@
   .fineRow:last-child { border-bottom: none; }
   .fineRow.fined { background: rgba(209,69,69,0.05); border-radius: 8px; padding-left: 5px; padding-right: 5px; }
   .fineName { width: 68px; flex-shrink: 0; font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fineCounts { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 700; letter-spacing: -0.1px; line-height: 1.5; color: var(--ink); white-space: normal; }
+  .fineCounts { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; letter-spacing: -0.1px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fineCounts.paidUp { color: var(--green-deep); font-weight: 700; }
   .fineCounts.dueRed {
     color: #8C2E2E;
@@ -1707,7 +1707,7 @@ function renderMonthlySheet(month, totals, daysCounted) {
     return `
     <div class="fineRow ${fined ? 'fined' : ''}">
       <span class="fineName">${crown}${name}</span>
-      <span class="fineCounts">✅<span class="countNum">${t.present}</span> Present · 🏖️<span class="countNum">${t.holiday}</span> Holiday · ❌<span class="countNum">${t.absent}</span> Absent</span>
+      <span class="fineCounts">✅<span class="countNum">${t.present}</span> P · 🏖️<span class="countNum">${t.holiday}</span> H · ❌<span class="countNum">${t.absent}</span> A</span>
       <span class="fineVerdict ${fined ? 'bad' : 'good'}">${fined ? '⚠️ FINE' : '✅ OK'}</span>
     </div>`;
   }).join('');
