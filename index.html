@@ -939,7 +939,7 @@
   </div>
   </div>
 
-  <div id="exportTemplate" style="position:absolute; left:-9999px; top:0; width:600px; background:#FFFDF7; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:28px; color:#2B2B22;">
+  <div id="exportTemplate" style="position:absolute; left:-9999px; top:0; width:820px; background:#FFFDF7; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:28px; color:#2B2B22;">
     <div style="display:flex; align-items:center; gap:14px; border-bottom:3px solid #1F5C3F; padding-bottom:16px; margin-bottom:20px;">
       <img id="exportLogo" src="icon-192.png" style="width:56px; height:56px; border-radius:50%; object-fit:cover;">
       <div>
@@ -949,31 +949,43 @@
       <div id="exportMonthBadge" style="margin-left:auto; background:#1F5C3F; color:#fff; font-weight:800; font-size:14px; padding:6px 14px; border-radius:16px;">AUG-26</div>
     </div>
 
-    <div style="display:flex; gap:12px; margin-bottom:22px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:22px;">
+      <div style="flex:1; background:#F1EBDA; border-radius:12px; padding:14px; text-align:center;">
+        <div style="font-size:10.5px; font-weight:800; color:#8A7A4C; text-transform:uppercase;">Old Balance</div>
+        <div id="exportOldBalance" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#6B5A2E; margin-top:4px;">₹0</div>
+      </div>
+      <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">+</div>
       <div style="flex:1; background:#EAF4EC; border-radius:12px; padding:14px; text-align:center;">
-        <div style="font-size:11px; font-weight:800; color:#4C7A5A; text-transform:uppercase;">Collected</div>
-        <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#1F5C3F; margin-top:4px;">₹0</div>
+        <div style="font-size:10.5px; font-weight:800; color:#4C7A5A; text-transform:uppercase;">Collected</div>
+        <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#1F5C3F; margin-top:4px;">₹0</div>
       </div>
+      <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">−</div>
       <div style="flex:1; background:#FBECEC; border-radius:12px; padding:14px; text-align:center;">
-        <div style="font-size:11px; font-weight:800; color:#A15252; text-transform:uppercase;">Expenses</div>
-        <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#8C2E2E; margin-top:4px;">₹0</div>
+        <div style="font-size:10.5px; font-weight:800; color:#A15252; text-transform:uppercase;">Expenses</div>
+        <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#8C2E2E; margin-top:4px;">₹0</div>
       </div>
-      <div style="flex:1; background:#FCF3DC; border-radius:12px; padding:14px; text-align:center;">
-        <div style="font-size:11px; font-weight:800; color:#8A6D1F; text-transform:uppercase;">Balance</div>
-        <div id="exportBalance" style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#8A6D1F; margin-top:4px;">₹0</div>
+      <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">=</div>
+      <div style="flex:1; background:#FCF3DC; border-radius:12px; padding:14px; text-align:center; border:2px solid #E0A62B;">
+        <div style="font-size:10.5px; font-weight:800; color:#8A6D1F; text-transform:uppercase;">Balance</div>
+        <div id="exportBalance" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#8A6D1F; margin-top:4px;">₹0</div>
       </div>
     </div>
 
-    <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:8px;">💰 COLLECTIONS THIS MONTH</div>
-    <div id="exportCollectionsList" style="font-size:13px; margin-bottom:20px;"></div>
-
-    <div id="exportAdvanceSection" style="display:none;">
-      <div style="font-size:14px; font-weight:800; color:#8A6D1F; margin-bottom:8px;">🔜 ADVANCE PAYMENTS (PAID AHEAD)</div>
-      <div id="exportAdvanceList" style="font-size:13px; margin-bottom:20px;"></div>
+    <div style="display:flex; gap:24px; align-items:flex-start;">
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:8px;">💰 COLLECTIONS THIS MONTH</div>
+        <div id="exportCollectionsList" style="font-size:13px; margin-bottom:16px;"></div>
+        <div id="exportAdvanceSection" style="display:none;">
+          <div style="font-size:14px; font-weight:800; color:#8A6D1F; margin-bottom:8px;">🔜 ADVANCE PAYMENTS (PAID AHEAD)</div>
+          <div id="exportAdvanceList" style="font-size:13px;"></div>
+        </div>
+      </div>
+      <div style="width:1px; align-self:stretch; background:#E9E4D6;"></div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:14px; font-weight:800; color:#8C2E2E; margin-bottom:8px;">🧾 EXPENSES THIS MONTH</div>
+        <div id="exportExpensesList" style="font-size:13px;"></div>
+      </div>
     </div>
-
-    <div style="font-size:14px; font-weight:800; color:#8C2E2E; margin-bottom:8px;">🧾 EXPENSES THIS MONTH</div>
-    <div id="exportExpensesList" style="font-size:13px; margin-bottom:8px;"></div>
 
     <div style="border-top:1px dashed #D8D2BE; margin-top:16px; padding-top:12px; font-size:11px; color:#A8A38C; text-align:center;">Generated from the team app &middot; <span id="exportGeneratedDate"></span></div>
   </div>
@@ -2717,11 +2729,15 @@ document.getElementById('exportSummaryBtn').addEventListener('click', async () =
     const chain = computeBalanceChain(contribution, accountsData.expenses, openingBalance);
     const curIdx = currentMonthIndex(contribution);
     const monthLabel = curIdx >= 0 ? contribution.months[curIdx] : currentMonthLabelFor();
+    const oldBalance = curIdx >= 0 ? chain.oldBalances[curIdx] : (Number(openingBalance) || 0);
     const totalCollected = curIdx >= 0 ? chain.totals[curIdx] : 0;
     const totalExp = curIdx >= 0 ? chain.exps[curIdx] : 0;
-    const balanceNow = chain.balances.length ? chain.balances[chain.balances.length - 1] : 0;
+    // Uses this month's own balance (not the latest overall) so the four boxes always add up
+    // exactly: Old Balance + Collected − Expenses = Balance, even if later months already exist.
+    const balanceNow = curIdx >= 0 ? chain.balances[curIdx] : oldBalance;
 
     document.getElementById('exportMonthBadge').textContent = monthLabel;
+    document.getElementById('exportOldBalance').textContent = '₹' + oldBalance;
     document.getElementById('exportTotalCollected').textContent = '₹' + totalCollected;
     document.getElementById('exportTotalExp').textContent = '₹' + totalExp;
     document.getElementById('exportBalance').textContent = '₹' + balanceNow;
