@@ -786,6 +786,26 @@
   .expAmt { flex-shrink: 0; font-weight: 800; font-size: 12.5px; white-space: nowrap; }
   .expAmt.credit { color: var(--green-deep); }
   .expAmt.debit { color: #8C2E2E; }
+
+  /* Printing (Ctrl+P / browser print) — go wide (landscape) and drop all the app chrome (nav,
+     buttons, hero) so only the actual data prints, using the full page width instead of the
+     narrow ~480px mobile column the app normally uses on screen. */
+  @media print {
+    @page { size: landscape; margin: 10mm; }
+    body { padding: 0 !important; background: #fff !important; }
+    .hero, .bottomNav, #loginGate, .admin-btn, .refresh-btn,
+    button, .addRow, .sortRow, #accountsFileInput, .legend#accountsUploadStatus,
+    #accountsContribAddRow, #accountsExpAddRow, .rowActions, .expSelect,
+    .install-hint, #exportTemplate, .modalOverlay {
+      display: none !important;
+    }
+    .wrap { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+    .card { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; margin-top: 10px !important; }
+    .acctScroll { overflow: visible !important; }
+    table.acctTable { width: 100% !important; min-width: 0 !important; font-size: 12px !important; }
+    .expList { font-size: 12px !important; }
+    .expRow { break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
@@ -951,24 +971,24 @@
 
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; box-sizing:border-box;">
       <div style="flex:1; min-width:0; box-sizing:border-box; background:#F1EBDA; border-radius:12px; padding:12px 8px; text-align:center;">
-        <div style="font-size:10px; font-weight:800; color:#8A7A4C; text-transform:uppercase;">Old Balance</div>
-        <div id="exportOldBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#6B5A2E; margin-top:4px;">₹0</div>
+        <div style="font-size:10px; font-weight:800; color:#8A7A4C; text-transform:uppercase; white-space:nowrap;">Old Balance</div>
+        <div id="exportOldBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#6B5A2E; margin-top:4px; white-space:nowrap;">₹0</div>
       </div>
       <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">+</div>
       <div style="flex:1; min-width:0; box-sizing:border-box; background:#EAF4EC; border-radius:12px; padding:12px 8px; text-align:center;">
-        <div style="font-size:10px; font-weight:800; color:#4C7A5A; text-transform:uppercase;">Collected</div>
-        <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#1F5C3F; margin-top:4px;">₹0</div>
+        <div style="font-size:10px; font-weight:800; color:#4C7A5A; text-transform:uppercase; white-space:nowrap;">Collected</div>
+        <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#1F5C3F; margin-top:4px; white-space:nowrap;">₹0</div>
         <div id="exportCollectedAdvanceNote" style="font-size:9.5px; color:#4C7A5A; margin-top:3px; display:none; font-weight:700;"></div>
       </div>
       <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">−</div>
       <div style="flex:1; min-width:0; box-sizing:border-box; background:#FBECEC; border-radius:12px; padding:12px 8px; text-align:center;">
-        <div style="font-size:10px; font-weight:800; color:#A15252; text-transform:uppercase;">Expenses</div>
-        <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8C2E2E; margin-top:4px;">₹0</div>
+        <div style="font-size:10px; font-weight:800; color:#A15252; text-transform:uppercase; white-space:nowrap;">Expenses</div>
+        <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8C2E2E; margin-top:4px; white-space:nowrap;">₹0</div>
       </div>
       <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">=</div>
       <div style="flex:1; min-width:0; box-sizing:border-box; background:#FCF3DC; border-radius:12px; padding:10px 8px; text-align:center; border:2px solid #E0A62B;">
-        <div style="font-size:10px; font-weight:800; color:#8A6D1F; text-transform:uppercase;">Balance</div>
-        <div id="exportBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8A6D1F; margin-top:4px;">₹0</div>
+        <div style="font-size:10px; font-weight:800; color:#8A6D1F; text-transform:uppercase; white-space:nowrap;">Balance</div>
+        <div id="exportBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8A6D1F; margin-top:4px; white-space:nowrap;">₹0</div>
       </div>
     </div>
 
@@ -2805,7 +2825,20 @@ document.getElementById('exportSummaryBtn').addEventListener('click', async () =
     document.getElementById('exportExpensesList').innerHTML = expensesRows || '<div style="color:#A8A38C;">No expenses recorded this month.</div>';
     document.getElementById('exportExpensesTotal').innerHTML = `<span>TOTAL</span><span>₹${totalExp}</span>`;
 
-    const canvas = await html2canvas(document.getElementById('exportTemplate'), { backgroundColor: '#FFFDF7', scale: 2, useCORS: true, width: 860, windowWidth: 860 });
+    // On narrow mobile screens, the page's overflow-x:hidden clips anything positioned off-screen
+    // wider than the viewport (even at left:-9999px), so the 860px template gets squeezed down
+    // before html2canvas ever sees it. Temporarily lift that clip just for the capture.
+    const prevHtmlOverflow = document.documentElement.style.overflowX;
+    const prevBodyOverflow = document.body.style.overflowX;
+    document.documentElement.style.overflowX = 'visible';
+    document.body.style.overflowX = 'visible';
+    let canvas;
+    try {
+      canvas = await html2canvas(document.getElementById('exportTemplate'), { backgroundColor: '#FFFDF7', scale: 2, useCORS: true, width: 860, windowWidth: 860 });
+    } finally {
+      document.documentElement.style.overflowX = prevHtmlOverflow;
+      document.body.style.overflowX = prevBodyOverflow;
+    }
     const jpegUrl = canvas.toDataURL('image/jpeg', 0.92);
     const a = document.createElement('a');
     a.href = jpegUrl;
