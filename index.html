@@ -54,7 +54,7 @@
   }
   * { max-width: 100%; }
   body {
-    padding: env(safe-area-inset-top, 0) 0 40px;
+    padding: env(safe-area-inset-top, 0) 0 calc(84px + env(safe-area-inset-bottom, 0px));
   }
   .hero {
     background: radial-gradient(120% 140% at 15% 0%, #2E6B45 0%, var(--green-deep) 55%, #123424 100%);
@@ -487,87 +487,86 @@
     margin-top: 10px;
   }
 
-  /* ===== Desktop layout — wider, two-column, more "professional" feel ===== */
-  /* ===== Mobile — everything bigger, fills the screen more like an app ===== */
-  @media (max-width: 1023px) {
-    .wrap { padding: 0 8px; max-width: 100%; }
-    .hero { padding: 20px 16px 22px; }
-    h1 { font-size: 30px; }
-    .sub { font-size: 15.5px; }
-    .card { padding: 16px 12px; border-radius: 18px; }
-    .card h2 { font-size: 16px; margin-bottom: 8px; }
-    .addRow { gap: 6px; }
-    .addRow input { font-size: 15px; padding: 11px 12px; border-radius: 11px; min-width: 0; }
-    .addRow button { padding: 0 14px; border-radius: 11px; font-size: 14px; }
-    .pname {
-      font-size: 19px;
-      width: 108px;
-      flex-shrink: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .rating { width: 46px; flex-shrink: 0; font-size: 15.5px; padding: 9px 3px; border-radius: 11px; }
-    .chip { font-size: 10.5px; padding: 8px 8px; width: auto; text-align: center; border-radius: 16px; flex-shrink: 0; }
-    .del { font-size: 22px; flex-shrink: 0; }
-    ul.plist li {
-      background: #FCFBF7;
-      border: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 10px 10px;
-      margin-bottom: 7px;
-      box-shadow: 0 1px 4px rgba(30,30,20,0.04);
-      flex-wrap: nowrap;
-    }
-    ul.plist li:last-child { margin-bottom: 0; }
-    .ratingMid { flex: 1; }
-    .actrow { gap: 6px; }
-    .legend { font-size: 12.5px; }
-    button { padding: 14px; font-size: 15.5px; border-radius: 13px; }
-    .sortLabel { font-size: 12.5px; }
-    .sortBtn { font-size: 13px; padding: 7px 13px; }
-    .team h3 { font-size: 16px; }
-    .team ol { font-size: 14.5px; line-height: 1.9; }
-    .team li span { font-size: 12px; }
-    .status { font-size: 14px; padding: 10px; }
-    .install-hint { font-size: 12.5px; }
-    .saved-msg { font-size: 13px; }
+  /* App hamesha mobile-app jaisa hi dikhe — chahe screen kitna bhi bada ho */
+  .wrap { padding: 0 8px; max-width: 480px; }
+  .hero { padding: 20px 16px 22px; max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 30px; }
+  .sub { font-size: 15.5px; }
+  .card { padding: 16px 12px; border-radius: 18px; }
+  .card h2 { font-size: 16px; margin-bottom: 8px; }
+  .addRow { gap: 6px; }
+  .addRow input { font-size: 15px; padding: 11px 12px; border-radius: 11px; min-width: 0; }
+  .addRow button { padding: 0 14px; border-radius: 11px; font-size: 14px; }
+  .pname {
+    font-size: 19px;
+    width: 108px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-
-  @media (min-width: 1024px) {
-    body { padding: 30px 0 60px; }
-    .hero {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 40px 48px 46px;
-      border-radius: 26px;
-      display: flex;
-      align-items: center;
-      gap: 24px;
-    }
-    .hero::after { width: 190px; height: 190px; right: 10px; top: -30px; }
-    .hero-logo { width: 88px; height: 88px; margin-bottom: 0; flex-shrink: 0; }
-    .hero-text { display: flex; flex-direction: column; }
-    h1 { font-size: 40px; }
-    .sub { font-size: 15px; margin-top: 8px; }
-
-    .wrap {
-      max-width: 720px;
-      margin: 28px auto 0;
-      padding: 0 24px;
-    }
-    .wrap > .card { margin-top: 16px; padding: 26px; border-radius: 22px; }
-    ul.plist { max-width: 420px; margin-left: auto; margin-right: auto; }
-    .addRow, .sortRow { max-width: 420px; margin-left: auto; margin-right: auto; }
-    #teamsOut { margin-top: 16px; }
-    .install-hint { margin-top: 18px; }
-
-    .addRow input { font-size: 15.5px; padding: 13px 16px; }
-    button { font-size: 15px; cursor: pointer; }
-    button:hover { filter: brightness(1.05); }
-    ul.plist li:hover { background: #FAF8F0; border-radius: 8px; }
+  .rating { width: 46px; flex-shrink: 0; font-size: 15.5px; padding: 9px 3px; border-radius: 11px; }
+  .chip { font-size: 10.5px; padding: 8px 8px; width: auto; text-align: center; border-radius: 16px; flex-shrink: 0; }
+  .del { font-size: 22px; flex-shrink: 0; }
+  ul.plist li {
+    background: #FCFBF7;
+    border: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 10px;
+    margin-bottom: 7px;
+    box-shadow: 0 1px 4px rgba(30,30,20,0.04);
+    flex-wrap: nowrap;
   }
+  ul.plist li:last-child { margin-bottom: 0; }
+  .ratingMid { flex: 1; }
+  .actrow { gap: 6px; }
+  .legend { font-size: 12.5px; }
+  button { padding: 14px; font-size: 15.5px; border-radius: 13px; }
+  .sortLabel { font-size: 12.5px; }
+  .sortBtn { font-size: 13px; padding: 7px 13px; }
+  .team h3 { font-size: 16px; }
+  .team ol { font-size: 14.5px; line-height: 1.9; }
+  .team li span { font-size: 12px; }
+  .status { font-size: 14px; padding: 10px; }
+  .install-hint { font-size: 12.5px; }
+  .saved-msg { font-size: 13px; }
+
+  /* ===== Bottom app-style navigation bar (fixed, mobile-only feel on every screen) ===== */
+  .bottomNav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    max-width: 480px;
+    margin: 0 auto;
+    background: #fff;
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 16px rgba(20,40,25,0.10);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  .navBtn {
+    flex: 1;
+    margin: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 2px;
+    border-radius: 12px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .navBtn .navIcon { font-size: 20px; line-height: 1; }
+  .navBtn .navLabel { font-size: 10.5px; font-weight: 700; }
+  .navBtn.active { color: var(--green-deep); background: var(--gold-soft); }
+  .navBtn:active { transform: scale(0.96); }
 </style>
 </head>
 <body>
@@ -584,6 +583,7 @@
 
 <div class="wrap">
 
+  <div class="tabPanel" id="tab-home">
   <div class="card">
     <div id="addPlayerBlock">
     <h2>➕ Add a player</h2>
@@ -603,7 +603,9 @@
     <div class="legend">Number = skill level (higher = better) · <b>absent</b> = bina bataye (fine lagegi) · <b>holiday</b> = approved leave (no fine)</div>
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
   </div>
+  </div>
 
+  <div class="tabPanel" id="tab-teams" style="display:none;">
   <div class="card" id="resetCard">
     <button id="makeBtn">🏆 Make Teams</button>
     <button class="secondary" id="reshuffleBtn" style="display:none;">🔀 Reshuffle</button>
@@ -615,7 +617,9 @@
     <div class="team a"><h3>🟢 Team A</h3><ol id="teamA"></ol></div>
     <div class="team b"><h3>🟠 Team B</h3><ol id="teamB"></ol></div>
   </div>
+  </div>
 
+  <div class="tabPanel" id="tab-attendance" style="display:none;">
   <div class="card">
     <h2>🗓️ Daily Attendance</h2>
     <div class="attnRow">
@@ -630,7 +634,9 @@
     <button class="secondary" id="loadStatsBtn" style="margin-top:0;">🔄 Sabki Stats Dekhein</button>
     <div id="statsResult" style="margin-top:12px;"></div>
   </div>
+  </div>
 
+  <div class="tabPanel" id="tab-holiday" style="display:none;">
   <div class="card" id="bulkHolidayCard">
     <h2>🏖️ Bulk Holiday (multi-day)</h2>
     <select id="bulkHolidayName"></select>
@@ -641,12 +647,20 @@
     <button id="bulkHolidaySaveBtn">💾 Holiday Range Save Karein</button>
     <div class="legend" id="bulkHolidayStatus" style="display:none;"></div>
   </div>
+  </div>
 
   <div class="install-hint">
     📲 To use this like an app on your phone: open your browser menu and tap <b>"Add to Home Screen"</b> or <b>"Install App"</b>.
   </div>
 
 </div>
+
+<nav class="bottomNav" id="bottomNav">
+  <button class="navBtn active" data-tab="home"><span class="navIcon">🏠</span><span class="navLabel">Home</span></button>
+  <button class="navBtn" data-tab="teams"><span class="navIcon">🏆</span><span class="navLabel">Teams</span></button>
+  <button class="navBtn" data-tab="attendance"><span class="navIcon">🗓️</span><span class="navLabel">Attendance</span></button>
+  <button class="navBtn" id="navHolidayBtn" data-tab="holiday" style="display:none;"><span class="navIcon">🏖️</span><span class="navLabel">Holiday</span></button>
+</nav>
 
 <div class="modalOverlay" id="loginOverlay">
   <div class="modalCard">
@@ -703,6 +717,11 @@ function applyAdminVisibility() {
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('resetBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('bulkHolidayCard').style.display = isAdmin ? '' : 'none';
+  const navHolidayBtn = document.getElementById('navHolidayBtn');
+  if (navHolidayBtn) {
+    navHolidayBtn.style.display = isAdmin ? '' : 'none';
+    if (!isAdmin && navHolidayBtn.classList.contains('active')) showTab('home');
+  }
   const loginStatusEl = document.getElementById('loginStatus');
   if (loginStatusEl) {
     loginStatusEl.textContent = currentUser
@@ -1211,6 +1230,26 @@ document.getElementById('bulkHolidaySaveBtn').addEventListener('click', () => {
 render();
 load();
 loadAttendance(attnDateInput.value); // show today's attendance (if already saved) on open
+
+// ---- Bottom nav: switch between Home / Teams / Attendance / Holiday sections ----
+function showTab(tab) {
+  document.querySelectorAll('.tabPanel').forEach((el) => { el.style.display = 'none'; });
+  const panel = document.getElementById('tab-' + tab);
+  if (panel) panel.style.display = '';
+  document.querySelectorAll('.navBtn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  try { localStorage.setItem('disc-team-tab', tab); } catch (e) {}
+}
+
+document.querySelectorAll('.navBtn').forEach((btn) => {
+  btn.addEventListener('click', () => showTab(btn.dataset.tab));
+});
+
+(function restoreTab() {
+  let saved = '';
+  try { saved = localStorage.getItem('disc-team-tab') || ''; } catch (e) {}
+  if (saved === 'holiday' && !isAdmin) saved = 'home'; // holiday tab is admin-only
+  showTab(saved || 'home');
+})();
 
 // Offline support: register service worker so the app works without internet after first load
 if ('serviceWorker' in navigator) {
