@@ -178,15 +178,32 @@
     border-bottom: 1px solid #F2EFE4;
   }
   ul.plist li:last-child { border-bottom: none; }
-  .pname {
+  .pinfo {
     width: 110px;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .pname {
+    display: block;
+    width: 100%;
     font-size: 14.5px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .phaLine {
+    display: flex;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+  }
+  .phaP { color: #2E7D42; }
+  .phaA { color: #8C2E2E; }
+  .phaH { color: #1E4FAE; }
   .pname.absent { color: #C4C2B6; text-decoration: line-through; font-weight: 500; }
   .pname.holiday { color: #1E4FAE; font-style: italic; }
   .badge {
@@ -556,14 +573,14 @@
   .addRow { gap: 6px; }
   .addRow input { font-size: 15px; padding: 11px 12px; border-radius: 11px; min-width: 0; }
   .addRow button { padding: 0 14px; border-radius: 11px; font-size: 14px; }
+  .pinfo { width: 112px; flex-shrink: 0; }
   .pname {
     font-size: 14.5px;
-    width: 112px;
-    flex-shrink: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .phaLine { font-size: 10px; }
   .rating { width: 46px; flex-shrink: 0; font-size: 15.5px; padding: 9px 3px; border-radius: 11px; }
   .chip { font-size: 10.5px; padding: 8px 8px; width: auto; text-align: center; border-radius: 16px; flex-shrink: 0; }
   .del { font-size: 22px; flex-shrink: 0; }
@@ -758,6 +775,7 @@ const DEFAULT_NAMES = [
 ];
 
 let players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, status: 'present' }));
+let monthlyPHA = {}; // name -> { present, absent, holiday } for the current month, shown next to each player
 const plistEl = document.getElementById('plist');
 
 // Purane saved data mein sirf boolean "absent" hota tha; ab teen states hain:
@@ -912,10 +930,15 @@ function render() {
     const bg = ratingColor(p.rating);
     const border = statusColor(p.status);
     const crown = ADMIN_NAMES.includes(p.name.toUpperCase()) ? '👑 ' : '';
+    const pha = monthlyPHA[p.name] || { present: 0, absent: 0, holiday: 0 };
+    const phaHtml = `<span class="phaLine"><span class="phaP">P${pha.present}</span><span class="phaA">A${pha.absent}</span><span class="phaH">H${pha.holiday}</span></span>`;
     if (isAdmin) {
       return `
     <li style="background:${bg}; border-left:4px solid ${border};">
-      <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
+      <div class="pinfo">
+        <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
+        ${phaHtml}
+      </div>
       <div class="ratingMid">
         <input class="rating" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="9" value="${p.rating}" data-i="${i}" />
       </div>
@@ -929,7 +952,10 @@ function render() {
     const badgeLabel = p.status === 'absent' ? 'Absent' : p.status === 'holiday' ? 'Holiday' : 'Present';
     return `
     <li style="background:${bg}; border-left:4px solid ${border};">
-      <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
+      <div class="pinfo">
+        <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
+        ${phaHtml}
+      </div>
       <div class="ratingMid">
         <span class="rating">${p.rating}</span>
       </div>
@@ -1107,6 +1133,7 @@ function save() {
   if (attnDateInput && attnDateInput.value === todayStr()) loadAttendance(todayStr());
   refreshMyFineCard();
   if (monthlySheetInput && monthlySheetInput.value === monthStr()) loadMonthlySheet(monthStr());
+  refreshPlayerListPHA();
 }
 
 let savedTimer;
@@ -1344,6 +1371,14 @@ function refreshMyFineCard() {
   });
 }
 
+// ---- Player list ke har naam ke bagal P/A/H (is mahine ka present/absent/holiday count) dikhane ke liye ----
+function refreshPlayerListPHA() {
+  computeMonthlyTotals(monthStr(), (totals) => {
+    monthlyPHA = totals;
+    render();
+  }, (e) => console.error('P/A/H cache load failed', e));
+}
+
 // ---- Bulk holiday: admin ek player ko ek saath kai dinon ke liye holiday par daal sakta hai ----
 const bulkStatusEl = document.getElementById('bulkHolidayStatus');
 
@@ -1419,6 +1454,7 @@ load();
 loadAttendance(attnDateInput.value); // show today's attendance (if already saved) on open
 loadMonthlySheet(monthlySheetInput.value); // show this month's fine sheet on open
 refreshMyFineCard(); // show logged-in player's own fine status at the top
+refreshPlayerListPHA(); // show P/A/H mini-stats next to every player's name
 
 // ---- Bottom nav: switch between Home / Teams / Attendance / Holiday sections ----
 function showTab(tab) {
