@@ -22,6 +22,7 @@
 
 <!-- SheetJS (reads the Excel accounts file the admin uploads) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -904,6 +905,8 @@
     <div class="acctMeta" id="accountsMeta"></div>
   </div>
 
+  <button class="secondary" id="exportSummaryBtn" style="display:none; margin-bottom:16px;">📸 EXPORT SUMMARY (JPEG)</button>
+
   <div class="card accent-blue" id="accountsDuesCard" style="display:none;">
     <h2 id="accountsDuesTitle">📋 DUES</h2>
     <div id="accountsDuesResult"></div>
@@ -924,6 +927,40 @@
     </div>
     <div id="accountsExpResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
   </div>
+  </div>
+
+  <div id="exportTemplate" style="position:absolute; left:-9999px; top:0; width:600px; background:#FFFDF7; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:28px; color:#2B2B22;">
+    <div style="display:flex; align-items:center; gap:14px; border-bottom:3px solid #1F5C3F; padding-bottom:16px; margin-bottom:20px;">
+      <img id="exportLogo" src="icon-192.png" style="width:56px; height:56px; border-radius:50%; object-fit:cover;">
+      <div>
+        <div style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#1F5C3F;">Flying Disc Morning Walkers</div>
+        <div style="font-size:13px; color:#8A8570;">Jubilee Park &middot; Accounts Summary</div>
+      </div>
+      <div id="exportMonthBadge" style="margin-left:auto; background:#1F5C3F; color:#fff; font-weight:800; font-size:14px; padding:6px 14px; border-radius:16px;">AUG-26</div>
+    </div>
+
+    <div style="display:flex; gap:12px; margin-bottom:22px;">
+      <div style="flex:1; background:#EAF4EC; border-radius:12px; padding:14px; text-align:center;">
+        <div style="font-size:11px; font-weight:800; color:#4C7A5A; text-transform:uppercase;">Collected</div>
+        <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#1F5C3F; margin-top:4px;">₹0</div>
+      </div>
+      <div style="flex:1; background:#FBECEC; border-radius:12px; padding:14px; text-align:center;">
+        <div style="font-size:11px; font-weight:800; color:#A15252; text-transform:uppercase;">Expenses</div>
+        <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#8C2E2E; margin-top:4px;">₹0</div>
+      </div>
+      <div style="flex:1; background:#FCF3DC; border-radius:12px; padding:14px; text-align:center;">
+        <div style="font-size:11px; font-weight:800; color:#8A6D1F; text-transform:uppercase;">Balance</div>
+        <div id="exportBalance" style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#8A6D1F; margin-top:4px;">₹0</div>
+      </div>
+    </div>
+
+    <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:8px;">💰 COLLECTIONS THIS MONTH</div>
+    <div id="exportCollectionsList" style="font-size:13px; margin-bottom:20px;"></div>
+
+    <div style="font-size:14px; font-weight:800; color:#8C2E2E; margin-bottom:8px;">🧾 EXPENSES THIS MONTH</div>
+    <div id="exportExpensesList" style="font-size:13px; margin-bottom:8px;"></div>
+
+    <div style="border-top:1px dashed #D8D2BE; margin-top:16px; padding-top:12px; font-size:11px; color:#A8A38C; text-align:center;">Generated from the team app &middot; <span id="exportGeneratedDate"></span></div>
   </div>
 
   <div class="install-hint">
@@ -2352,6 +2389,8 @@ function computeBalanceChain(contribution, expenses, openingBalance) {
 function renderAccounts() {
   accountsContribAddRow.style.display = isFullAdmin ? '' : 'none';
   accountsExpAddRow.style.display = isFullAdmin ? '' : 'none';
+  const exportBtnEl = document.getElementById('exportSummaryBtn');
+  if (exportBtnEl) exportBtnEl.style.display = (isAdmin && accountsData) ? '' : 'none';
   if (!accountsData) {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
     accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
@@ -2480,6 +2519,65 @@ function renderMyDuesAndBalance() {
     <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
   </div>`;
 }
+
+// ---- Export a shareable JPEG summary (this month's collections + expenses + balance, with logo) ----
+document.getElementById('exportSummaryBtn').addEventListener('click', async () => {
+  if (!accountsData || typeof html2canvas === 'undefined') {
+    alert('Export isn\'t ready yet — please try again in a moment.');
+    return;
+  }
+  const btn = document.getElementById('exportSummaryBtn');
+  const originalLabel = btn.textContent;
+  btn.textContent = '⏳ PREPARING…';
+  btn.disabled = true;
+  try {
+    const contribution = filterContributionByCutoff(accountsData.contribution);
+    const openingBalance = getOpeningBalance(accountsData.contribution);
+    const chain = computeBalanceChain(contribution, accountsData.expenses, openingBalance);
+    const curIdx = currentMonthIndex(contribution);
+    const monthLabel = curIdx >= 0 ? contribution.months[curIdx] : currentMonthLabelFor();
+    const totalCollected = curIdx >= 0 ? chain.totals[curIdx] : 0;
+    const totalExp = curIdx >= 0 ? chain.exps[curIdx] : 0;
+    const balanceNow = chain.balances.length ? chain.balances[chain.balances.length - 1] : 0;
+
+    document.getElementById('exportMonthBadge').textContent = monthLabel;
+    document.getElementById('exportTotalCollected').textContent = '₹' + totalCollected;
+    document.getElementById('exportTotalExp').textContent = '₹' + totalExp;
+    document.getElementById('exportBalance').textContent = '₹' + balanceNow;
+    document.getElementById('exportGeneratedDate').textContent = new Date().toLocaleDateString();
+
+    const collectionsRows = curIdx >= 0
+      ? contribution.people.filter((p) => isMonthPaid(p.values[curIdx])).map((p) => `
+        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
+          <span>${p.name}</span><span style="font-weight:800; color:#1F5C3F;">₹${p.values[curIdx]}</span>
+        </div>`).join('')
+      : '';
+    document.getElementById('exportCollectionsList').innerHTML = collectionsRows || '<div style="color:#A8A38C;">No collections recorded this month.</div>';
+
+    const expensePairs = filterExpensesByCutoff(accountsData.expenses);
+    const monthExpenses = filterExpensePairsToCurrentMonth(expensePairs).map((p) => p.e).filter((e) => Number(e.exp) > 0);
+    const expensesRows = monthExpenses.map((e) => `
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
+        <span>${formatDateForDisplay(e.date)} — ${e.head || ''}</span><span style="font-weight:800; color:#8C2E2E;">₹${e.exp}</span>
+      </div>`).join('');
+    document.getElementById('exportExpensesList').innerHTML = expensesRows || '<div style="color:#A8A38C;">No expenses recorded this month.</div>';
+
+    const canvas = await html2canvas(document.getElementById('exportTemplate'), { backgroundColor: '#FFFDF7', scale: 2, useCORS: true });
+    const jpegUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const a = document.createElement('a');
+    a.href = jpegUrl;
+    a.download = `accounts-summary-${monthLabel}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (err) {
+    console.error('Export summary failed', err);
+    alert('Export failed: ' + err.message);
+  } finally {
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+  }
+});
 
 function loadAccounts() {
   accountsDocRef.onSnapshot((doc) => {
