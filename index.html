@@ -557,6 +557,48 @@
   .myFineCard .mfVerdict.good { background: #E4F5E7; color: #2E7D42; }
   .myFineCard .mfVerdict.bad { background: var(--red-soft); color: #8C2E2E; }
 
+  /* Birthday alert banner — shown on every tab when someone's birthday is today or within 3 days */
+  .bdayBanner {
+    background: linear-gradient(135deg, #FFF6E9 0%, var(--gold-soft) 100%);
+    border: 1.5px solid var(--gold);
+    border-radius: 16px;
+    padding: 12px 16px;
+    margin-top: 16px;
+    box-shadow: 0 2px 10px rgba(30,30,20,0.05);
+  }
+  .bdayBanner.today { border-color: var(--orange); background: linear-gradient(135deg, #FFF6E9 0%, var(--orange-soft) 100%); }
+  .bdayBanner .bbTitle { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .bdayBanner .bbRow { font-size: 13.5px; font-weight: 700; color: var(--ink); padding: 3px 0; }
+  .bdayBanner .bbRow .bbWhen { font-weight: 600; color: var(--muted); }
+  .bdayBanner .bbRow.today .bbWhen { color: var(--orange); font-weight: 800; }
+
+  /* Birthday list card (Teams tab) */
+  ul.bdayList { list-style: none; margin: 0; padding: 0; }
+  ul.bdayList li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  ul.bdayList li:last-child { border-bottom: none; }
+  ul.bdayList .bdName { font-weight: 700; font-size: 14px; color: var(--ink); }
+  ul.bdayList .bdDate { font-size: 12.5px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  ul.bdayList .bdDate.soon { color: var(--orange); font-weight: 800; }
+  ul.bdayList .bdDate.today { color: #fff; background: var(--orange); padding: 4px 10px; border-radius: 12px; }
+  .bdayEditRow { display: flex; align-items: center; gap: 8px; }
+  .bdayEditRow .bdName { flex: 1; min-width: 0; }
+  .bdayEditRow input[type="number"] {
+    width: 54px; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 6px;
+    font-size: 13px; font-family: inherit; background: #FCFBF7; text-align: center;
+  }
+  .bdayEditRow select {
+    border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 6px;
+    font-size: 13px; font-family: inherit; background: #FCFBF7;
+  }
+  .bdayEditRow input:focus, .bdayEditRow select:focus { outline: none; border-color: var(--green-mid); background: #fff; }
+
   .fineRow {
     display: flex;
     align-items: center;
@@ -834,6 +876,8 @@
 
   <div class="myFineCard" id="myFineCard" style="display:none;"></div>
 
+  <div class="bdayBanner" id="bdayBanner" style="display:none;"></div>
+
   <div class="tabPanel" id="tab-home">
   <div class="acctBalanceCard" id="homeBalanceCard" style="display:none;">
     <div class="abTitle">Team Balance</div>
@@ -895,6 +939,13 @@
       <button class="secondary" id="loadMatchHistoryBtn">👁️ VIEW</button>
     </div>
     <div id="matchHistoryResult"></div>
+  </div>
+
+  <div class="card accent-gold" id="bdayCard">
+    <h2>🎂 BIRTHDAYS</h2>
+    <div class="legend" id="bdayEditHint" style="margin-top:0; display:none;">Set each player's birth day &amp; month below, then save. Everyone gets an alert on the app starting 3 days before.</div>
+    <ul class="bdayList" id="bdayList"></ul>
+    <button id="saveBdayBtn" style="margin-top:12px; display:none;">💾 SAVE BIRTHDAYS</button>
   </div>
   </div>
 
@@ -1174,7 +1225,29 @@ const DEFAULT_NAMES = [
   ['VISHAL', 4], ['VISHNU', 1]
 ];
 
-let players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, status: 'present' }));
+// Birthdays (day, month) for the current roster — shown in the Teams tab and used for the
+// app-wide reminder banner that appears starting 3 days before each player's birthday.
+const BIRTHDAY_MAP = {
+  DEVENDRA: { d: 4, m: 1 },
+  KAMLESH: { d: 2, m: 9 },
+  DINESH: { d: 1, m: 12 },
+  DIPPU: { d: 28, m: 3 },
+  NAVIN: { d: 6, m: 11 },
+  PAWAN: { d: 13, m: 10 },
+  PRAMOD: { d: 5, m: 8 },
+  VISHNU: { d: 16, m: 7 },
+  MAHAVIR: { d: 9, m: 2 },
+  RAJENDRA: { d: 10, m: 8 },
+  RAJESH: { d: 6, m: 7 },
+  VIBHAW: { d: 1, m: 1 },
+  VISHAL: { d: 8, m: 11 },
+  SHANKAR: { d: 13, m: 4 },
+  SANJAY: { d: 16, m: 2 },
+  SUBHASH: { d: 25, m: 11 },
+  SURESH: { d: 4, m: 9 }
+};
+
+let players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, status: 'present', bday: BIRTHDAY_MAP[name] || null }));
 let monthlyPHA = {}; // name -> { present, absent, holiday } for the current month, shown next to each player
 const plistEl = document.getElementById('plist');
 
@@ -1183,8 +1256,9 @@ const plistEl = document.getElementById('plist');
 function normalizePlayers(list) {
   if (!Array.isArray(list)) return list;
   return list.map(p => {
-    if (p.status) return p;
-    return { name: p.name, rating: p.rating, status: p.absent ? 'absent' : 'present' };
+    const bday = p.bday || BIRTHDAY_MAP[String(p.name || '').toUpperCase()] || null;
+    if (p.status) return { ...p, bday };
+    return { name: p.name, rating: p.rating, status: p.absent ? 'absent' : 'present', bday };
   });
 }
 
@@ -1543,6 +1617,7 @@ function render() {
     </li>`;
   }).join('');
   populateBulkHolidaySelect();
+  renderBirthdays();
 }
 
 function populateBulkHolidaySelect() {
@@ -1560,6 +1635,114 @@ function populateResetPassSelect() {
   const current = sel.value;
   sel.innerHTML = players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
   if (current && players.some(p => p.name === current)) sel.value = current;
+}
+
+// ---- Birthdays: Teams-tab list + app-wide reminder banner (fires 3 days before, and on the day) ----
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const bdayListEl = document.getElementById('bdayList');
+const bdayBannerEl = document.getElementById('bdayBanner');
+const saveBdayBtn = document.getElementById('saveBdayBtn');
+const bdayEditHintEl = document.getElementById('bdayEditHint');
+
+function formatBday(b) {
+  if (!b || !b.d || !b.m) return '';
+  return `${String(b.d).padStart(2, '0')} ${MONTH_SHORT[b.m - 1]}`;
+}
+
+// Days from today until the next occurrence of this birthday (0 = today, wraps to next year if passed).
+function daysUntilBday(b) {
+  if (!b || !b.d || !b.m) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let target = new Date(now.getFullYear(), b.m - 1, b.d);
+  target.setHours(0, 0, 0, 0);
+  if (target < today) target = new Date(now.getFullYear() + 1, b.m - 1, b.d);
+  return Math.round((target - today) / 86400000);
+}
+
+function renderBirthdays() {
+  if (!bdayListEl) return;
+  const canEdit = isFullAdmin;
+  saveBdayBtn.style.display = canEdit ? '' : 'none';
+  bdayEditHintEl.style.display = canEdit ? '' : 'none';
+
+  const sorted = players.map((p, i) => ({ p, i, days: daysUntilBday(p.bday) }))
+    .sort((a, b) => {
+      if (a.days === null && b.days === null) return a.p.name.localeCompare(b.p.name);
+      if (a.days === null) return 1;
+      if (b.days === null) return -1;
+      return a.days - b.days;
+    });
+
+  bdayListEl.innerHTML = sorted.map(({ p, i, days }) => {
+    if (canEdit) {
+      const monthOptions = MONTH_SHORT.map((mn, mi) =>
+        `<option value="${mi + 1}" ${p.bday && p.bday.m === mi + 1 ? 'selected' : ''}>${mn}</option>`
+      ).join('');
+      return `
+      <li class="bdayEditRow">
+        <span class="bdName">${p.name}</span>
+        <input type="number" min="1" max="31" placeholder="Day" value="${p.bday ? p.bday.d : ''}" data-i="${i}" data-field="d" />
+        <select data-i="${i}" data-field="m">
+          <option value="">Month</option>
+          ${monthOptions}
+        </select>
+      </li>`;
+    }
+    if (!p.bday) return `<li><span class="bdName">${p.name}</span><span class="bdDate">—</span></li>`;
+    let dateCls = 'bdDate';
+    let label = formatBday(p.bday);
+    if (days === 0) { dateCls += ' today'; label = '🎉 Today!'; }
+    else if (days <= 3) { dateCls += ' soon'; label = `${formatBday(p.bday)} · in ${days}d`; }
+    return `<li><span class="bdName">${p.name}</span><span class="${dateCls}">${label}</span></li>`;
+  }).join('');
+}
+
+bdayListEl && bdayListEl.addEventListener('change', (e) => {
+  const target = e.target;
+  const field = target.dataset.field;
+  if (!field) return;
+  const i = Number(target.dataset.i);
+  if (isNaN(i) || !players[i]) return;
+  const bday = { ...(players[i].bday || {}) };
+  if (field === 'd') {
+    let val = parseInt(target.value, 10);
+    if (isNaN(val) || val < 1) val = null;
+    if (val > 31) val = 31;
+    bday.d = val;
+  } else if (field === 'm') {
+    const val = parseInt(target.value, 10);
+    bday.m = isNaN(val) ? null : val;
+  }
+  players[i].bday = (bday.d && bday.m) ? bday : null;
+});
+
+saveBdayBtn && saveBdayBtn.addEventListener('click', () => {
+  if (!cloudReady) { alert('Data is still loading — please wait and try again (2-3 seconds).'); return; }
+  suppressNextSnapshot = true;
+  playersDocRef.set({ list: players, updatedAt: Date.now() }, { merge: true })
+    .then(() => { showSaved(); refreshBdayBanner(); })
+    .catch((err) => { console.error('Save birthdays failed', err); alert('Save failed: ' + err.message); });
+});
+
+// Shows a banner (on every tab) for anyone whose birthday is today or within the next 3 days.
+function refreshBdayBanner() {
+  if (!bdayBannerEl) return;
+  const upcoming = players
+    .map((p) => ({ name: p.name, days: daysUntilBday(p.bday), bday: p.bday }))
+    .filter((x) => x.days !== null && x.days <= 3)
+    .sort((a, b) => a.days - b.days);
+
+  if (!upcoming.length) { bdayBannerEl.style.display = 'none'; return; }
+
+  const hasToday = upcoming.some((x) => x.days === 0);
+  bdayBannerEl.className = 'bdayBanner' + (hasToday ? ' today' : '');
+  const rows = upcoming.map((x) => {
+    const when = x.days === 0 ? '🎉 Today!' : x.days === 1 ? 'Tomorrow' : `in ${x.days} days (${formatBday(x.bday)})`;
+    return `<div class="bbRow ${x.days === 0 ? 'today' : ''}">🎂 ${x.name} — <span class="bbWhen">${when}</span></div>`;
+  }).join('');
+  bdayBannerEl.innerHTML = `<div class="bbTitle">Birthday Alert</div>${rows}`;
+  bdayBannerEl.style.display = 'block';
 }
 
 plistEl.addEventListener('click', (e) => {
@@ -1855,6 +2038,7 @@ function save() {
   refreshMyFineCard();
   if (monthlySheetInput && monthlySheetInput.value === monthStr()) loadMonthlySheet(monthStr());
   refreshPlayerListPHA();
+  refreshBdayBanner();
 }
 
 let savedTimer;
@@ -1874,6 +2058,7 @@ function load() {
     if (raw) players = normalizePlayers(JSON.parse(raw));
   } catch (e) { /* ignore */ }
   render();
+  refreshBdayBanner();
 
   playersDocRef.onSnapshot((doc) => {
     cloudReady = true;
@@ -1889,6 +2074,7 @@ function load() {
         players = players.map((p) => ({ ...p, status: 'present' }));
         try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
         render();
+        refreshBdayBanner();
         suppressNextSnapshot = true;
         playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e) => {
           console.error('Day-rollover save failed', e);
@@ -1897,6 +2083,7 @@ function load() {
       }
       try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
       render();
+      refreshBdayBanner();
     }
   }, (err) => {
     console.error('Cloud sync error (using local data):', err);
@@ -3190,6 +3377,7 @@ loadAttendance(attnDateInput.value); // show today's attendance (if already save
 loadMonthlySheet(monthlySheetInput.value); // show this month's fine sheet on open
 refreshMyFineCard(); // show logged-in player's own fine status at the top
 refreshPlayerListPHA(); // show P/A/H mini-stats next to every player's name
+refreshBdayBanner(); // show today's/upcoming birthday alert (if any) as soon as the app opens
 loadAccounts(); // show the latest uploaded accounts (contributions + expenses) as soon as the app opens
 
 const todayDateLineEl = document.getElementById('todayDateLine');
