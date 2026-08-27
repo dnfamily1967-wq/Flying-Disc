@@ -1602,10 +1602,6 @@ function todayStr() {
 // count stays within this limit, there's NO fine. Holidays never cause a fine.
 const FINE_ABSENT_THRESHOLD = 10;
 
-// ---- Data start date ----
-// Attendance/stats/fine calculations only count records from this date onward (any older
-// data — e.g. test entries before the app went live — is ignored everywhere).
-const DATA_START_DATE = '2026-08-27';
 
 function monthStr(d = new Date()) {
   const yyyy = d.getFullYear();
@@ -1854,7 +1850,6 @@ function computeMonthlyTotals(month, onDone, onErr) {
       let daysCounted = 0;
       snap.forEach((doc) => {
         const data = doc.data();
-        if (!data.date || data.date < DATA_START_DATE) return;
         if (!data.date || !data.date.startsWith(month)) return;
         if (!Array.isArray(data.players)) return;
         daysCounted++;
