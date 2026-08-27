@@ -1299,8 +1299,7 @@ function render() {
     const border = statusColor(p.status);
     const crown = ADMIN_NAMES.includes(p.name.toUpperCase()) ? '👑 ' : '';
     const pha = monthlyPHA[p.name] || { present: 0, absent: 0, holiday: 0, total: 0 };
-    const phaPct = pha.total ? Math.round((pha.present / pha.total) * 100) : 0;
-    const phaHtml = `<span class="circleRow"><span class="miniCircle mc-green">${phaPct}</span><span class="miniCircle mc-yellow">${pha.holiday}</span><span class="miniCircle mc-red">${pha.absent}</span></span>`;
+    const phaHtml = `<span class="circleRow"><span class="miniCircle mc-green">${pha.present}</span><span class="miniCircle mc-yellow">${pha.holiday}</span><span class="miniCircle mc-red">${pha.absent}</span></span>`;
     if (isFullAdmin) {
       return `
     <li style="background:${bg}; border-left:4px solid ${border};">
