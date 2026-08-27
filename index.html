@@ -39,6 +39,8 @@
     --gold-soft: #FBEBC9;
     --red: #D14545;
     --red-soft: #FBE0E0;
+    --blue: #2F6FED;
+    --blue-soft: #DCE8FE;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -83,6 +85,7 @@
     margin: 0;
     z-index: 3;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     background: radial-gradient(circle at 35% 30%, #FF9A5A 0%, var(--orange) 55%, #C6491C 100%);
@@ -95,6 +98,8 @@
     border-radius: 50%;
     box-shadow: 0 3px 10px rgba(0,0,0,0.25);
     text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    line-height: 1.15;
+    text-align: center;
   }
 .hero-logo {
     width: 64px;
@@ -183,6 +188,17 @@
     text-overflow: ellipsis;
   }
   .pname.absent { color: #C4C2B6; text-decoration: line-through; font-weight: 500; }
+  .pname.holiday { color: #1E4FAE; font-style: italic; }
+  .badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .badge-present { background: #E4F5E7; color: #2E7D42; }
+  .badge-absent { background: var(--red-soft); color: #8C2E2E; }
+  .badge-holiday { background: var(--blue-soft); color: #1E4FAE; }
   .ratingMid { display: flex; align-items: center; justify-content: center; flex: 1; }
   .actrow { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
@@ -214,6 +230,7 @@
     white-space: nowrap;
   }
   .chip.absent.on { background: var(--red-soft); border-color: var(--red); color: #8C2E2E; }
+  .chip.holiday.on { background: var(--blue-soft); border-color: var(--blue); color: #1E4FAE; }
 
   .del {
     background: none;
@@ -374,6 +391,52 @@
   .attnGroup b { font-size: 12.5px; letter-spacing: 0.3px; }
   .attnNames { font-size: 13.5px; line-height: 1.7; margin-top: 4px; color: var(--ink); }
 
+  .modalOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,20,12,0.55);
+    z-index: 50;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modalOverlay.show { display: flex; }
+  .modalCard {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 22px;
+    width: 100%;
+    max-width: 340px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+  .modalCard h2 {
+    font-family: 'Outfit', sans-serif;
+    margin: 0 0 14px;
+    color: var(--green-deep);
+    font-size: 18px;
+  }
+  .modalLabel { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 6px; }
+  .modalCard select, .modalCard input[type="password"] {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    background: #FCFBF7;
+  }
+  .modalCard select:focus, .modalCard input:focus { outline: none; border-color: var(--green-mid); background: #fff; }
+  .modalBtnRow { display: flex; gap: 10px; margin-top: 18px; }
+  .modalBtnRow button { margin-top: 0; }
+
+  .login-status {
+    color: #C9DACB;
+    font-size: 13px;
+    margin-top: 6px;
+    font-weight: 600;
+  }
+
   /* ===== Desktop layout — wider, two-column, more "professional" feel ===== */
   /* ===== Mobile — everything bigger, fills the screen more like an app ===== */
   @media (max-width: 1023px) {
@@ -395,7 +458,7 @@
       text-overflow: ellipsis;
     }
     .rating { width: 46px; flex-shrink: 0; font-size: 15.5px; padding: 9px 3px; border-radius: 11px; }
-    .chip { font-size: 11.5px; padding: 8px 6px; width: 62px; text-align: center; border-radius: 16px; flex-shrink: 0; }
+    .chip { font-size: 10.5px; padding: 8px 8px; width: auto; text-align: center; border-radius: 16px; flex-shrink: 0; }
     .del { font-size: 22px; flex-shrink: 0; }
     ul.plist li {
       background: #FCFBF7;
@@ -465,6 +528,7 @@
   <div class="hero-text">
   <div class="tag">Daily flying disc</div>
   <h1>Team Maker</h1>
+  <div class="login-status" id="loginStatus"></div>
   </div>
 </div>
 
@@ -486,7 +550,7 @@
     <ul class="plist" id="plist"></ul>
     <button class="secondary" id="saveBtn" style="margin-top:14px;">💾 Save</button>
     <div class="saved-msg" id="savedMsg">Saved ✅</div>
-    <div class="legend">Number = skill level (higher = better) · <b>absent</b> = not playing today</div>
+    <div class="legend">Number = skill level (higher = better) · <b>absent</b> = bina bataye (fine lagegi) · <b>holiday</b> = approved leave (no fine)</div>
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
   </div>
 
@@ -517,6 +581,21 @@
 
 </div>
 
+<div class="modalOverlay" id="loginOverlay">
+  <div class="modalCard">
+    <h2>🔐 Login</h2>
+    <label class="modalLabel">Apna naam chunein</label>
+    <select id="loginNameSelect"></select>
+    <label class="modalLabel">Password</label>
+    <input type="password" id="loginPassInput" placeholder="Password" autocomplete="off">
+    <div class="err" id="loginErr">Galat password, dobara try karein.</div>
+    <div class="modalBtnRow">
+      <button class="secondary" id="loginCancelBtn" type="button">Cancel</button>
+      <button id="loginSubmitBtn" type="button">Login</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const DEFAULT_NAMES = [
   ['DEVENDRA', 2], ['DINESH', 5], ['DIPPU', 6], ['KAMLESH', 5],
@@ -526,41 +605,93 @@ const DEFAULT_NAMES = [
   ['VISHAL', 4], ['VISHNU', 1]
 ];
 
-let players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, absent: false }));
+let players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, status: 'present' }));
 const plistEl = document.getElementById('plist');
 
-// ---- Admin mode (only admin can edit; everyone else sees a view-only list) ----
-const ADMIN_PIN = "3648";
-let isAdmin = localStorage.getItem('disc-team-admin') === 'yes';
+// Purane saved data mein sirf boolean "absent" hota tha; ab teen states hain:
+// 'present' | 'absent' (bina bataye, fine) | 'holiday' (approved leave, no fine)
+function normalizePlayers(list) {
+  if (!Array.isArray(list)) return list;
+  return list.map(p => {
+    if (p.status) return p;
+    return { name: p.name, rating: p.rating, status: p.absent ? 'absent' : 'present' };
+  });
+}
+
+// ---- Named login (only Pawan, Shankar, Dippu get admin/edit power) ----
+const ADMIN_NAMES = ['PAWAN', 'SHANKAR', 'DIPPU'];
+const LOGIN_PASSWORD = 'disc';
+let currentUser = localStorage.getItem('disc-team-user') || '';
+let isAdmin = !!currentUser && ADMIN_NAMES.includes(currentUser.toUpperCase());
 
 function applyAdminVisibility() {
   const adminBtn = document.getElementById('adminBtn');
-  adminBtn.textContent = isAdmin ? 'Admin ✓' : 'Admin';
+  if (currentUser) {
+    const shortName = currentUser.split(' ')[0].slice(0, 7);
+    adminBtn.innerHTML = `<span style="font-size:16px;">${isAdmin ? '👑' : '👤'}</span><span style="font-size:8px;margin-top:2px;">${shortName}</span>`;
+  } else {
+    adminBtn.textContent = 'Login';
+  }
   document.getElementById('addPlayerBlock').style.display = isAdmin ? '' : 'none';
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('resetBtn').style.display = isAdmin ? '' : 'none';
+  const loginStatusEl = document.getElementById('loginStatus');
+  if (loginStatusEl) {
+    loginStatusEl.textContent = currentUser
+      ? `👋 ${currentUser}${isAdmin ? ' · Admin' : ''}`
+      : 'Guest view · login karke attendance dekhein';
+  }
+}
+
+const loginOverlay = document.getElementById('loginOverlay');
+const loginNameSelect = document.getElementById('loginNameSelect');
+const loginPassInput = document.getElementById('loginPassInput');
+const loginErrEl = document.getElementById('loginErr');
+
+function openLoginModal() {
+  const names = players.map(p => p.name);
+  loginNameSelect.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+  loginPassInput.value = '';
+  loginErrEl.style.display = 'none';
+  loginOverlay.classList.add('show');
+}
+
+function closeLoginModal() {
+  loginOverlay.classList.remove('show');
 }
 
 document.getElementById('adminBtn').addEventListener('click', () => {
-  if (isAdmin) {
-    if (confirm('Admin mode band karein? (Sirf aapke is phone/browser par)')) {
+  if (currentUser) {
+    if (confirm(`${currentUser} ko logout karein? (Sirf is phone/browser par)`)) {
+      currentUser = '';
       isAdmin = false;
-      localStorage.setItem('disc-team-admin', 'no');
+      localStorage.removeItem('disc-team-user');
       applyAdminVisibility();
       render();
     }
     return;
   }
-  const pin = prompt('Admin PIN daalein:');
-  if (pin === null) return;
-  if (pin === ADMIN_PIN) {
-    isAdmin = true;
-    localStorage.setItem('disc-team-admin', 'yes');
-    applyAdminVisibility();
-    render();
-  } else {
-    alert('Galat PIN');
+  openLoginModal();
+});
+
+document.getElementById('loginCancelBtn').addEventListener('click', closeLoginModal);
+
+document.getElementById('loginSubmitBtn').addEventListener('click', () => {
+  const name = loginNameSelect.value;
+  const pass = loginPassInput.value;
+  if (pass !== LOGIN_PASSWORD) {
+    loginErrEl.style.display = 'block';
+    return;
   }
+  currentUser = name;
+  isAdmin = ADMIN_NAMES.includes(currentUser.toUpperCase());
+  localStorage.setItem('disc-team-user', currentUser);
+  closeLoginModal();
+  applyAdminVisibility();
+  render();
+});
+loginPassInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('loginSubmitBtn').click();
 });
 
 applyAdminVisibility();
@@ -608,32 +739,42 @@ function ratingColor(r) {
   return `hsl(${hue}, 65%, 90%)`;
 }
 
+function statusColor(status) {
+  if (status === 'absent') return 'var(--red)';
+  if (status === 'holiday') return 'var(--blue)';
+  return '#4CAF50';
+}
+
 function render() {
   sortPlayers();
   updateSortButtons();
   plistEl.innerHTML = players.map((p, i) => {
     const bg = ratingColor(p.rating);
+    const border = statusColor(p.status);
+    const crown = ADMIN_NAMES.includes(p.name.toUpperCase()) ? '👑 ' : '';
     if (isAdmin) {
       return `
-    <li style="background:${bg}">
-      <span class="pname ${p.absent ? 'absent' : ''}">${p.name}</span>
+    <li style="background:${bg}; border-left:4px solid ${border};">
+      <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
       <div class="ratingMid">
         <input class="rating" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="9" value="${p.rating}" data-i="${i}" />
       </div>
       <div class="actrow">
-        <button class="chip absent ${p.absent ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
+        <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
+        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday">holiday</button>
         <button class="del" data-i="${i}" data-act="del">&times;</button>
       </div>
     </li>`;
     }
+    const badgeLabel = p.status === 'absent' ? 'Absent' : p.status === 'holiday' ? 'Holiday' : 'Present';
     return `
-    <li style="background:${bg}">
-      <span class="pname ${p.absent ? 'absent' : ''}">${p.name}</span>
+    <li style="background:${bg}; border-left:4px solid ${border};">
+      <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
       <div class="ratingMid">
         <span class="rating">${p.rating}</span>
       </div>
       <div class="actrow">
-        <button class="chip absent ${p.absent ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
+        <span class="badge badge-${p.status}">${badgeLabel}</span>
       </div>
     </li>`;
   }).join('');
@@ -644,7 +785,8 @@ plistEl.addEventListener('click', (e) => {
   if (!btn) return;
   const i = Number(btn.dataset.i);
   const act = btn.dataset.act;
-  if (act === 'absent') players[i].absent = !players[i].absent;
+  if (act === 'absent') players[i].status = players[i].status === 'absent' ? 'present' : 'absent';
+  if (act === 'holiday') players[i].status = players[i].status === 'holiday' ? 'present' : 'holiday';
   if (act === 'del') players.splice(i, 1);
   render();
   save();
@@ -663,7 +805,7 @@ plistEl.addEventListener('change', (e) => {
 function addPlayer() {
   const name = nameInput.value.trim();
   if (!name) return;
-  players.push({ name, rating: 1, absent: false });
+  players.push({ name, rating: 1, status: 'present' });
   nameInput.value = '';
   render();
   save();
@@ -682,7 +824,7 @@ function shuffle(arr) {
 }
 
 function makeTeams() {
-  const present = players.filter(p => !p.absent);
+  const present = players.filter(p => p.status === 'present');
   if (present.length < 2) {
     errEl.style.display = 'block';
     teamsOut.style.display = 'none';
@@ -714,7 +856,7 @@ document.getElementById('makeBtn').addEventListener('click', makeTeams);
 reshuffleBtn.addEventListener('click', makeTeams);
 document.getElementById('resetBtn').addEventListener('click', () => {
   if (!confirm('Pakka? Isse sabki current list/ratings mit jayengi aur default list wapas aa jayegi — ye sabhi phones mein bhi ho jayega.')) return;
-  players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, absent: false }));
+  players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, status: 'present' }));
   render();
   save();
 });
@@ -750,7 +892,7 @@ function todayStr() {
 // Har baar jab admin "Save" dabata hai, aaj ki date ke against attendance snapshot bhi save ho jata hai
 function saveAttendanceSnapshot() {
   const dateStr = todayStr();
-  const record = players.map(p => ({ name: p.name, present: !p.absent }));
+  const record = players.map(p => ({ name: p.name, status: p.status || (p.absent ? 'absent' : 'present') }));
   attendanceDocRef(dateStr).set({
     date: dateStr,
     players: record,
@@ -798,7 +940,7 @@ function load() {
   // Fast local render first (works offline), then live cloud listener keeps everyone in sync
   try {
     const raw = localStorage.getItem('disc-team-players');
-    if (raw) players = JSON.parse(raw);
+    if (raw) players = normalizePlayers(JSON.parse(raw));
   } catch (e) { /* ignore */ }
   render();
 
@@ -806,7 +948,7 @@ function load() {
     cloudReady = true;
     if (suppressNextSnapshot) { suppressNextSnapshot = false; return; }
     if (doc.exists && Array.isArray(doc.data().list)) {
-      players = doc.data().list;
+      players = normalizePlayers(doc.data().list);
       try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
       render();
     }
@@ -821,22 +963,32 @@ const attnDateInput = document.getElementById('attnDateInput');
 const attnResultEl = document.getElementById('attnResult');
 attnDateInput.value = todayStr();
 
+function normalizeAttnStatus(p) {
+  if (p.status) return p.status;
+  return p.present ? 'present' : 'absent';
+}
+
 function renderAttendanceResult(dateStr, data) {
   if (!data || !Array.isArray(data.players) || data.players.length === 0) {
     attnResultEl.innerHTML = `<div class="err" style="display:block;">Is date (${dateStr}) ke liye koi attendance record nahi mila.</div>`;
     return;
   }
-  const present = data.players.filter(p => p.present);
-  const absent = data.players.filter(p => !p.present);
+  const present = data.players.filter(p => normalizeAttnStatus(p) === 'present');
+  const absent = data.players.filter(p => normalizeAttnStatus(p) === 'absent');
+  const holiday = data.players.filter(p => normalizeAttnStatus(p) === 'holiday');
   attnResultEl.innerHTML = `
-    <div class="attnCount">${present.length} present / ${data.players.length} total — ${dateStr}</div>
+    <div class="attnCount">${present.length} present · ${absent.length} absent · ${holiday.length} holiday — ${data.players.length} total — ${dateStr}</div>
     <div class="attnGroup">
       <b style="color:var(--green-deep);">✅ Present (${present.length})</b>
       <div class="attnNames">${present.map(p => p.name).join(', ') || '—'}</div>
     </div>
     <div class="attnGroup">
-      <b style="color:#8C2E2E;">❌ Absent (${absent.length})</b>
+      <b style="color:#8C2E2E;">❌ Absent — bina bataye (${absent.length})</b>
       <div class="attnNames">${absent.map(p => p.name).join(', ') || '—'}</div>
+    </div>
+    <div class="attnGroup">
+      <b style="color:#1E4FAE;">🏖️ Holiday — approved (${holiday.length})</b>
+      <div class="attnNames">${holiday.map(p => p.name).join(', ') || '—'}</div>
     </div>
   `;
 }
