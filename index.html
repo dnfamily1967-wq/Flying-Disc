@@ -2569,10 +2569,23 @@ document.querySelectorAll('.navBtn').forEach((btn) => {
   showTab(saved || 'home');
 })();
 
-// Offline support: register service worker so the app works without internet after first load
+// Offline support: register service worker so the app works without internet after first load.
+// Also auto-detects a new deployed version and reloads once to pick it up — so future updates
+// don't need a manual cache-clear like this one did.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js').catch(function(err) {
+    navigator.serviceWorker.register('service-worker.js').then((reg) => {
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            window.location.reload();
+          }
+        });
+      });
+      reg.update(); // check for a newer service-worker.js every time the app is opened
+    }).catch(function(err) {
       console.log('Service worker registration failed:', err);
     });
   });
