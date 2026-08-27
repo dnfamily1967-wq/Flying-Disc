@@ -2060,7 +2060,7 @@ function renderAccountsDues(contribution) {
   const monthLabel = contribution.months[lastIdx];
   const rows = contribution.people.map((p) => {
     const val = String(p.values[lastIdx] || '').trim();
-    const paid = !!val && val !== '—';
+    const paid = !!val && val !== '—' && Number(val) !== 0;
     return `<div class="fineRow ${paid ? '' : 'fined'}">
       <span class="fineName">${p.name}</span>
       <span class="fineCounts">${paid ? ('Paid ₹' + val) : 'Not yet paid'}</span>
@@ -2069,7 +2069,7 @@ function renderAccountsDues(contribution) {
   }).join('');
   const dueCount = contribution.people.filter((p) => {
     const val = String(p.values[lastIdx] || '').trim();
-    return !val || val === '—';
+    return !val || val === '—' || Number(val) === 0;
   }).length;
   accountsDuesCard.style.display = '';
   accountsDuesTitleEl.textContent = `📋 ${monthLabel} DUES${dueCount ? ' (' + dueCount + ' pending)' : ' — all paid ✅'}`;
@@ -2180,14 +2180,23 @@ function renderMyDuesAndBalance() {
   if (!currentUser || !contribution.months.length) { myDuesCard.style.display = 'none'; return; }
   const lastIdx = contribution.months.length - 1;
   const monthLabel = contribution.months[lastIdx];
-  const me = contribution.people.find((p) => p.name === currentUser.toUpperCase());
-  if (!me) { myDuesCard.style.display = 'none'; return; }
-  const val = String(me.values[lastIdx] || '').trim();
-  const paid = !!val && val !== '—';
+  const norm = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  const myName = norm(currentUser);
+  // Exact match first; fall back to a first-name match so small spelling/spacing differences
+  // between the login name and the Excel sheet's name don't silently hide the card.
+  let me = contribution.people.find((p) => norm(p.name) === myName);
+  if (!me) me = contribution.people.find((p) => norm(p.name).split(' ')[0] === myName.split(' ')[0]);
   myDuesCard.style.display = '';
+  if (!me) {
+    myDuesTitleEl.textContent = `📋 ${monthLabel} DUES`;
+    myDuesResultEl.innerHTML = `<div class="legend" style="margin-top:0;">You're not listed in the ${monthLabel} contribution sheet yet — ask admin to add you (Accounts → Add/Edit Person).</div>`;
+    return;
+  }
+  const val = String(me.values[lastIdx] || '').trim();
+  const paid = !!val && val !== '—' && Number(val) !== 0;
   myDuesTitleEl.textContent = `📋 ${monthLabel} DUES`;
   myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? '' : 'fined'}">
-    <span class="fineName">${currentUser}</span>
+    <span class="fineName">${me.name}</span>
     <span class="fineCounts">${paid ? ('Paid ₹' + val) : 'Not yet paid this month'}</span>
     <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ Due'}</span>
   </div>`;
