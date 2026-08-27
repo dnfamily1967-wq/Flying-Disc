@@ -984,7 +984,7 @@
   <div class="modalCard">
     <h2 id="expenseModalTitle">➕ ADD EXPENSE ENTRY</h2>
     <label class="modalLabel">Date</label>
-    <input type="text" id="expModalDate" placeholder="e.g. 27-08-2026">
+    <input type="date" id="expModalDate">
     <label class="modalLabel">Head / Description</label>
     <input type="text" id="expModalHead" placeholder="e.g. Ground fee">
     <label class="modalLabel">Received (₹)</label>
@@ -1923,27 +1923,44 @@ function monthLabelToYYYYMM(label) {
   return y * 100 + (mi + 1);
 }
 
-// Turns a ledger date string (various formats seen from Excel exports) into a comparable
-// 202608-style number. Returns null if it can't be confidently parsed — unparseable dates are
-// kept rather than silently dropped, so we never lose a real entry by mistake.
-function expenseDateToYYYYMM(str) {
+// Turns a ledger date string (various formats seen from Excel exports, plus free-typed entries)
+// into {y, mo, d}, or null if it can't be confidently parsed. A date with no year (Excel often
+// shows short dates like "16-Aug" with the year implied) is assumed to be the current real year,
+// since everything in this ledger is Aug-2026 onward anyway.
+function parseFlexibleDate(str) {
   const s = String(str || '').trim();
   if (!s) return null;
   let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/); // DD-MM-YYYY / DD/MM/YYYY
   if (m) {
     const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
-    return y * 100 + Number(m[2]);
+    return { y, mo: Number(m[2]), d: Number(m[1]) };
   }
   m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/); // YYYY-MM-DD
-  if (m) return Number(m[1]) * 100 + Number(m[2]);
-  m = s.match(/^(\d{1,2})[\-\/]([A-Za-z]{3})[\-\/](\d{2,4})$/); // D-Mon-YY
+  if (m) return { y: Number(m[1]), mo: Number(m[2]), d: Number(m[3]) };
+  m = s.match(/^(\d{1,2})[\-\/\s]([A-Za-z]{3})[\-\/\s](\d{2,4})$/); // D-Mon-YY(YY), or "D Mon YY"
   if (m) {
     const mi = MONTH_NAMES_3.indexOf(m[2].toUpperCase());
     if (mi < 0) return null;
     const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
-    return y * 100 + (mi + 1);
+    return { y, mo: mi + 1, d: Number(m[1]) };
+  }
+  m = s.match(/^(\d{1,2})[\-\/\s]([A-Za-z]{3})$/); // "D-Mon" / "D Mon", no year given
+  if (m) {
+    const mi = MONTH_NAMES_3.indexOf(m[2].toUpperCase());
+    if (mi < 0) return null;
+    return { y: new Date().getFullYear(), mo: mi + 1, d: Number(m[1]) };
   }
   return null;
+}
+function expenseDateToYYYYMM(str) {
+  const d = parseFlexibleDate(str);
+  return d ? (d.y * 100 + d.mo) : null;
+}
+// For prefilling a native <input type="date">, which needs an exact YYYY-MM-DD value.
+function expenseDateToISO(str) {
+  const d = parseFlexibleDate(str);
+  if (!d) return '';
+  return `${d.y}-${String(d.mo).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
 }
 
 // "Account" sheet: a header row has a cell literally "FLYERS" — the name column. Columns to its
@@ -2220,10 +2237,10 @@ const MONTHLY_DUE_AMOUNT = 500; // ₹ per person per month
 function currentMonthLabelFor(d = new Date()) {
   return MONTH_NAMES_3[d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
 }
-function todayDateStrDDMMYYYY(d = new Date()) {
-  const dd = String(d.getDate()).padStart(2, '0');
+function todayDateISO(d = new Date()) {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `${dd}-${mm}-${d.getFullYear()}`;
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
 }
 function isMonthPaid(val) {
   const v = String(val || '').trim();
@@ -2541,7 +2558,7 @@ document.getElementById('personModalSaveBtn').addEventListener('click', () => {
     } else {
       runningBalance += Number(values[i]) || 0;
       expenses.push({
-        date: todayDateStrDDMMYYYY(), head: `Contribution — ${name} (${monthLabel})`,
+        date: todayDateISO(), head: `Contribution — ${name} (${monthLabel})`,
         received: String(values[i]).trim(), exp: '', balance: String(runningBalance),
         remark: 'Auto-added from Contributions', linkedContribution: linkTag
       });
@@ -2562,7 +2579,7 @@ function openExpenseModal(editIdx) {
   const isEdit = expenseModalEditIdx !== null;
   const entry = isEdit && accountsData && accountsData.expenses ? accountsData.expenses[expenseModalEditIdx] : null;
   expenseModalTitleEl.textContent = isEdit ? '✏️ EDIT EXPENSE ENTRY' : '➕ ADD EXPENSE ENTRY';
-  document.getElementById('expModalDate').value = entry ? entry.date : '';
+  document.getElementById('expModalDate').value = entry ? expenseDateToISO(entry.date) : todayDateISO();
   document.getElementById('expModalHead').value = entry ? entry.head : '';
   document.getElementById('expModalReceived').value = entry ? entry.received : '';
   document.getElementById('expModalExp').value = entry ? entry.exp : '';
