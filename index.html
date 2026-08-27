@@ -967,6 +967,19 @@
   </div>
 </div>
 
+<div class="modalOverlay" id="openingBalModalOverlay">
+  <div class="modalCard">
+    <h2>✏️ EDIT OPENING BALANCE</h2>
+    <div class="legend" style="margin-top:0;">The balance carried in before the first month shown. TOTAL, EXP, and every other BALANCE cell are calculated automatically from this — you never need to edit those.</div>
+    <label class="modalLabel">Opening Balance (₹)</label>
+    <input type="text" id="openingBalInput" placeholder="e.g. 15115" inputmode="decimal">
+    <div class="modalBtnRow">
+      <button class="secondary" id="openingBalCancelBtn" type="button">✖ CANCEL</button>
+      <button id="openingBalSaveBtn" type="button">💾 SAVE</button>
+    </div>
+  </div>
+</div>
+
 <div class="modalOverlay" id="expenseModalOverlay">
   <div class="modalCard">
     <h2 id="expenseModalTitle">➕ ADD EXPENSE ENTRY</h2>
@@ -2148,7 +2161,23 @@ accountsResultEl.addEventListener('click', (e) => {
   const delBtn = e.target.closest('.rowDeleteBtn');
   if (delBtn) { deleteContributionPerson(delBtn.dataset.name); return; }
   const editBtn = e.target.closest('.rowEditBtn');
-  if (editBtn) { openPersonModal(editBtn.dataset.name); }
+  if (editBtn) { openPersonModal(editBtn.dataset.name); return; }
+  const openingBtn = e.target.closest('.editOpeningBalBtn');
+  if (openingBtn) { openOpeningBalModal(); }
+});
+function openOpeningBalModal() {
+  document.getElementById('openingBalInput').value = getOpeningBalance(accountsData && accountsData.contribution) || '';
+  document.getElementById('openingBalModalOverlay').classList.add('show');
+}
+document.getElementById('openingBalCancelBtn').addEventListener('click', () => {
+  document.getElementById('openingBalModalOverlay').classList.remove('show');
+});
+document.getElementById('openingBalSaveBtn').addEventListener('click', () => {
+  const val = document.getElementById('openingBalInput').value.trim();
+  if (val === '' || isNaN(Number(val))) { alert('Please enter a valid number.'); return; }
+  accountsDocRef.update({ 'contribution.openingBalance': val })
+    .then(() => document.getElementById('openingBalModalOverlay').classList.remove('show'))
+    .catch((err) => { console.error('Save opening balance failed', err); alert('Save failed: ' + err.message); });
 });
 accountsExpResultEl.addEventListener('click', (e) => {
   const delBtn = e.target.closest('.rowDeleteBtn');
@@ -2250,6 +2279,54 @@ function renderAccountsDues(contribution) {
   accountsDuesResultEl.innerHTML = rows;
 }
 
+// ---- Logical balance chain: OLD BALANCE -> + this month's contributions - this month's
+// expenses -> BALANCE, and next month's OLD BALANCE is simply that BALANCE carried forward.
+// Only the very first OLD BALANCE (the opening balance) is ever set directly; every other number
+// here is always freshly derived, so adding a contribution or an expense moves the balance
+// automatically instead of needing a manual re-entry.
+function monthlyContributionTotal(contribution, monthIdx) {
+  let sum = 0;
+  contribution.people.forEach((p) => {
+    const v = parseFloat(p.values[monthIdx]);
+    if (!isNaN(v)) sum += v;
+  });
+  return sum;
+}
+function monthlyExpenseTotal(expenses, monthLabel) {
+  const ym = monthLabelToYYYYMM(monthLabel);
+  let sum = 0;
+  (expenses || []).forEach((e) => {
+    if (expenseDateToYYYYMM(e.date) === ym) {
+      const v = parseFloat(e.exp);
+      if (!isNaN(v)) sum += v;
+    }
+  });
+  return sum;
+}
+function getOpeningBalance(rawContribution) {
+  if (!rawContribution) return 0;
+  const explicit = rawContribution.openingBalance;
+  if (explicit !== undefined && explicit !== null && explicit !== '') return explicit;
+  // First time this runs against data imported the old way: seed from Excel's own first
+  // OLD BALANCE value so the chain starts somewhere sensible instead of at zero.
+  const oldBalArr = rawContribution.summary && rawContribution.summary['OLD BALANCE'];
+  return (oldBalArr && oldBalArr.find((v) => v)) || 0;
+}
+function computeBalanceChain(contribution, expenses, openingBalance) {
+  let running = Number(openingBalance) || 0;
+  const oldBalances = [], totals = [], exps = [], balances = [];
+  contribution.months.forEach((m, i) => {
+    oldBalances.push(running);
+    const total = monthlyContributionTotal(contribution, i);
+    const exp = monthlyExpenseTotal(expenses, m);
+    totals.push(total);
+    exps.push(exp);
+    running = running + total - exp;
+    balances.push(running);
+  });
+  return { oldBalances, totals, exps, balances };
+}
+
 function renderAccounts() {
   accountsContribAddRow.style.display = isAdmin ? '' : 'none';
   accountsExpAddRow.style.display = isAdmin ? '' : 'none';
@@ -2265,18 +2342,13 @@ function renderAccounts() {
   const contribution = filterContributionByCutoff(accountsData.contribution);
   lastContributionKeepIdx = contribution.keepIdx;
   renderAccountsDues(contribution);
-  const expensePairs = filterExpensesByCutoff(accountsData.expenses); // [{ e, idx }], idx = real position for delete — used for the running Balance
-  const expenses = expensePairs.map((p) => p.e);
+  const expensePairs = filterExpensesByCutoff(accountsData.expenses); // [{ e, idx }], idx = real position for delete
   const displayExpensePairs = filterExpensePairsToCurrentMonth(expensePairs); // what's actually shown in the ledger table
+  const openingBalance = getOpeningBalance(accountsData.contribution);
+  const chain = computeBalanceChain(contribution, accountsData.expenses, openingBalance);
 
-  let currentBalance = '';
-  if (Array.isArray(expenses) && expenses.length) {
-    currentBalance = expenses[expenses.length - 1].balance;
-  } else if (contribution && contribution.summary && contribution.summary['BALANCE']) {
-    const vals = contribution.summary['BALANCE'].filter((v) => v);
-    currentBalance = vals[vals.length - 1] || '';
-  }
-  if (currentBalance) {
+  const currentBalance = chain.balances.length ? chain.balances[chain.balances.length - 1] : '';
+  if (currentBalance !== '') {
     accountsBalanceCard.style.display = '';
     accountsBalanceValueEl.textContent = '₹' + currentBalance;
   } else {
@@ -2294,10 +2366,11 @@ function renderAccounts() {
     const headCells = ['NAME', ...contribution.months].map((h) => `<th>${h}</th>`).join('') + (isAdmin ? '<th></th>' : '');
     const bodyRows = contribution.people.map((p) => `
       <tr><td>${p.name}</td>${p.values.map((v) => `<td>${v || '—'}</td>`).join('')}${isAdmin ? `<td><div class="rowActions"><button class="edit rowEditBtn" data-name="${escName(p.name)}" title="Edit ${escName(p.name)}'s row">✏️</button><button class="del rowDeleteBtn" data-name="${escName(p.name)}" title="Delete ${escName(p.name)}'s row">&times;</button></div></td>` : ''}</tr>`).join('');
-    const summaryOrder = ['OLD BALANCE', 'TOTAL', 'EXP', 'BALANCE'];
-    const summaryRows = summaryOrder.filter((k) => contribution.summary[k]).map((k) => `
-      <tr class="acctSummary${k === 'BALANCE' ? ' balance' : ''}"><td>${k}</td>${contribution.summary[k].map((v) => `<td>${v || '—'}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`).join('');
-    accountsResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable"><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}${summaryRows}</tbody></table></div>`;
+    const oldBalRow = `<tr class="acctSummary"><td>OLD BALANCE</td>${chain.oldBalances.map((v, i) => `<td>${i === 0 ? `${v}${isAdmin ? ' <button class="edit editOpeningBalBtn" title="Edit opening balance">✏️</button>' : ''}` : v}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`;
+    const totalRow = `<tr class="acctSummary"><td>TOTAL</td>${chain.totals.map((v) => `<td>${v}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`;
+    const expRow = `<tr class="acctSummary"><td>EXP</td>${chain.exps.map((v) => `<td>${v}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`;
+    const balRow = `<tr class="acctSummary balance"><td>BALANCE</td>${chain.balances.map((v) => `<td>${v}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`;
+    accountsResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable"><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}${oldBalRow}${totalRow}${expRow}${balRow}</tbody></table></div>`;
   } else {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No contribution data found in the uploaded file.</div>';
   }
@@ -2345,16 +2418,10 @@ function renderMyDuesAndBalance() {
     return;
   }
   const contribution = filterContributionByCutoff(accountsData.contribution);
-  const expensePairs = filterExpensesByCutoff(accountsData.expenses);
-
-  let balance = '';
-  if (expensePairs.length) {
-    balance = expensePairs[expensePairs.length - 1].e.balance;
-  } else if (contribution.summary && contribution.summary['BALANCE']) {
-    const vals = contribution.summary['BALANCE'].filter((v) => v);
-    balance = vals[vals.length - 1] || '';
-  }
-  if (balance) {
+  const openingBalance = getOpeningBalance(accountsData.contribution);
+  const chain = computeBalanceChain(contribution, accountsData.expenses, openingBalance);
+  const balance = chain.balances.length ? chain.balances[chain.balances.length - 1] : '';
+  if (balance !== '') {
     homeBalanceCard.style.display = '';
     homeBalanceValueEl.textContent = '₹' + balance;
   } else {
