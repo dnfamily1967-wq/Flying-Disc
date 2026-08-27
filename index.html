@@ -923,7 +923,6 @@
     <div id="accountsExpAddRow" style="display:none;">
       <button class="secondary" id="addExpenseBtn">➕ ADD ENTRY</button>
       <button class="secondary" id="bulkDeleteExpBtn" style="display:none; margin-top:8px; border-color:var(--red); color:#8C2E2E;">🗑️ DELETE SELECTED (<span id="bulkDeleteCount">0</span>)</button>
-      <button class="secondary" id="purgeOldExpBtn" style="margin-top:8px; border-color:var(--red); color:#8C2E2E;">🧹 REMOVE PRE-AUG-2026 ENTRIES</button>
     </div>
     <div id="accountsExpResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
   </div>
@@ -956,6 +955,11 @@
 
     <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:8px;">💰 COLLECTIONS THIS MONTH</div>
     <div id="exportCollectionsList" style="font-size:13px; margin-bottom:20px;"></div>
+
+    <div id="exportAdvanceSection" style="display:none;">
+      <div style="font-size:14px; font-weight:800; color:#8A6D1F; margin-bottom:8px;">🔜 ADVANCE PAYMENTS (PAID AHEAD)</div>
+      <div id="exportAdvanceList" style="font-size:13px; margin-bottom:20px;"></div>
+    </div>
 
     <div style="font-size:14px; font-weight:800; color:#8C2E2E; margin-bottom:8px;">🧾 EXPENSES THIS MONTH</div>
     <div id="exportExpensesList" style="font-size:13px; margin-bottom:8px;"></div>
@@ -2554,6 +2558,27 @@ document.getElementById('exportSummaryBtn').addEventListener('click', async () =
       : '';
     document.getElementById('exportCollectionsList').innerHTML = collectionsRows || '<div style="color:#A8A38C;">No collections recorded this month.</div>';
 
+    // Advance payments: anyone who has already paid a month beyond the current one (e.g. Sanjay
+    // paying September while it's still August) — shown separately so it's not lost from the export.
+    const advanceSection = document.getElementById('exportAdvanceSection');
+    const advanceRows = [];
+    if (curIdx >= 0) {
+      contribution.people.forEach((p) => {
+        for (let i = curIdx + 1; i < contribution.months.length; i++) {
+          if (isMonthPaid(p.values[i])) advanceRows.push({ name: p.name, month: contribution.months[i], amount: p.values[i] });
+        }
+      });
+    }
+    if (advanceRows.length) {
+      advanceSection.style.display = '';
+      document.getElementById('exportAdvanceList').innerHTML = advanceRows.map((r) => `
+        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
+          <span>${r.name} — ${r.month}</span><span style="font-weight:800; color:#8A6D1F;">₹${r.amount}</span>
+        </div>`).join('');
+    } else {
+      advanceSection.style.display = 'none';
+    }
+
     const expensePairs = filterExpensesByCutoff(accountsData.expenses);
     const monthExpenses = filterExpensePairsToCurrentMonth(expensePairs).map((p) => p.e).filter((e) => Number(e.exp) > 0);
     const expensesRows = monthExpenses.map((e) => `
@@ -2695,34 +2720,6 @@ function openExpenseModal(editIdx) {
 function closeExpenseModal() { expenseModalOverlay.classList.remove('show'); }
 document.getElementById('addExpenseBtn').addEventListener('click', () => openExpenseModal(null));
 
-// ---- Admin: one-time cleanup — drop expense line-items from before Aug-2026, keeping only the
-// balance they carried forward (as a single "Opening Balance" entry) so later totals stay correct.
-document.getElementById('purgeOldExpBtn').addEventListener('click', () => {
-  if (!accountsData || !Array.isArray(accountsData.expenses) || !accountsData.expenses.length) {
-    alert('No expense entries to clean up.');
-    return;
-  }
-  const before = [];
-  const onOrAfter = [];
-  accountsData.expenses.forEach((e) => {
-    const ym = expenseDateToYYYYMM(e.date);
-    if (ym !== null && ym < ACCOUNTS_CUTOFF_YYYYMM) before.push(e); else onOrAfter.push(e);
-  });
-  if (!before.length) { alert('No entries before August 2026 found — nothing to remove.'); return; }
-  if (!confirm(`Remove ${before.length} expense entrie(s) from before August 2026? Only the balance they carried forward will be kept, as one "Opening Balance" line. This cannot be undone.`)) return;
-
-  const lastOldBalance = parseFloat(before[before.length - 1].balance);
-  const updated = onOrAfter.slice();
-  if (!isNaN(lastOldBalance)) {
-    updated.unshift({
-      date: '01-08-2026', head: 'Opening Balance', received: '', exp: '',
-      balance: String(lastOldBalance), remark: 'Carried forward — earlier entries removed'
-    });
-  }
-  accountsDocRef.set({ expenses: updated, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' }, { merge: true })
-    .then(() => alert(`Removed ${before.length} old entrie(s) ✅`))
-    .catch((err) => { console.error('Purge old expenses failed', err); alert('Failed: ' + err.message); });
-});
 document.getElementById('expenseModalCancelBtn').addEventListener('click', closeExpenseModal);
 document.getElementById('expenseModalSaveBtn').addEventListener('click', () => {
   const date = document.getElementById('expModalDate').value.trim();
