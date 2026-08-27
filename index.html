@@ -727,6 +727,10 @@
   table.acctTable.expTable thead th { background: var(--red-soft); color: #8C2E2E; }
   table.acctTable.expTable th:not(:first-child), table.acctTable.expTable td:not(:first-child) { text-align: left; }
   table.acctTable.expTable td.num { text-align: right; }
+  table.acctTable.expTable { min-width: 300px; }
+  table.acctTable.expTable th, table.acctTable.expTable td { padding: 6px 7px; font-size: 11.5px; }
+  table.acctTable.expTable .credit { color: var(--green-deep); font-weight: 800; }
+  table.acctTable.expTable .debit { color: #8C2E2E; font-weight: 800; }
 </style>
 </head>
 <body>
@@ -866,7 +870,7 @@
   </div>
 
   <div class="card accent-red">
-    <h2>🧾 EXPENSE LEDGER</h2>
+    <h2 id="accountsExpTitle">🧾 EXPENSE LEDGER</h2>
     <div id="accountsExpAddRow" style="display:none;"><button class="secondary" id="addExpenseBtn">➕ ADD ENTRY</button></div>
     <div id="accountsExpResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
   </div>
@@ -2013,6 +2017,18 @@ function filterExpensesByCutoff(expenses) {
   });
 }
 
+// The Expense Ledger is shown one month at a time (the real current month) — this narrows an
+// already cutoff-filtered [{e, idx}] list down further, purely for display. Balance is still
+// computed from the full cutoff-filtered list (below), so it stays correct even on a day with
+// no entries yet this month.
+function filterExpensePairsToCurrentMonth(pairs) {
+  const curYM = monthLabelToYYYYMM(currentMonthLabelFor());
+  return pairs.filter(({ e }) => {
+    const ym = expenseDateToYYYYMM(e.date);
+    return ym === null || ym === curYM;
+  });
+}
+
 // ---- Admin: delete a single figure (a person's contribution row, or one expense entry) ----
 function deleteContributionPerson(name) {
   if (!accountsData || !accountsData.contribution || !Array.isArray(accountsData.contribution.people)) return;
@@ -2054,8 +2070,14 @@ accountsExpResultEl.addEventListener('click', (e) => {
 // whatever the last column in the sheet happens to be (so an admin entering next month's column
 // in advance never gets treated as "the current month"), and a person can be behind on more than
 // one month at once (e.g. August still unpaid when September's column already exists).
+const MONTHLY_DUE_AMOUNT = 500; // ₹ per person per month
 function currentMonthLabelFor(d = new Date()) {
   return MONTH_NAMES_3[d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
+}
+function todayDateStrDDMMYYYY(d = new Date()) {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}-${mm}-${d.getFullYear()}`;
 }
 function isMonthPaid(val) {
   const v = String(val || '').trim();
@@ -2097,15 +2119,17 @@ function renderAccountsDues(contribution) {
   const rows = contribution.people.map((p) => {
     const pending = pendingMonthsFor(contribution, p, curIdx);
     const paid = pending.length === 0;
+    const amt = pending.length * MONTHLY_DUE_AMOUNT;
     return `<div class="fineRow ${paid ? '' : 'fined'}">
       <span class="fineName">${p.name}</span>
-      <span class="fineCounts">${paid ? ('Paid up to ' + monthLabel) : ('Due: ' + pending.join(', '))}</span>
-      <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ Due'}</span>
+      <span class="fineCounts">${paid ? ('Paid up to ' + monthLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
+      <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ ₹' + amt}</span>
     </div>`;
   }).join('');
-  const dueCount = contribution.people.filter((p) => pendingMonthsFor(contribution, p, curIdx).length > 0).length;
+  const duePeople = contribution.people.filter((p) => pendingMonthsFor(contribution, p, curIdx).length > 0);
+  const totalDue = duePeople.reduce((sum, p) => sum + pendingMonthsFor(contribution, p, curIdx).length * MONTHLY_DUE_AMOUNT, 0);
   accountsDuesCard.style.display = '';
-  accountsDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}${dueCount ? ' (' + dueCount + ' pending)' : ' — all paid ✅'}`;
+  accountsDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}${duePeople.length ? ' (' + duePeople.length + ' pending · ₹' + totalDue + ')' : ' — all paid ✅'}`;
   accountsDuesResultEl.innerHTML = rows;
 }
 
@@ -2124,8 +2148,9 @@ function renderAccounts() {
   const contribution = filterContributionByCutoff(accountsData.contribution);
   lastContributionKeepIdx = contribution.keepIdx;
   renderAccountsDues(contribution);
-  const expensePairs = filterExpensesByCutoff(accountsData.expenses); // [{ e, idx }], idx = real position for delete
+  const expensePairs = filterExpensesByCutoff(accountsData.expenses); // [{ e, idx }], idx = real position for delete — used for the running Balance
   const expenses = expensePairs.map((p) => p.e);
+  const displayExpensePairs = filterExpensePairsToCurrentMonth(expensePairs); // what's actually shown in the ledger table
 
   let currentBalance = '';
   if (Array.isArray(expenses) && expenses.length) {
@@ -2160,20 +2185,26 @@ function renderAccounts() {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No contribution data found in the uploaded file.</div>';
   }
 
-  if (expensePairs.length) {
-    const rows = expensePairs.slice().reverse().map(({ e, idx }) => `
+  const expTitleEl = document.getElementById('accountsExpTitle');
+  if (expTitleEl) expTitleEl.textContent = `🧾 EXPENSE LEDGER — ${currentMonthLabelFor()}`;
+  if (displayExpensePairs.length) {
+    const rows = displayExpensePairs.slice().reverse().map(({ e, idx }) => {
+      const received = String(e.received || '').trim();
+      const exp = String(e.exp || '').trim();
+      const amtHtml = received ? `<span class="credit">+₹${received}</span>` : (exp ? `<span class="debit">-₹${exp}</span>` : '—');
+      return `
       <tr>
         <td>${e.date || '—'}</td>
         <td>${e.head || '—'}</td>
-        <td class="num">${e.received || ''}</td>
-        <td class="num">${e.exp || ''}</td>
+        <td class="num">${amtHtml}</td>
         <td class="num">${e.balance || ''}</td>
         <td>${e.remark || ''}</td>
         ${isAdmin ? `<td><div class="rowActions"><button class="edit rowEditBtn" data-idx="${idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></div></td>` : ''}
-      </tr>`).join('');
-    accountsExpResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable expTable"><thead><tr><th>DATE</th><th>HEAD</th><th>RECEIVED</th><th>EXP</th><th>BALANCE</th><th>REMARK</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>`;
+      </tr>`;
+    }).join('');
+    accountsExpResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable expTable"><thead><tr><th>DATE</th><th>HEAD</th><th>AMOUNT</th><th>BAL</th><th>REMARK</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>`;
   } else {
-    accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No expense entries found in the uploaded file.</div>';
+    accountsExpResultEl.innerHTML = `<div class="legend" style="margin-top:0;">No expense entries for ${currentMonthLabelFor()} yet.</div>`;
   }
   renderMyDuesAndBalance();
 }
@@ -2232,11 +2263,12 @@ function renderMyDuesAndBalance() {
   }
   const pending = pendingMonthsFor(contribution, me, curIdx);
   const paid = pending.length === 0;
+  const amt = pending.length * MONTHLY_DUE_AMOUNT;
   myDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}`;
   myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? '' : 'fined'}">
     <span class="fineName">${me.name}</span>
-    <span class="fineCounts">${paid ? ('Paid up to ' + monthLabel) : ('Due: ' + pending.join(', '))}</span>
-    <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ Due'}</span>
+    <span class="fineCounts">${paid ? ('Paid up to ' + monthLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
+    <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ ₹' + amt}</span>
   </div>`;
 }
 
@@ -2280,11 +2312,12 @@ document.getElementById('personModalSaveBtn').addEventListener('click', () => {
     ? { months: existingContribution.months.slice(), people: existingContribution.people.map((p) => ({ name: p.name, values: (p.values || []).slice() })), summary: existingContribution.summary || {} }
     : { months: [currentMonthLabelFor()], people: [], summary: {} };
 
-  let values = new Array(contribution.months.length).fill('');
+  let oldValues = new Array(contribution.months.length).fill('');
   if (personModalEditName) {
     const existing = contribution.people.find((p) => p.name === personModalEditName);
-    if (existing) values = existing.values.slice();
+    if (existing) oldValues = existing.values.slice();
   }
+  const values = oldValues.slice();
   document.querySelectorAll('.personMonthInput').forEach((inp) => {
     const filteredIdx = Number(inp.dataset.monthIdx);
     const realIdx = lastContributionKeepIdx.length ? lastContributionKeepIdx[filteredIdx] : filteredIdx;
@@ -2295,7 +2328,40 @@ document.getElementById('personModalSaveBtn').addEventListener('click', () => {
   contribution.people = contribution.people.filter((p) => p.name !== removeName && p.name !== name);
   contribution.people.push({ name, values });
 
-  accountsDocRef.set({ contribution, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' }, { merge: true })
+  // Auto-sync: any month that just became a real paid amount (blank/0 -> a real number) gets a
+  // matching entry in the Expense Ledger, dated today, so a contribution shows up in both places
+  // without a second manual entry. Re-editing an already-linked month updates that same entry
+  // (matched by name+month) instead of creating a duplicate.
+  const expenses = (accountsData && Array.isArray(accountsData.expenses)) ? accountsData.expenses.slice() : [];
+  let runningBalance = null;
+  if (expenses.length) {
+    const lastB = parseFloat(expenses[expenses.length - 1].balance);
+    if (!isNaN(lastB)) runningBalance = lastB;
+  }
+  if (runningBalance === null && contribution.summary && contribution.summary['BALANCE']) {
+    const vals = contribution.summary['BALANCE'].filter((v) => v);
+    const lastB = parseFloat(vals[vals.length - 1]);
+    runningBalance = isNaN(lastB) ? 0 : lastB;
+  }
+  if (runningBalance === null) runningBalance = 0;
+
+  contribution.months.forEach((monthLabel, i) => {
+    if (values[i] === oldValues[i] || !isMonthPaid(values[i])) return;
+    const linkTag = `${name}|${monthLabel}`;
+    const linkedIdx = expenses.findIndex((e) => e.linkedContribution === linkTag);
+    if (linkedIdx >= 0) {
+      expenses[linkedIdx] = { ...expenses[linkedIdx], received: String(values[i]).trim() };
+    } else {
+      runningBalance += Number(values[i]) || 0;
+      expenses.push({
+        date: todayDateStrDDMMYYYY(), head: `Contribution — ${name} (${monthLabel})`,
+        received: String(values[i]).trim(), exp: '', balance: String(runningBalance),
+        remark: 'Auto-added from Contributions', linkedContribution: linkTag
+      });
+    }
+  });
+
+  accountsDocRef.set({ contribution, expenses, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' }, { merge: true })
     .then(closePersonModal)
     .catch((err) => { console.error('Save person failed', err); alert('Save failed: ' + err.message); });
 });
@@ -2330,9 +2396,13 @@ document.getElementById('expenseModalSaveBtn').addEventListener('click', () => {
   const balance = document.getElementById('expModalBalance').value.trim();
   const remark = document.getElementById('expModalRemark').value.trim();
   if (!date || (!received && !exp)) { alert('Please enter a date and either a Received or Expense amount.'); return; }
-  const entry = { date, head, received, exp, balance, remark };
   const updated = (accountsData && Array.isArray(accountsData.expenses)) ? accountsData.expenses.slice() : [];
-  if (expenseModalEditIdx !== null) { updated[expenseModalEditIdx] = entry; } else { updated.push(entry); }
+  if (expenseModalEditIdx !== null) {
+    // Keep any extra fields (like the auto-sync link tag) intact when hand-editing an entry.
+    updated[expenseModalEditIdx] = { ...updated[expenseModalEditIdx], date, head, received, exp, balance, remark };
+  } else {
+    updated.push({ date, head, received, exp, balance, remark });
+  }
   accountsDocRef.set({ expenses: updated, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' }, { merge: true })
     .then(closeExpenseModal)
     .catch((err) => { console.error('Save expense entry failed', err); alert('Save failed: ' + err.message); });
