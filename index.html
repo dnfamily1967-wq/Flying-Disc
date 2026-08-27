@@ -129,8 +129,8 @@
   }
   .refresh-btn:active { transform: scale(0.92); }
 .hero-logo {
-    width: 64px;
-    height: 64px;
+    width: 88px;
+    height: 88px;
     border-radius: 50%;
     object-fit: cover;
     box-shadow: 0 3px 10px rgba(0,0,0,0.25);
@@ -795,6 +795,7 @@
   <div class="tag">🥏 Flying Disc</div>
   <h1>Morning Walkers</h1>
   <div class="sub" style="margin-top:0;">Jubilee Park</div>
+  <div class="sub" id="todayDateLine" style="margin-top:2px; font-size:12px; opacity:0.85;"></div>
   <div class="login-status" id="loginStatus"></div>
   </div>
 </div>
@@ -826,6 +827,7 @@
       <span class="sortLabel">SORT:</span>
       <button class="sortBtn" id="sortNameBtn" data-mode="name">NAME <span id="nameArrow">↑</span></button>
       <button class="sortBtn" id="sortNumBtn" data-mode="number">SKILL <span id="numArrow">↕</span></button>
+      <button class="sortBtn" id="sortStatusBtn" data-mode="status">ABSENT <span id="statusArrow">↕</span></button>
     </div>
     <ul class="plist" id="plist"></ul>
     <button class="secondary" id="saveBtn" style="margin-top:14px;">💾 SAVE</button>
@@ -857,6 +859,12 @@
     </div>
     <div class="attnBlock" id="attnResult"></div>
     <button class="secondary" id="resetAttnDayBtn" style="display:none; margin-top:10px; border-color:var(--red); color:#8C2E2E;">🗑️ RESET THIS DAY'S ATTENDANCE</button>
+    <button class="secondary" id="editAttnDayBtn" style="display:none; margin-top:10px;">✏️ EDIT THIS DAY'S ATTENDANCE</button>
+    <div id="editAttnPanel" style="display:none; margin-top:14px;">
+      <div class="legend" style="margin-top:0;">Tap a player's status to correct it for this date, then save. Useful for fixing a mistake after the fact.</div>
+      <div id="editAttnList"></div>
+      <button id="saveEditAttnBtn" style="margin-top:12px;">💾 SAVE CORRECTED ATTENDANCE</button>
+    </div>
   </div>
 
   <div class="card accent-red">
@@ -1123,6 +1131,9 @@ function applyAdminVisibility() {
   if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
   const resetAttnDayBtn = document.getElementById('resetAttnDayBtn');
   if (resetAttnDayBtn) resetAttnDayBtn.style.display = isFullAdmin ? '' : 'none';
+  const editAttnDayBtn = document.getElementById('editAttnDayBtn');
+  if (editAttnDayBtn) editAttnDayBtn.style.display = isAdmin ? '' : 'none';
+  if (!isAdmin) { const p = document.getElementById('editAttnPanel'); if (p) p.style.display = 'none'; }
   const accountsUploadCard = document.getElementById('accountsUploadCard');
   if (accountsUploadCard) accountsUploadCard.style.display = isFullAdmin ? '' : 'none';
   const navHolidayBtn = document.getElementById('navHolidayBtn');
@@ -1309,10 +1320,20 @@ const reshuffleBtn = document.getElementById('reshuffleBtn');
 let sortMode = 'name';
 let sortDir = 1; // 1 = ascending, -1 = descending
 
+function statusPriority(s) {
+  if (s === 'absent') return 0;
+  if (s === 'holiday') return 1;
+  return 2; // present
+}
+
 function sortPlayers() {
   players.sort((a, b) => {
     let cmp;
     if (sortMode === 'name') cmp = a.name.localeCompare(b.name);
+    else if (sortMode === 'status') {
+      cmp = statusPriority(a.status) - statusPriority(b.status);
+      if (cmp === 0) cmp = a.name.localeCompare(b.name);
+    }
     else cmp = a.rating - b.rating;
     return cmp * sortDir;
   });
@@ -1321,10 +1342,13 @@ function sortPlayers() {
 function updateSortButtons() {
   const nameBtn = document.getElementById('sortNameBtn');
   const numBtn = document.getElementById('sortNumBtn');
+  const statusBtn = document.getElementById('sortStatusBtn');
   nameBtn.classList.toggle('active', sortMode === 'name');
   numBtn.classList.toggle('active', sortMode === 'number');
+  statusBtn.classList.toggle('active', sortMode === 'status');
   document.getElementById('nameArrow').textContent = sortMode === 'name' ? (sortDir === 1 ? '↑' : '↓') : '↕';
   document.getElementById('numArrow').textContent = sortMode === 'number' ? (sortDir === 1 ? '↑' : '↓') : '↕';
+  document.getElementById('statusArrow').textContent = sortMode === 'status' ? (sortDir === 1 ? '↑' : '↓') : '↕';
 }
 
 function setSort(mode) {
@@ -1335,6 +1359,7 @@ function setSort(mode) {
 
 document.getElementById('sortNameBtn').addEventListener('click', () => setSort('name'));
 document.getElementById('sortNumBtn').addEventListener('click', () => setSort('number'));
+document.getElementById('sortStatusBtn').addEventListener('click', () => setSort('status'));
 
 function ratingColor(r) {
   const rating = Math.max(1, Math.min(9, Number(r) || 1));
@@ -1723,6 +1748,7 @@ document.getElementById('loadAttnBtn').addEventListener('click', () => {
   const dateStr = attnDateInput.value;
   if (!dateStr) return;
   loadAttendance(dateStr);
+  editAttnPanel.style.display = 'none';
 });
 
 // ---- Admin: reset (delete) the attendance record for any chosen day ----
@@ -1746,6 +1772,75 @@ document.getElementById('resetAttnDayBtn').addEventListener('click', () => {
         alert('Reset failed: ' + e.message);
       });
   });
+});
+
+// ---- Admin: fix a mistake by editing a past (or any) day's saved attendance directly ----
+const editAttnPanel = document.getElementById('editAttnPanel');
+const editAttnListEl = document.getElementById('editAttnList');
+let editAttnRecord = null; // { name: 'present' | 'absent' | 'holiday' } for the date currently open for editing
+
+function renderEditAttnList() {
+  const names = Object.keys(editAttnRecord).sort();
+  editAttnListEl.innerHTML = names.map((name) => `
+    <div class="fineRow">
+      <span class="fineName">${name}</span>
+      <div class="rowActions" style="gap:6px;">
+        <button class="chip absent ${editAttnRecord[name] === 'absent' ? 'on' : ''}" data-name="${name}" data-status="absent">absent</button>
+        <button class="chip holiday ${editAttnRecord[name] === 'holiday' ? 'on' : ''}" data-name="${name}" data-status="holiday">holiday</button>
+      </div>
+    </div>`).join('');
+}
+
+document.getElementById('editAttnDayBtn').addEventListener('click', () => {
+  const dateStr = attnDateInput.value;
+  if (!dateStr) return;
+  const isOpen = editAttnPanel.style.display && editAttnPanel.style.display !== 'none';
+  if (isOpen) { editAttnPanel.style.display = 'none'; return; }
+  attendanceDocRef(dateStr).get().then((doc) => {
+    const saved = (doc.exists && Array.isArray(doc.data().players)) ? doc.data().players : [];
+    const byName = {};
+    saved.forEach((p) => { byName[p.name] = normalizeAttnStatus(p); });
+    // Include everyone currently on the roster (so a mistake can be corrected even for someone
+    // who wasn't recorded that day) as well as anyone in the saved record (in case they've since
+    // left the roster) — defaulting anyone not explicitly marked to "present".
+    const rosterNames = players.map((p) => p.name);
+    const allNames = Array.from(new Set([...rosterNames, ...Object.keys(byName)]));
+    editAttnRecord = {};
+    allNames.forEach((name) => { editAttnRecord[name] = byName[name] || 'present'; });
+    renderEditAttnList();
+    editAttnPanel.style.display = '';
+  }).catch((e) => {
+    console.error('Load attendance for edit failed', e);
+    alert('Could not load that date: ' + e.message);
+  });
+});
+
+editAttnListEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-status]');
+  if (!btn || !editAttnRecord) return;
+  const name = btn.dataset.name;
+  const status = btn.dataset.status;
+  editAttnRecord[name] = (editAttnRecord[name] === status) ? 'present' : status;
+  renderEditAttnList();
+});
+
+document.getElementById('saveEditAttnBtn').addEventListener('click', () => {
+  const dateStr = attnDateInput.value;
+  if (!dateStr || !editAttnRecord) return;
+  const record = Object.keys(editAttnRecord).map((name) => ({ name, status: editAttnRecord[name] }));
+  attendanceDocRef(dateStr).set({ date: dateStr, players: record, savedAt: Date.now(), correctedAt: Date.now() })
+    .then(() => {
+      alert(`Attendance for ${dateStr} updated ✅`);
+      editAttnPanel.style.display = 'none';
+      loadAttendance(dateStr);
+      if (monthlySheetInput && monthlySheetInput.value === dateStr.slice(0, 7)) loadMonthlySheet(monthlySheetInput.value);
+      refreshMyFineCard();
+      refreshPlayerListPHA();
+    })
+    .catch((e) => {
+      console.error('Save corrected attendance failed', e);
+      alert('Save failed: ' + e.message);
+    });
 });
 
 // ---- Monthly fine calculation: takes just one month's data and counts present/holiday/absent ----
@@ -2852,6 +2947,11 @@ loadMonthlySheet(monthlySheetInput.value); // show this month's fine sheet on op
 refreshMyFineCard(); // show logged-in player's own fine status at the top
 refreshPlayerListPHA(); // show P/A/H mini-stats next to every player's name
 loadAccounts(); // show the latest uploaded accounts (contributions + expenses) as soon as the app opens
+
+const todayDateLineEl = document.getElementById('todayDateLine');
+if (todayDateLineEl) {
+  todayDateLineEl.textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 // ---- Bottom nav: switch between Home / Teams / Attendance / Holiday sections ----
 function showTab(tab) {
