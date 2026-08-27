@@ -346,6 +346,34 @@
     color: #fff;
   }
 
+  .attnRow { display: flex; gap: 8px; align-items: center; }
+  .attnRow input[type="date"] {
+    flex: 1;
+    min-width: 0;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 11px 12px;
+    font-size: 14.5px;
+    font-family: inherit;
+    background: #FCFBF7;
+    color: var(--ink);
+  }
+  .attnRow input[type="date"]:focus { outline: none; border-color: var(--green-mid); background: #fff; }
+  .attnRow button { width: auto; margin: 0; padding: 0 16px; border-radius: 12px; font-size: 13.5px; }
+  .attnBlock { margin-top: 12px; }
+  .attnCount {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green-deep);
+    background: var(--gold-soft);
+    padding: 8px 10px;
+    border-radius: 10px;
+    text-align: center;
+  }
+  .attnGroup { margin-top: 10px; }
+  .attnGroup b { font-size: 12.5px; letter-spacing: 0.3px; }
+  .attnNames { font-size: 13.5px; line-height: 1.7; margin-top: 4px; color: var(--ink); }
+
   /* ===== Desktop layout — wider, two-column, more "professional" feel ===== */
   /* ===== Mobile — everything bigger, fills the screen more like an app ===== */
   @media (max-width: 1023px) {
@@ -472,6 +500,15 @@
   <div class="teams" id="teamsOut" style="display:none;">
     <div class="team a"><h3>🟢 Team A</h3><ol id="teamA"></ol></div>
     <div class="team b"><h3>🟠 Team B</h3><ol id="teamB"></ol></div>
+  </div>
+
+  <div class="card">
+    <h2>🗓️ Daily Attendance</h2>
+    <div class="attnRow">
+      <input type="date" id="attnDateInput">
+      <button class="secondary" id="loadAttnBtn">View</button>
+    </div>
+    <div class="attnBlock" id="attnResult"></div>
   </div>
 
   <div class="install-hint">
@@ -694,8 +731,28 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const playersDocRef = db.collection('disc_team').doc('players');
+const attendanceColRef = db.collection('disc_team_attendance'); // one doc per date, e.g. "2026-08-27"
 let suppressNextSnapshot = false; // avoid re-render loop right after our own save
 let cloudReady = false; // true once we've received the real latest data from the cloud at least once
+
+function todayStr() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Har baar jab admin "Save" dabata hai, aaj ki date ke against attendance snapshot bhi save ho jata hai
+function saveAttendanceSnapshot() {
+  const dateStr = todayStr();
+  const record = players.map(p => ({ name: p.name, present: !p.absent }));
+  attendanceColRef.doc(dateStr).set({
+    date: dateStr,
+    players: record,
+    savedAt: Date.now()
+  }).catch((e) => console.error('Attendance save failed', e));
+}
 
 function save() {
   if (!cloudReady) {
@@ -714,6 +771,8 @@ function save() {
       console.error('Cloud save failed', e);
       showSaved(); // still saved locally, so don't alarm the user
     });
+  saveAttendanceSnapshot();
+  if (attnDateInput && attnDateInput.value === todayStr()) loadAttendance(todayStr());
 }
 
 let savedTimer;
@@ -748,8 +807,49 @@ function load() {
   });
 }
 
+// ---- Attendance history viewing (visible to everyone, admin or not) ----
+const attnDateInput = document.getElementById('attnDateInput');
+const attnResultEl = document.getElementById('attnResult');
+attnDateInput.value = todayStr();
+
+function renderAttendanceResult(dateStr, data) {
+  if (!data || !Array.isArray(data.players) || data.players.length === 0) {
+    attnResultEl.innerHTML = `<div class="err" style="display:block;">Is date (${dateStr}) ke liye koi attendance record nahi mila.</div>`;
+    return;
+  }
+  const present = data.players.filter(p => p.present);
+  const absent = data.players.filter(p => !p.present);
+  attnResultEl.innerHTML = `
+    <div class="attnCount">${present.length} present / ${data.players.length} total — ${dateStr}</div>
+    <div class="attnGroup">
+      <b style="color:var(--green-deep);">✅ Present (${present.length})</b>
+      <div class="attnNames">${present.map(p => p.name).join(', ') || '—'}</div>
+    </div>
+    <div class="attnGroup">
+      <b style="color:#8C2E2E;">❌ Absent (${absent.length})</b>
+      <div class="attnNames">${absent.map(p => p.name).join(', ') || '—'}</div>
+    </div>
+  `;
+}
+
+function loadAttendance(dateStr) {
+  attendanceColRef.doc(dateStr).get()
+    .then((doc) => renderAttendanceResult(dateStr, doc.exists ? doc.data() : null))
+    .catch((e) => {
+      console.error('Attendance load failed', e);
+      renderAttendanceResult(dateStr, null);
+    });
+}
+
+document.getElementById('loadAttnBtn').addEventListener('click', () => {
+  const dateStr = attnDateInput.value;
+  if (!dateStr) return;
+  loadAttendance(dateStr);
+});
+
 render();
 load();
+loadAttendance(attnDateInput.value); // show today's attendance (if already saved) on open
 
 // Offline support: register service worker so the app works without internet after first load
 if ('serviceWorker' in navigator) {
