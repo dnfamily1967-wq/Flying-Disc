@@ -1018,8 +1018,15 @@ function normalizePlayers(list) {
 
 // ---- Named login (only Pawan, Shankar, Dippu get admin/edit power) ----
 const ADMIN_NAMES = ['PAWAN', 'SHANKAR', 'DIPPU'];
+// Dippu is a FULL admin (everything). Pawan & Shankar are limited: they can only mark
+// attendance (absent) and view Accounts (read-only) — everything else is like a normal player.
+const FULL_ADMIN_NAMES = ['DIPPU'];
+// Pawan & Shankar: limited admins — can only mark attendance (absent) and view Accounts (read-only).
+const ATTENDANCE_ADMIN_NAMES = ['PAWAN', 'SHANKAR'];
 let currentUser = localStorage.getItem('disc-team-user') || '';
 let isAdmin = !!currentUser && ADMIN_NAMES.includes(currentUser.toUpperCase());
+let isFullAdmin = !!currentUser && FULL_ADMIN_NAMES.includes(currentUser.toUpperCase());
+let isAttendanceAdmin = !!currentUser && ATTENDANCE_ADMIN_NAMES.includes(currentUser.toUpperCase());
 
 function isAdminName(name) {
   return ADMIN_NAMES.includes(String(name || '').toUpperCase());
@@ -1033,16 +1040,16 @@ function applyAdminVisibility() {
   } else {
     adminBtn.textContent = 'LOGIN';
   }
-  document.getElementById('addPlayerBlock').style.display = isAdmin ? '' : 'none';
+  document.getElementById('addPlayerBlock').style.display = isFullAdmin ? '' : 'none';
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
-  document.getElementById('resetBtn').style.display = isAdmin ? '' : 'none';
+  document.getElementById('resetBtn').style.display = isFullAdmin ? '' : 'none';
   document.getElementById('bulkHolidayCard').style.display = isAdmin ? '' : 'none';
   const resetPassCard = document.getElementById('resetPassCard');
   if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
   const resetAttnDayBtn = document.getElementById('resetAttnDayBtn');
-  if (resetAttnDayBtn) resetAttnDayBtn.style.display = isAdmin ? '' : 'none';
+  if (resetAttnDayBtn) resetAttnDayBtn.style.display = isFullAdmin ? '' : 'none';
   const accountsUploadCard = document.getElementById('accountsUploadCard');
-  if (accountsUploadCard) accountsUploadCard.style.display = isAdmin ? '' : 'none';
+  if (accountsUploadCard) accountsUploadCard.style.display = isFullAdmin ? '' : 'none';
   const navHolidayBtn = document.getElementById('navHolidayBtn');
   if (navHolidayBtn) {
     navHolidayBtn.style.display = isAdmin ? '' : 'none';
@@ -1093,6 +1100,8 @@ function closeLoginModal() {
 function completeLogin(name) {
   currentUser = name;
   isAdmin = isAdminName(currentUser);
+  isFullAdmin = FULL_ADMIN_NAMES.includes(currentUser.toUpperCase());
+  isAttendanceAdmin = ATTENDANCE_ADMIN_NAMES.includes(currentUser.toUpperCase());
   localStorage.setItem('disc-team-user', currentUser);
   closeLoginModal();
   applyAdminVisibility();
@@ -1127,6 +1136,8 @@ document.getElementById('adminBtn').addEventListener('click', () => {
     if (confirm(`Log out ${currentUser}? (This phone/browser only)`)) {
       currentUser = '';
       isAdmin = false;
+      isFullAdmin = false;
+      isAttendanceAdmin = false;
       localStorage.removeItem('disc-team-user');
       applyAdminVisibility();
       render();
@@ -1271,7 +1282,7 @@ function render() {
     const crown = ADMIN_NAMES.includes(p.name.toUpperCase()) ? '👑 ' : '';
     const pha = monthlyPHA[p.name] || { present: 0, absent: 0, holiday: 0 };
     const phaHtml = `<span class="phaLine"><span class="phaP">P${pha.present}</span><span class="phaA">A${pha.absent}</span><span class="phaH">H${pha.holiday}</span></span>`;
-    if (isAdmin) {
+    if (isFullAdmin) {
       return `
     <li style="background:${bg}; border-left:4px solid ${border};">
       <div class="pinfo">
@@ -1285,6 +1296,22 @@ function render() {
         <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
         <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday">holiday</button>
         <button class="del" data-i="${i}" data-act="del">&times;</button>
+      </div>
+    </li>`;
+    }
+    if (isAttendanceAdmin) {
+      return `
+    <li style="background:${bg}; border-left:4px solid ${border};">
+      <div class="pinfo">
+        <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
+        ${phaHtml}
+      </div>
+      <div class="ratingMid">
+        <span class="rating">${p.rating}</span>
+      </div>
+      <div class="actrow">
+        <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
+        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday">holiday</button>
       </div>
     </li>`;
     }
@@ -2298,8 +2325,8 @@ function computeBalanceChain(contribution, expenses, openingBalance) {
 }
 
 function renderAccounts() {
-  accountsContribAddRow.style.display = isAdmin ? '' : 'none';
-  accountsExpAddRow.style.display = isAdmin ? '' : 'none';
+  accountsContribAddRow.style.display = isFullAdmin ? '' : 'none';
+  accountsExpAddRow.style.display = isFullAdmin ? '' : 'none';
   if (!accountsData) {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
     accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
@@ -2333,13 +2360,13 @@ function renderAccounts() {
 
   if (contribution && contribution.people) {
     const escName = (n) => String(n).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-    const headCells = ['NAME', ...contribution.months].map((h) => `<th>${h}</th>`).join('') + (isAdmin ? '<th></th>' : '');
+    const headCells = ['NAME', ...contribution.months].map((h) => `<th>${h}</th>`).join('') + (isFullAdmin ? '<th></th>' : '');
     const bodyRows = contribution.people.map((p) => `
-      <tr><td>${p.name}</td>${p.values.map((v) => `<td>${v || '—'}</td>`).join('')}${isAdmin ? `<td><div class="rowActions"><button class="edit rowEditBtn" data-name="${escName(p.name)}" title="Edit ${escName(p.name)}'s row">✏️</button><button class="del rowDeleteBtn" data-name="${escName(p.name)}" title="Delete ${escName(p.name)}'s row">&times;</button></div></td>` : ''}</tr>`).join('');
-    const oldBalRow = `<tr class="acctSummary"><td>OLD BALANCE</td>${chain.oldBalances.map((v, i) => `<td>${i === 0 ? `${v}${isAdmin ? ' <button class="edit editOpeningBalBtn" title="Edit opening balance">✏️</button>' : ''}` : v}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`;
-    const totalRow = `<tr class="acctSummary"><td>TOTAL</td>${chain.totals.map((v) => `<td>${v}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`;
-    const expRow = `<tr class="acctSummary"><td>EXP</td>${chain.exps.map((v) => `<td>${v}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`;
-    const balRow = `<tr class="acctSummary balance"><td>BALANCE</td>${chain.balances.map((v) => `<td>${v}</td>`).join('')}${isAdmin ? '<td></td>' : ''}</tr>`;
+      <tr><td>${p.name}</td>${p.values.map((v) => `<td>${v || '—'}</td>`).join('')}${isFullAdmin ? `<td><div class="rowActions"><button class="edit rowEditBtn" data-name="${escName(p.name)}" title="Edit ${escName(p.name)}'s row">✏️</button><button class="del rowDeleteBtn" data-name="${escName(p.name)}" title="Delete ${escName(p.name)}'s row">&times;</button></div></td>` : ''}</tr>`).join('');
+    const oldBalRow = `<tr class="acctSummary"><td>OLD BALANCE</td>${chain.oldBalances.map((v, i) => `<td>${i === 0 ? `${v}${isFullAdmin ? ' <button class="edit editOpeningBalBtn" title="Edit opening balance">✏️</button>' : ''}` : v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
+    const totalRow = `<tr class="acctSummary"><td>TOTAL</td>${chain.totals.map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
+    const expRow = `<tr class="acctSummary"><td>EXP</td>${chain.exps.map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
+    const balRow = `<tr class="acctSummary balance"><td>BALANCE</td>${chain.balances.map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
     accountsResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable"><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}${oldBalRow}${totalRow}${expRow}${balRow}</tbody></table></div>`;
   } else {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No contribution data found in the uploaded file.</div>';
@@ -2358,11 +2385,11 @@ function renderAccounts() {
       const headText = escHtml(e.head || '—') + (e.remark ? ` <span class="expRemark">— ${escHtml(e.remark)}</span>` : '');
       return `
       <div class="expRow">
-        ${isAdmin ? `<input type="checkbox" class="expSelect" data-idx="${idx}">` : ''}
+        ${isFullAdmin ? `<input type="checkbox" class="expSelect" data-idx="${idx}">` : ''}
         <span class="expDate">${formatDateForDisplay(e.date)}</span>
         <span class="expHead" title="${escHtml(e.head || '')}${e.remark ? ' — ' + escHtml(e.remark) : ''}">${headText}</span>
         ${amtHtml}
-        ${isAdmin ? `<div class="rowActions"><button class="edit rowEditBtn" data-idx="${idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></div>` : ''}
+        ${isFullAdmin ? `<div class="rowActions"><button class="edit rowEditBtn" data-idx="${idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></div>` : ''}
       </div>`;
     }).join('');
     accountsExpResultEl.innerHTML = `<div class="expList">${rows}</div>`;
