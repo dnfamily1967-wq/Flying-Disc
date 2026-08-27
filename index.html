@@ -496,34 +496,6 @@
     font-weight: 600;
   }
 
-  .statsRow {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 0;
-    border-bottom: 1px solid #F2EFE4;
-  }
-  .statsRow:last-child { border-bottom: none; }
-  .statsName {
-    width: 74px;
-    flex-shrink: 0;
-    font-size: 11.5px;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .statsBarWrap {
-    flex: 1;
-    background: #F2EFE4;
-    border-radius: 8px;
-    height: 8px;
-    overflow: hidden;
-  }
-  .statsBarFill { height: 100%; border-radius: 8px; transition: width 0.3s ease; }
-  .statsPct { width: 32px; text-align: right; font-size: 11px; font-weight: 800; flex-shrink: 0; }
-  .statsMeta { font-size: 10px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
-
   .myFineCard {
     background: linear-gradient(135deg, #ffffff 0%, #FBFAF4 100%);
     border: 1.5px solid var(--line);
@@ -834,12 +806,6 @@
     </div>
     <div class="attnBlock" id="attnResult"></div>
     <button class="secondary" id="resetAttnDayBtn" style="display:none; margin-top:10px; border-color:var(--red); color:#8C2E2E;">🗑️ RESET THIS DAY'S ATTENDANCE</button>
-  </div>
-
-  <div class="card accent-gold">
-    <h2>📊 ATTENDANCE STATS</h2>
-    <button class="secondary" id="loadStatsBtn" style="margin-top:0;">🔄 REFRESH EVERYONE'S STATS</button>
-    <div id="statsResult" style="margin-top:12px;"></div>
   </div>
 
   <div class="card accent-red">
@@ -1621,7 +1587,6 @@ function resetAttendanceForDay(dateStr) {
     refreshMyFineCard();
     if (monthlySheetInput && monthlySheetInput.value === dateStr.slice(0, 7)) loadMonthlySheet(monthlySheetInput.value);
     refreshPlayerListPHA();
-    loadStats();
   });
 }
 
@@ -1636,60 +1601,6 @@ document.getElementById('resetAttnDayBtn').addEventListener('click', () => {
       alert('Reset failed: ' + e.message);
     });
 });
-
-// ---- Attendance stats: each player's % present, holiday count, absent count (across all saved dates) ----
-const statsResultEl = document.getElementById('statsResult');
-
-function loadStats() {
-  statsResultEl.innerHTML = '<div class="legend">Loading full detail…</div>';
-  db.collection('disc_team')
-    .where(firebase.firestore.FieldPath.documentId(), '>=', 'attendance_')
-    .where(firebase.firestore.FieldPath.documentId(), '<', 'attendance_\uf8ff')
-    .get()
-    .then((snap) => {
-      const totals = {}; // name -> { present, absent, holiday, total }
-      snap.forEach((doc) => {
-        const data = doc.data();
-        if (!data.date || data.date < DATA_START_DATE) return;
-        if (!Array.isArray(data.players)) return;
-        data.players.forEach((p) => {
-          const status = normalizeAttnStatus(p);
-          if (!totals[p.name]) totals[p.name] = { present: 0, absent: 0, holiday: 0, total: 0 };
-          totals[p.name].total++;
-          totals[p.name][status] = (totals[p.name][status] || 0) + 1;
-        });
-      });
-      renderStats(totals, snap.size);
-    })
-    .catch((e) => {
-      console.error('Stats load failed', e);
-      statsResultEl.innerHTML = `<div class="err" style="display:block;">Failed to load stats: ${e.message}</div>`;
-    });
-}
-
-function renderStats(totals, totalDays) {
-  const names = Object.keys(totals).sort();
-  if (names.length === 0) {
-    statsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No attendance has been saved yet. Save one first via "Daily Attendance".</div>';
-    return;
-  }
-  const rows = names.map((name) => {
-    const t = totals[name];
-    const pct = t.total ? Math.round((t.present / t.total) * 100) : 0;
-    const barColor = pct >= 80 ? '#4CAF50' : (pct >= 50 ? 'var(--gold)' : 'var(--red)');
-    const crown = ADMIN_NAMES.includes(name.toUpperCase()) ? '👑 ' : '';
-    return `
-    <div class="statsRow">
-      <span class="statsName">${crown}${name}</span>
-      <div class="statsBarWrap"><div class="statsBarFill" style="width:${pct}%; background:${barColor};"></div></div>
-      <span class="statsPct">${pct}%</span>
-      <span class="statsMeta">🏖️${t.holiday} ❌${t.absent}</span>
-    </div>`;
-  }).join('');
-  statsResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${totalDays} days on record · % = present rate · 🏖️ holiday · ❌ absent</div>` + rows;
-}
-
-document.getElementById('loadStatsBtn').addEventListener('click', loadStats);
 
 // ---- Monthly fine calculation: takes just one month's data and counts present/holiday/absent ----
 function computeMonthlyTotals(month, onDone, onErr) {
@@ -2272,6 +2183,16 @@ function pendingMonthsFor(contribution, person, curIdx) {
   }
   return pending;
 }
+// For a person who is fully paid up to curIdx, find how far ahead they've paid in advance
+// (continuously, with no gaps) and return that month's label instead of just the current month —
+// so someone who paid September in advance sees "Paid up to Sep-26", not "Paid up to Aug-26".
+function personPaidThroughLabel(contribution, person, curIdx) {
+  let i = curIdx;
+  while (i + 1 < contribution.months.length && isMonthPaid(person.values[i + 1])) {
+    i++;
+  }
+  return contribution.months[i];
+}
 
 // ---- Dues: for every month up to the real current month, who still hasn't paid ----
 function renderAccountsDues(contribution) {
@@ -2289,9 +2210,10 @@ function renderAccountsDues(contribution) {
     const pending = pendingMonthsFor(contribution, p, curIdx);
     const paid = pending.length === 0;
     const amt = pending.length * MONTHLY_DUE_AMOUNT;
+    const paidLabel = paid ? personPaidThroughLabel(contribution, p, curIdx) : monthLabel;
     return `<div class="fineRow ${paid ? '' : 'fined'}">
       <span class="fineName">${p.name}</span>
-      <span class="fineCounts">${paid ? ('Paid up to ' + monthLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
+      <span class="fineCounts">${paid ? ('Paid up to ' + paidLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
       <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ ₹' + amt}</span>
     </div>`;
   }).join('');
@@ -2474,10 +2396,11 @@ function renderMyDuesAndBalance() {
   const pending = pendingMonthsFor(contribution, me, curIdx);
   const paid = pending.length === 0;
   const amt = pending.length * MONTHLY_DUE_AMOUNT;
+  const paidLabel = paid ? personPaidThroughLabel(contribution, me, curIdx) : monthLabel;
   myDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}`;
   myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? '' : 'fined'}">
     <span class="fineName">${me.name}</span>
-    <span class="fineCounts">${paid ? ('Paid up to ' + monthLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
+    <span class="fineCounts">${paid ? ('Paid up to ' + paidLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
     <span class="fineVerdict ${paid ? 'good' : 'bad'}">${paid ? '✅ Paid' : '⚠️ ₹' + amt}</span>
   </div>`;
 }
@@ -2696,7 +2619,6 @@ load();
 loadPasswords();
 loadAttendance(attnDateInput.value); // show today's attendance (if already saved) on open
 loadMonthlySheet(monthlySheetInput.value); // show this month's fine sheet on open
-loadStats(); // show everyone's attendance stats in full detail as soon as the app opens
 refreshMyFineCard(); // show logged-in player's own fine status at the top
 refreshPlayerListPHA(); // show P/A/H mini-stats next to every player's name
 loadAccounts(); // show the latest uploaded accounts (contributions + expenses) as soon as the app opens
