@@ -26,7 +26,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
   :root {
@@ -47,6 +47,8 @@
     --blue-soft: #DCE8FE;
     --purple: #7B4FA0;
     --purple-soft: #EEE2F5;
+    --pink: #D63384;
+    --pink-soft: #FBDCEC;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -574,20 +576,30 @@
   .myFineCard .mfVerdict.good { background: #E4F5E7; color: #2E7D42; }
   .myFineCard .mfVerdict.bad { background: var(--red-soft); color: #8C2E2E; }
 
-  /* Birthday alert banner — shown on every tab when someone's birthday is today or within 3 days */
+  /* Birthday alert banner — shown on every tab when someone's birthday is today or within 7 days */
   .bdayBanner {
-    background: linear-gradient(135deg, #FFF6E9 0%, var(--gold-soft) 100%);
-    border: 1.5px solid var(--gold);
+    background: linear-gradient(135deg, #FDF1F8 0%, var(--pink-soft) 100%);
+    border: 1.5px solid var(--pink);
     border-radius: 16px;
     padding: 12px 16px;
     margin-top: 16px;
     box-shadow: 0 2px 10px rgba(30,30,20,0.05);
   }
-  .bdayBanner.today { border-color: var(--orange); background: linear-gradient(135deg, #FFF6E9 0%, var(--orange-soft) 100%); }
+  .bdayBanner.today { border-color: var(--pink); background: linear-gradient(135deg, #FDF1F8 0%, #F8C6E3 100%); }
   .bdayBanner .bbTitle { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
   .bdayBanner .bbRow { font-size: 13.5px; font-weight: 700; color: var(--ink); padding: 3px 0; }
   .bdayBanner .bbRow .bbWhen { font-weight: 600; color: var(--muted); }
-  .bdayBanner .bbRow.today .bbWhen { color: var(--orange); font-weight: 800; }
+  .bdayBanner .bbRow.today .bbWhen { color: var(--pink); font-weight: 800; }
+  .bdayBanner .bbName {
+    display: inline-block;
+    animation: bbNameBlink 1s step-start infinite;
+  }
+  @keyframes bbNameBlink {
+    50% { opacity: 0.25; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bdayBanner .bbName { animation: none; }
+  }
 
   /* Birthday list card (Teams tab) */
   ul.bdayList { list-style: none; margin: 0; padding: 0; }
@@ -607,8 +619,14 @@
   .bdayEditRow { display: flex; align-items: center; gap: 8px; }
   .bdayEditRow .bdName { flex: 1; min-width: 0; }
   .bdayEditRow input[type="number"] {
-    width: 54px; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 6px;
-    font-size: 13px; font-family: inherit; background: #FCFBF7; text-align: center;
+    width: 62px; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 4px;
+    font-size: 14px; font-family: inherit; background: #FCFBF7; text-align: center;
+    -moz-appearance: textfield;
+  }
+  .bdayEditRow input[type="number"]::-webkit-outer-spin-button,
+  .bdayEditRow input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
   .bdayEditRow select {
     border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 6px;
@@ -962,7 +980,7 @@
 
   <div class="card accent-gold" id="bdayCard">
     <h2>🎂 BIRTHDAYS</h2>
-    <div class="legend" id="bdayEditHint" style="margin-top:0; display:none;">Set each player's birth day &amp; month below, then save. Everyone gets an alert on the app starting 3 days before.</div>
+    <div class="legend" id="bdayEditHint" style="margin-top:0; display:none;">Set each player's birth day &amp; month below, then save. Everyone gets an alert on the app starting 7 days before.</div>
     <ul class="bdayList" id="bdayList"></ul>
     <button id="saveBdayBtn" style="margin-top:12px; display:none;">💾 SAVE BIRTHDAYS</button>
   </div>
@@ -1245,7 +1263,7 @@ const DEFAULT_NAMES = [
 ];
 
 // Birthdays (day, month) for the current roster — shown in the Teams tab and used for the
-// app-wide reminder banner that appears starting 3 days before each player's birthday.
+// app-wide reminder banner that appears starting 7 days before each player's birthday.
 const BIRTHDAY_MAP = {
   DEVENDRA: { d: 4, m: 1 },
   KAMLESH: { d: 2, m: 9 },
@@ -1662,7 +1680,7 @@ function populateResetPassSelect() {
   if (current && players.some(p => p.name === current)) sel.value = current;
 }
 
-// ---- Birthdays: Teams-tab list + app-wide reminder banner (fires 3 days before, and on the day) ----
+// ---- Birthdays: Teams-tab list + app-wide reminder banner (fires 7 days before, and on the day) ----
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const bdayListEl = document.getElementById('bdayList');
 const bdayBannerEl = document.getElementById('bdayBanner');
@@ -1724,7 +1742,7 @@ function renderBirthdays() {
     let dateCls = 'bdDate';
     let label = formatBday(p.bday);
     if (days === 0) { dateCls += ' today'; label = '🎉 Today!'; }
-    else if (days <= 3) { dateCls += ' soon'; label = `${formatBday(p.bday)} · in ${days}d`; }
+    else if (days <= 7) { dateCls += ' soon'; label = `${formatBday(p.bday)} · in ${days}d`; }
     return `<li><span class="bdName">${p.name}</span><span class="${dateCls}">${label}</span></li>`;
   }).join('');
 }
@@ -1756,12 +1774,12 @@ saveBdayBtn && saveBdayBtn.addEventListener('click', () => {
     .catch((err) => { console.error('Save birthdays failed', err); alert('Save failed: ' + err.message); });
 });
 
-// Shows a banner (on every tab) for anyone whose birthday is today or within the next 3 days.
+// Shows a banner (on every tab) for anyone whose birthday is today or within the next 7 days.
 function refreshBdayBanner() {
   if (!bdayBannerEl) return;
   const upcoming = players
     .map((p) => ({ name: p.name, days: daysUntilBday(p.bday), bday: p.bday }))
-    .filter((x) => x.days !== null && x.days <= 3)
+    .filter((x) => x.days !== null && x.days <= 7)
     .sort((a, b) => a.days - b.days);
 
   if (!upcoming.length) { bdayBannerEl.style.display = 'none'; return; }
@@ -1770,7 +1788,7 @@ function refreshBdayBanner() {
   bdayBannerEl.className = 'bdayBanner' + (hasToday ? ' today' : '');
   const rows = upcoming.map((x) => {
     const when = x.days === 0 ? '🎉 Today!' : x.days === 1 ? 'Tomorrow' : `in ${x.days} days (${formatBday(x.bday)})`;
-    return `<div class="bbRow ${x.days === 0 ? 'today' : ''}">🎂 ${x.name} — <span class="bbWhen">${when}</span></div>`;
+    return `<div class="bbRow ${x.days === 0 ? 'today' : ''}">🎂 <span class="bbName">${x.name}</span> — <span class="bbWhen">${when}</span></div>`;
   }).join('');
   bdayBannerEl.innerHTML = `<div class="bbTitle">Birthday Alert</div>${rows}`;
   bdayBannerEl.style.display = 'block';
@@ -3195,6 +3213,21 @@ document.getElementById('exportPreviewDownloadBtn').addEventListener('click', as
   btn.disabled = true;
   try {
     const el = document.getElementById('exportTemplate');
+    // Wait for web fonts (Poppins/Outfit) and the logo image to be fully loaded before capturing —
+    // otherwise html2canvas can snapshot mid-load on a slow mobile connection, which is what was
+    // producing the same wrong-looking JPG (fallback font, missing/blank logo) every time.
+    if (document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; } catch (e) {}
+    }
+    const logoEl = document.getElementById('exportLogo');
+    if (logoEl && !logoEl.complete) {
+      await new Promise((resolve) => {
+        logoEl.addEventListener('load', resolve, { once: true });
+        logoEl.addEventListener('error', resolve, { once: true });
+        setTimeout(resolve, 3000);
+      });
+    }
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const fullWidth = el.scrollWidth;
     const fullHeight = el.scrollHeight;
     // Phones have a narrow viewport (often under 400px) while this template is a fixed 860px
