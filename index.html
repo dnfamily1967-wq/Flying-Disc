@@ -958,6 +958,7 @@
       <div style="flex:1; min-width:0; box-sizing:border-box; background:#EAF4EC; border-radius:12px; padding:12px 8px; text-align:center;">
         <div style="font-size:10px; font-weight:800; color:#4C7A5A; text-transform:uppercase;">Collected</div>
         <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#1F5C3F; margin-top:4px;">₹0</div>
+        <div id="exportCollectedAdvanceNote" style="font-size:9.5px; color:#4C7A5A; margin-top:3px; display:none; font-weight:700;"></div>
       </div>
       <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">−</div>
       <div style="flex:1; min-width:0; box-sizing:border-box; background:#FBECEC; border-radius:12px; padding:12px 8px; text-align:center;">
@@ -2745,6 +2746,19 @@ document.getElementById('exportSummaryBtn').addEventListener('click', async () =
     // The TRUE current balance, including any advance months already collected beyond this one.
     const currentBalance = chain.balances.length ? chain.balances[chain.balances.length - 1] : balanceNow;
 
+    // Advance payments: anyone who has already paid a month beyond the current one (e.g. Sanjay
+    // paying September while it's still August) — computed early so the Collected box can show
+    // the combined "this month + advance" total plainly, not just this month's own figure.
+    const advanceRows = [];
+    if (curIdx >= 0) {
+      contribution.people.forEach((p) => {
+        for (let i = curIdx + 1; i < contribution.months.length; i++) {
+          if (isMonthPaid(p.values[i])) advanceRows.push({ name: p.name, month: contribution.months[i], amount: p.values[i] });
+        }
+      });
+    }
+    const totalAdvance = advanceRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
     document.getElementById('exportMonthBadge').textContent = monthLabel;
     document.getElementById('exportOldBalance').textContent = '₹' + oldBalance;
     document.getElementById('exportTotalCollected').textContent = '₹' + totalCollected;
@@ -2752,6 +2766,14 @@ document.getElementById('exportSummaryBtn').addEventListener('click', async () =
     document.getElementById('exportBalance').textContent = '₹' + balanceNow;
     document.getElementById('exportCurrentBalance').textContent = '₹' + currentBalance;
     document.getElementById('exportGeneratedDate').textContent = new Date().toLocaleDateString();
+
+    const collectedNoteEl = document.getElementById('exportCollectedAdvanceNote');
+    if (totalAdvance > 0) {
+      collectedNoteEl.style.display = '';
+      collectedNoteEl.textContent = `₹${totalCollected} + ₹${totalAdvance} advance = ₹${totalCollected + totalAdvance}`;
+    } else {
+      collectedNoteEl.style.display = 'none';
+    }
 
     const collectionsRows = curIdx >= 0
       ? contribution.people.filter((p) => isMonthPaid(p.values[curIdx])).map((p) => `
@@ -2762,23 +2784,14 @@ document.getElementById('exportSummaryBtn').addEventListener('click', async () =
     document.getElementById('exportCollectionsList').innerHTML = collectionsRows || '<div style="color:#A8A38C;">No collections recorded this month.</div>';
     document.getElementById('exportCollectionsTotal').innerHTML = `<span>TOTAL</span><span>₹${totalCollected}</span>`;
 
-    // Advance payments: anyone who has already paid a month beyond the current one (e.g. Sanjay
-    // paying September while it's still August) — shown separately so it's not lost from the export.
     const advanceSection = document.getElementById('exportAdvanceSection');
-    const advanceRows = [];
-    if (curIdx >= 0) {
-      contribution.people.forEach((p) => {
-        for (let i = curIdx + 1; i < contribution.months.length; i++) {
-          if (isMonthPaid(p.values[i])) advanceRows.push({ name: p.name, month: contribution.months[i], amount: p.values[i] });
-        }
-      });
-    }
     if (advanceRows.length) {
       advanceSection.style.display = '';
       document.getElementById('exportAdvanceList').innerHTML = advanceRows.map((r) => `
         <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
           <span>${r.name} — ${r.month}</span><span style="font-weight:800; color:#8A6D1F;">₹${r.amount}</span>
-        </div>`).join('');
+        </div>`).join('') + `
+        <div style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #8A6D1F; font-weight:800; font-size:13.5px; color:#8A6D1F;"><span>TOTAL ADVANCE</span><span>₹${totalAdvance}</span></div>`;
     } else {
       advanceSection.style.display = 'none';
     }
