@@ -1037,6 +1037,17 @@
   </div>
 </div>
 
+<div class="modalOverlay" id="confirmModalOverlay">
+  <div class="modalCard" style="border-top: 5px solid var(--red);">
+    <h2 style="color:#8C2E2E;">⚠️ CONFIRM DELETE</h2>
+    <div id="confirmModalMessage" style="margin-top:4px; color:#8C2E2E; font-weight:600; font-size:14px; line-height:1.5; background:var(--red-soft); border-radius:10px; padding:12px 14px;"></div>
+    <div class="modalBtnRow">
+      <button class="secondary" id="confirmModalCancelBtn" type="button">✖ CANCEL</button>
+      <button id="confirmModalOkBtn" type="button" style="background:var(--red); box-shadow:0 4px 14px rgba(209,69,69,0.35);">🗑️ DELETE</button>
+    </div>
+  </div>
+</div>
+
 <div class="modalOverlay" id="expenseModalOverlay">
   <div class="modalCard">
     <h2 id="expenseModalTitle">➕ ADD EXPENSE ENTRY</h2>
@@ -2187,30 +2198,50 @@ function filterExpensePairsToCurrentMonth(pairs) {
 }
 
 // ---- Admin: delete a single figure (a person's contribution row, or one expense entry) ----
+// ---- Styled red confirm modal, used in place of the plain browser confirm() for deletes ----
+let confirmModalCallback = null;
+function showConfirmModal(message, onConfirm) {
+  document.getElementById('confirmModalMessage').textContent = message;
+  confirmModalCallback = onConfirm;
+  document.getElementById('confirmModalOverlay').classList.add('show');
+}
+document.getElementById('confirmModalCancelBtn').addEventListener('click', () => {
+  document.getElementById('confirmModalOverlay').classList.remove('show');
+  confirmModalCallback = null;
+});
+document.getElementById('confirmModalOkBtn').addEventListener('click', () => {
+  document.getElementById('confirmModalOverlay').classList.remove('show');
+  const cb = confirmModalCallback;
+  confirmModalCallback = null;
+  if (cb) cb();
+});
+
 function deleteContributionPerson(name) {
   if (!accountsData || !accountsData.contribution || !Array.isArray(accountsData.contribution.people)) return;
-  if (!confirm(`Delete ${name}'s contribution row? Any expense-ledger entries auto-added for their payments will be removed too. This cannot be undone.`)) return;
-  const updatedPeople = accountsData.contribution.people.filter((p) => p.name !== name);
-  const updates = { 'contribution.people': updatedPeople };
-  if (Array.isArray(accountsData.expenses)) {
-    const linkPrefix = `${name}|`;
-    const updatedExpenses = accountsData.expenses.filter((e) => !(e.linkedContribution && e.linkedContribution.startsWith(linkPrefix)));
-    if (updatedExpenses.length !== accountsData.expenses.length) updates.expenses = updatedExpenses;
-  }
-  accountsDocRef.update(updates).catch((err) => {
-    console.error('Delete contribution row failed', err);
-    alert('Delete failed: ' + err.message);
+  showConfirmModal(`Delete ${name}'s contribution row? Any expense-ledger entries auto-added for their payments will be removed too. This cannot be undone.`, () => {
+    const updatedPeople = accountsData.contribution.people.filter((p) => p.name !== name);
+    const updates = { 'contribution.people': updatedPeople };
+    if (Array.isArray(accountsData.expenses)) {
+      const linkPrefix = `${name}|`;
+      const updatedExpenses = accountsData.expenses.filter((e) => !(e.linkedContribution && e.linkedContribution.startsWith(linkPrefix)));
+      if (updatedExpenses.length !== accountsData.expenses.length) updates.expenses = updatedExpenses;
+    }
+    accountsDocRef.update(updates).catch((err) => {
+      console.error('Delete contribution row failed', err);
+      alert('Delete failed: ' + err.message);
+    });
   });
 }
 
 function deleteExpenseEntry(idx) {
   if (!accountsData || !Array.isArray(accountsData.expenses)) return;
-  if (!confirm('Delete this expense entry? This cannot be undone.')) return;
-  const updated = accountsData.expenses.slice();
-  updated.splice(idx, 1);
-  accountsDocRef.update({ expenses: updated }).catch((err) => {
-    console.error('Delete expense entry failed', err);
-    alert('Delete failed: ' + err.message);
+  showConfirmModal('Delete this expense entry? This cannot be undone.', () => {
+    const updated = accountsData.expenses.slice();
+    updated.splice(idx, 1);
+    accountsDocRef.update({ expenses: updated }).catch((err) => {
+      console.error('Delete expense entry failed', err);
+      alert('Delete failed: ' + err.message);
+    });
   });
 }
 
@@ -2264,11 +2295,12 @@ accountsExpResultEl.addEventListener('change', (e) => {
 document.getElementById('bulkDeleteExpBtn').addEventListener('click', () => {
   if (!accountsData || !Array.isArray(accountsData.expenses) || !selectedExpenseIdxs.size) return;
   const n = selectedExpenseIdxs.size;
-  if (!confirm(`Delete ${n} selected expense entrie(s)? This cannot be undone.`)) return;
-  const updated = accountsData.expenses.filter((_, i) => !selectedExpenseIdxs.has(i));
-  accountsDocRef.update({ expenses: updated })
-    .then(() => { selectedExpenseIdxs.clear(); updateBulkDeleteBtn(); })
-    .catch((err) => { console.error('Bulk delete failed', err); alert('Delete failed: ' + err.message); });
+  showConfirmModal(`Delete ${n} selected expense entrie(s)? This cannot be undone.`, () => {
+    const updated = accountsData.expenses.filter((_, i) => !selectedExpenseIdxs.has(i));
+    accountsDocRef.update({ expenses: updated })
+      .then(() => { selectedExpenseIdxs.clear(); updateBulkDeleteBtn(); })
+      .catch((err) => { console.error('Bulk delete failed', err); alert('Delete failed: ' + err.message); });
+  });
 });
 
 // ---- Dues helpers: "current month" here means the real, present-day calendar month — not just
