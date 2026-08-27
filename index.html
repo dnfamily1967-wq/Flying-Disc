@@ -983,63 +983,73 @@
   </div>
   </div>
 
-  <div id="exportTemplate" style="position:absolute; left:-9999px; top:0; width:860px; background:#FFFDF7; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:28px; color:#2B2B22;">
-    <div style="display:flex; align-items:center; gap:14px; border-bottom:3px solid #1F5C3F; padding-bottom:16px; margin-bottom:20px;">
-      <img id="exportLogo" src="icon-192.png" style="width:56px; height:56px; border-radius:50%; object-fit:cover; flex-shrink:0;">
-      <div style="min-width:0;">
-        <div style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#1F5C3F;">Flying Disc Morning Walkers</div>
-        <div style="font-size:13px; color:#8A8570;">Jubilee Park &middot; Accounts Summary</div>
-      </div>
-      <div id="exportMonthBadge" style="margin-left:auto; flex-shrink:0; background:#1F5C3F; color:#fff; font-weight:800; font-size:14px; padding:6px 14px; border-radius:16px;">AUG-26</div>
-    </div>
+  <div class="modalOverlay" id="exportPreviewOverlay">
+    <div style="max-width:95vw; max-height:90vh; display:flex; flex-direction:column; background:#FFFDF7; border-radius:16px; overflow:hidden;">
+      <div style="overflow:auto; padding:4px;">
+        <div id="exportTemplate" style="width:860px; background:#FFFDF7; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:28px; color:#2B2B22;">
+          <div style="display:flex; align-items:center; gap:14px; border-bottom:3px solid #1F5C3F; padding-bottom:16px; margin-bottom:20px;">
+            <img id="exportLogo" src="icon-192.png" style="width:56px; height:56px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+            <div style="min-width:0;">
+              <div style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#1F5C3F;">Flying Disc Morning Walkers</div>
+              <div style="font-size:13px; color:#8A8570;">Jubilee Park &middot; Accounts Summary</div>
+            </div>
+            <div id="exportMonthBadge" style="margin-left:auto; flex-shrink:0; background:#1F5C3F; color:#fff; font-weight:800; font-size:14px; padding:6px 14px; border-radius:16px;">AUG-26</div>
+          </div>
 
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; box-sizing:border-box;">
-      <div style="flex:1; min-width:0; box-sizing:border-box; background:#F1EBDA; border-radius:12px; padding:12px 8px; text-align:center;">
-        <div style="font-size:10px; font-weight:800; color:#8A7A4C; text-transform:uppercase; white-space:nowrap;">Old Balance</div>
-        <div id="exportOldBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#6B5A2E; margin-top:4px; white-space:nowrap;">₹0</div>
-      </div>
-      <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">+</div>
-      <div style="flex:1; min-width:0; box-sizing:border-box; background:#EAF4EC; border-radius:12px; padding:12px 8px; text-align:center;">
-        <div style="font-size:10px; font-weight:800; color:#4C7A5A; text-transform:uppercase; white-space:nowrap;">Collected</div>
-        <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#1F5C3F; margin-top:4px; white-space:nowrap;">₹0</div>
-        <div id="exportCollectedAdvanceNote" style="font-size:9.5px; color:#4C7A5A; margin-top:3px; display:none; font-weight:700;"></div>
-      </div>
-      <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">−</div>
-      <div style="flex:1; min-width:0; box-sizing:border-box; background:#FBECEC; border-radius:12px; padding:12px 8px; text-align:center;">
-        <div style="font-size:10px; font-weight:800; color:#A15252; text-transform:uppercase; white-space:nowrap;">Expenses</div>
-        <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8C2E2E; margin-top:4px; white-space:nowrap;">₹0</div>
-      </div>
-      <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">=</div>
-      <div style="flex:1; min-width:0; box-sizing:border-box; background:#FCF3DC; border-radius:12px; padding:10px 8px; text-align:center; border:2px solid #E0A62B;">
-        <div style="font-size:10px; font-weight:800; color:#8A6D1F; text-transform:uppercase; white-space:nowrap;">Balance</div>
-        <div id="exportBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8A6D1F; margin-top:4px; white-space:nowrap;">₹0</div>
-      </div>
-    </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; box-sizing:border-box;">
+            <div style="flex:1; min-width:0; box-sizing:border-box; background:#F1EBDA; border-radius:12px; padding:12px 8px; text-align:center;">
+              <div style="font-size:10px; font-weight:800; color:#8A7A4C; text-transform:uppercase; white-space:nowrap;">Old Balance</div>
+              <div id="exportOldBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#6B5A2E; margin-top:4px; white-space:nowrap;">₹0</div>
+            </div>
+            <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">+</div>
+            <div style="flex:1; min-width:0; box-sizing:border-box; background:#EAF4EC; border-radius:12px; padding:12px 8px; text-align:center;">
+              <div style="font-size:10px; font-weight:800; color:#4C7A5A; text-transform:uppercase; white-space:nowrap;">Collected</div>
+              <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#1F5C3F; margin-top:4px; white-space:nowrap;">₹0</div>
+              <div id="exportCollectedAdvanceNote" style="font-size:9.5px; color:#4C7A5A; margin-top:3px; display:none; font-weight:700;"></div>
+            </div>
+            <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">−</div>
+            <div style="flex:1; min-width:0; box-sizing:border-box; background:#FBECEC; border-radius:12px; padding:12px 8px; text-align:center;">
+              <div style="font-size:10px; font-weight:800; color:#A15252; text-transform:uppercase; white-space:nowrap;">Expenses</div>
+              <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8C2E2E; margin-top:4px; white-space:nowrap;">₹0</div>
+            </div>
+            <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">=</div>
+            <div style="flex:1; min-width:0; box-sizing:border-box; background:#FCF3DC; border-radius:12px; padding:10px 8px; text-align:center; border:2px solid #E0A62B;">
+              <div style="font-size:10px; font-weight:800; color:#8A6D1F; text-transform:uppercase; white-space:nowrap;">Balance</div>
+              <div id="exportBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8A6D1F; margin-top:4px; white-space:nowrap;">₹0</div>
+            </div>
+          </div>
 
-    <div id="exportCurrentBalanceBanner" style="background:#1F5C3F; border-radius:12px; padding:12px 16px; text-align:center; margin-bottom:22px; box-sizing:border-box;">
-      <span style="font-size:11px; font-weight:800; color:#C9DACB; text-transform:uppercase;">Current Team Balance (incl. any advance paid ahead)</span>
-      <span id="exportCurrentBalance" style="font-family:'Outfit',sans-serif; font-size:19px; font-weight:800; color:#fff; margin-left:10px;">₹0</span>
-    </div>
+          <div id="exportCurrentBalanceBanner" style="background:#1F5C3F; border-radius:12px; padding:12px 16px; text-align:center; margin-bottom:22px; box-sizing:border-box;">
+            <span style="font-size:11px; font-weight:800; color:#C9DACB; text-transform:uppercase;">Current Team Balance (incl. any advance paid ahead)</span>
+            <span id="exportCurrentBalance" style="font-family:'Outfit',sans-serif; font-size:19px; font-weight:800; color:#fff; margin-left:10px;">₹0</span>
+          </div>
 
-    <div style="display:flex; gap:24px; align-items:flex-start;">
-      <div style="flex:1; min-width:0;">
-        <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:8px;">💰 COLLECTIONS THIS MONTH</div>
-        <div id="exportCollectionsList" style="font-size:13px;"></div>
-        <div id="exportCollectionsTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #1F5C3F; font-weight:800; font-size:13.5px; color:#1F5C3F;"></div>
-        <div id="exportAdvanceSection" style="display:none; margin-top:16px;">
-          <div style="font-size:14px; font-weight:800; color:#8A6D1F; margin-bottom:8px;">🔜 ADVANCE PAYMENTS (PAID AHEAD)</div>
-          <div id="exportAdvanceList" style="font-size:13px;"></div>
+          <div style="display:flex; gap:24px; align-items:flex-start;">
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:8px;">💰 COLLECTIONS THIS MONTH</div>
+              <div id="exportCollectionsList" style="font-size:13px;"></div>
+              <div id="exportCollectionsTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #1F5C3F; font-weight:800; font-size:13.5px; color:#1F5C3F;"></div>
+              <div id="exportAdvanceSection" style="display:none; margin-top:16px;">
+                <div style="font-size:14px; font-weight:800; color:#8A6D1F; margin-bottom:8px;">🔜 ADVANCE PAYMENTS (PAID AHEAD)</div>
+                <div id="exportAdvanceList" style="font-size:13px;"></div>
+              </div>
+            </div>
+            <div style="width:1px; align-self:stretch; background:#E9E4D6;"></div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:14px; font-weight:800; color:#8C2E2E; margin-bottom:8px;">🧾 EXPENSES THIS MONTH</div>
+              <div id="exportExpensesList" style="font-size:13px;"></div>
+              <div id="exportExpensesTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #8C2E2E; font-weight:800; font-size:13.5px; color:#8C2E2E;"></div>
+            </div>
+          </div>
+
+          <div style="border-top:1px dashed #D8D2BE; margin-top:16px; padding-top:12px; font-size:11px; color:#A8A38C; text-align:center;">Generated from the team app &middot; <span id="exportGeneratedDate"></span></div>
         </div>
       </div>
-      <div style="width:1px; align-self:stretch; background:#E9E4D6;"></div>
-      <div style="flex:1; min-width:0;">
-        <div style="font-size:14px; font-weight:800; color:#8C2E2E; margin-bottom:8px;">🧾 EXPENSES THIS MONTH</div>
-        <div id="exportExpensesList" style="font-size:13px;"></div>
-        <div id="exportExpensesTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #8C2E2E; font-weight:800; font-size:13.5px; color:#8C2E2E;"></div>
+      <div style="display:flex; gap:10px; padding:14px; border-top:1px solid var(--line); background:#fff;">
+        <button class="secondary" id="exportPreviewCloseBtn" type="button" style="margin:0;">✖ CLOSE</button>
+        <button id="exportPreviewDownloadBtn" type="button" style="margin:0;">📥 DOWNLOAD JPEG</button>
       </div>
     </div>
-
-    <div style="border-top:1px dashed #D8D2BE; margin-top:16px; padding-top:12px; font-size:11px; color:#A8A38C; text-align:center;">Generated from the team app &middot; <span id="exportGeneratedDate"></span></div>
   </div>
 
   <div class="install-hint">
@@ -2866,108 +2876,114 @@ function renderMyDuesAndBalance() {
   </div>`;
 }
 
-// ---- Export a shareable JPEG summary (this month's collections + expenses + balance, with logo) ----
-document.getElementById('exportSummaryBtn').addEventListener('click', async () => {
-  if (!accountsData || typeof html2canvas === 'undefined') {
+// ---- Export a shareable JPEG summary (this month's collections + expenses + balance, with logo).
+// Shown as an on-screen preview first (not captured off-screen), since some mobile browsers clip
+// or mis-lay-out content positioned far off-screen, which broke the exported image on phones.
+let exportMonthLabel = '';
+document.getElementById('exportSummaryBtn').addEventListener('click', () => {
+  if (!accountsData) {
     alert('Export isn\'t ready yet — please try again in a moment.');
     return;
   }
-  const btn = document.getElementById('exportSummaryBtn');
+  const contribution = filterContributionByCutoff(accountsData.contribution);
+  const openingBalance = getOpeningBalance(accountsData.contribution);
+  const chain = computeBalanceChain(contribution, accountsData.expenses, openingBalance);
+  const curIdx = currentMonthIndex(contribution);
+  const monthLabel = curIdx >= 0 ? contribution.months[curIdx] : currentMonthLabelFor();
+  exportMonthLabel = monthLabel;
+  const oldBalance = curIdx >= 0 ? chain.oldBalances[curIdx] : (Number(openingBalance) || 0);
+  const totalCollected = curIdx >= 0 ? chain.totals[curIdx] : 0;
+  const totalExp = curIdx >= 0 ? chain.exps[curIdx] : 0;
+  // Uses this month's own balance (not the latest overall) so the four boxes always add up
+  // exactly: Old Balance + Collected − Expenses = Balance, even if later months already exist.
+  const balanceNow = curIdx >= 0 ? chain.balances[curIdx] : oldBalance;
+  // The TRUE current balance, including any advance months already collected beyond this one.
+  const currentBalance = chain.balances.length ? chain.balances[chain.balances.length - 1] : balanceNow;
+
+  // Advance payments: anyone who has already paid a month beyond the current one (e.g. Sanjay
+  // paying September while it's still August) — computed early so the Collected box can show
+  // the combined "this month + advance" total plainly, not just this month's own figure.
+  const advanceRows = [];
+  if (curIdx >= 0) {
+    contribution.people.forEach((p) => {
+      for (let i = curIdx + 1; i < contribution.months.length; i++) {
+        if (isMonthPaid(p.values[i])) advanceRows.push({ name: p.name, month: contribution.months[i], amount: p.values[i] });
+      }
+    });
+  }
+  const totalAdvance = advanceRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+  document.getElementById('exportMonthBadge').textContent = monthLabel;
+  document.getElementById('exportOldBalance').textContent = '₹' + oldBalance;
+  document.getElementById('exportTotalCollected').textContent = '₹' + totalCollected;
+  document.getElementById('exportTotalExp').textContent = '₹' + totalExp;
+  document.getElementById('exportBalance').textContent = '₹' + balanceNow;
+  document.getElementById('exportCurrentBalance').textContent = '₹' + currentBalance;
+  document.getElementById('exportGeneratedDate').textContent = new Date().toLocaleDateString();
+
+  const collectedNoteEl = document.getElementById('exportCollectedAdvanceNote');
+  if (totalAdvance > 0) {
+    collectedNoteEl.style.display = '';
+    collectedNoteEl.textContent = `₹${totalCollected} + ₹${totalAdvance} advance = ₹${totalCollected + totalAdvance}`;
+  } else {
+    collectedNoteEl.style.display = 'none';
+  }
+
+  const collectionsRows = curIdx >= 0
+    ? contribution.people.filter((p) => isMonthPaid(p.values[curIdx])).map((p) => `
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
+        <span>${p.name}</span><span style="font-weight:800; color:#1F5C3F;">₹${p.values[curIdx]}</span>
+      </div>`).join('')
+    : '';
+  document.getElementById('exportCollectionsList').innerHTML = collectionsRows || '<div style="color:#A8A38C;">No collections recorded this month.</div>';
+  document.getElementById('exportCollectionsTotal').innerHTML = `<span>TOTAL</span><span>₹${totalCollected}</span>`;
+
+  const advanceSection = document.getElementById('exportAdvanceSection');
+  if (advanceRows.length) {
+    advanceSection.style.display = '';
+    document.getElementById('exportAdvanceList').innerHTML = advanceRows.map((r) => `
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
+        <span>${r.name} — ${r.month}</span><span style="font-weight:800; color:#8A6D1F;">₹${r.amount}</span>
+      </div>`).join('') + `
+      <div style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #8A6D1F; font-weight:800; font-size:13.5px; color:#8A6D1F;"><span>TOTAL ADVANCE</span><span>₹${totalAdvance}</span></div>`;
+  } else {
+    advanceSection.style.display = 'none';
+  }
+
+  const expensePairs = filterExpensesByCutoff(accountsData.expenses);
+  const monthExpenses = filterExpensePairsToCurrentMonth(expensePairs).map((p) => p.e).filter((e) => Number(e.exp) > 0);
+  const expensesRows = monthExpenses.map((e) => `
+    <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
+      <span>${formatDateForDisplay(e.date)} — ${e.head || ''}</span><span style="font-weight:800; color:#8C2E2E;">₹${e.exp}</span>
+    </div>`).join('');
+  document.getElementById('exportExpensesList').innerHTML = expensesRows || '<div style="color:#A8A38C;">No expenses recorded this month.</div>';
+  document.getElementById('exportExpensesTotal').innerHTML = `<span>TOTAL</span><span>₹${totalExp}</span>`;
+
+  document.getElementById('exportPreviewOverlay').classList.add('show');
+});
+
+document.getElementById('exportPreviewCloseBtn').addEventListener('click', () => {
+  document.getElementById('exportPreviewOverlay').classList.remove('show');
+});
+
+document.getElementById('exportPreviewDownloadBtn').addEventListener('click', async () => {
+  if (typeof html2canvas === 'undefined') {
+    alert('Image generator isn\'t ready yet — please try again in a moment.');
+    return;
+  }
+  const btn = document.getElementById('exportPreviewDownloadBtn');
   const originalLabel = btn.textContent;
   btn.textContent = '⏳ PREPARING…';
   btn.disabled = true;
   try {
-    const contribution = filterContributionByCutoff(accountsData.contribution);
-    const openingBalance = getOpeningBalance(accountsData.contribution);
-    const chain = computeBalanceChain(contribution, accountsData.expenses, openingBalance);
-    const curIdx = currentMonthIndex(contribution);
-    const monthLabel = curIdx >= 0 ? contribution.months[curIdx] : currentMonthLabelFor();
-    const oldBalance = curIdx >= 0 ? chain.oldBalances[curIdx] : (Number(openingBalance) || 0);
-    const totalCollected = curIdx >= 0 ? chain.totals[curIdx] : 0;
-    const totalExp = curIdx >= 0 ? chain.exps[curIdx] : 0;
-    // Uses this month's own balance (not the latest overall) so the four boxes always add up
-    // exactly: Old Balance + Collected − Expenses = Balance, even if later months already exist.
-    const balanceNow = curIdx >= 0 ? chain.balances[curIdx] : oldBalance;
-    // The TRUE current balance, including any advance months already collected beyond this one.
-    const currentBalance = chain.balances.length ? chain.balances[chain.balances.length - 1] : balanceNow;
-
-    // Advance payments: anyone who has already paid a month beyond the current one (e.g. Sanjay
-    // paying September while it's still August) — computed early so the Collected box can show
-    // the combined "this month + advance" total plainly, not just this month's own figure.
-    const advanceRows = [];
-    if (curIdx >= 0) {
-      contribution.people.forEach((p) => {
-        for (let i = curIdx + 1; i < contribution.months.length; i++) {
-          if (isMonthPaid(p.values[i])) advanceRows.push({ name: p.name, month: contribution.months[i], amount: p.values[i] });
-        }
-      });
-    }
-    const totalAdvance = advanceRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-
-    document.getElementById('exportMonthBadge').textContent = monthLabel;
-    document.getElementById('exportOldBalance').textContent = '₹' + oldBalance;
-    document.getElementById('exportTotalCollected').textContent = '₹' + totalCollected;
-    document.getElementById('exportTotalExp').textContent = '₹' + totalExp;
-    document.getElementById('exportBalance').textContent = '₹' + balanceNow;
-    document.getElementById('exportCurrentBalance').textContent = '₹' + currentBalance;
-    document.getElementById('exportGeneratedDate').textContent = new Date().toLocaleDateString();
-
-    const collectedNoteEl = document.getElementById('exportCollectedAdvanceNote');
-    if (totalAdvance > 0) {
-      collectedNoteEl.style.display = '';
-      collectedNoteEl.textContent = `₹${totalCollected} + ₹${totalAdvance} advance = ₹${totalCollected + totalAdvance}`;
-    } else {
-      collectedNoteEl.style.display = 'none';
-    }
-
-    const collectionsRows = curIdx >= 0
-      ? contribution.people.filter((p) => isMonthPaid(p.values[curIdx])).map((p) => `
-        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
-          <span>${p.name}</span><span style="font-weight:800; color:#1F5C3F;">₹${p.values[curIdx]}</span>
-        </div>`).join('')
-      : '';
-    document.getElementById('exportCollectionsList').innerHTML = collectionsRows || '<div style="color:#A8A38C;">No collections recorded this month.</div>';
-    document.getElementById('exportCollectionsTotal').innerHTML = `<span>TOTAL</span><span>₹${totalCollected}</span>`;
-
-    const advanceSection = document.getElementById('exportAdvanceSection');
-    if (advanceRows.length) {
-      advanceSection.style.display = '';
-      document.getElementById('exportAdvanceList').innerHTML = advanceRows.map((r) => `
-        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
-          <span>${r.name} — ${r.month}</span><span style="font-weight:800; color:#8A6D1F;">₹${r.amount}</span>
-        </div>`).join('') + `
-        <div style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #8A6D1F; font-weight:800; font-size:13.5px; color:#8A6D1F;"><span>TOTAL ADVANCE</span><span>₹${totalAdvance}</span></div>`;
-    } else {
-      advanceSection.style.display = 'none';
-    }
-
-    const expensePairs = filterExpensesByCutoff(accountsData.expenses);
-    const monthExpenses = filterExpensePairsToCurrentMonth(expensePairs).map((p) => p.e).filter((e) => Number(e.exp) > 0);
-    const expensesRows = monthExpenses.map((e) => `
-      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
-        <span>${formatDateForDisplay(e.date)} — ${e.head || ''}</span><span style="font-weight:800; color:#8C2E2E;">₹${e.exp}</span>
-      </div>`).join('');
-    document.getElementById('exportExpensesList').innerHTML = expensesRows || '<div style="color:#A8A38C;">No expenses recorded this month.</div>';
-    document.getElementById('exportExpensesTotal').innerHTML = `<span>TOTAL</span><span>₹${totalExp}</span>`;
-
-    // On narrow mobile screens, the page's overflow-x:hidden clips anything positioned off-screen
-    // wider than the viewport (even at left:-9999px), so the 860px template gets squeezed down
-    // before html2canvas ever sees it. Temporarily lift that clip just for the capture.
-    const prevHtmlOverflow = document.documentElement.style.overflowX;
-    const prevBodyOverflow = document.body.style.overflowX;
-    document.documentElement.style.overflowX = 'visible';
-    document.body.style.overflowX = 'visible';
-    let canvas;
-    try {
-      canvas = await html2canvas(document.getElementById('exportTemplate'), { backgroundColor: '#FFFDF7', scale: 2, useCORS: true, width: 860, windowWidth: 860 });
-    } finally {
-      document.documentElement.style.overflowX = prevHtmlOverflow;
-      document.body.style.overflowX = prevBodyOverflow;
-    }
+    // The template is now genuinely visible on screen (inside the preview modal), so html2canvas
+    // captures it exactly as laid out — no off-screen mobile clipping quirks.
+    const el = document.getElementById('exportTemplate');
+    const canvas = await html2canvas(el, { backgroundColor: '#FFFDF7', scale: 2, useCORS: true, width: el.scrollWidth, height: el.scrollHeight });
     const jpegUrl = canvas.toDataURL('image/jpeg', 0.92);
     const a = document.createElement('a');
     a.href = jpegUrl;
-    a.download = `accounts-summary-${monthLabel}.jpg`;
+    a.download = `accounts-summary-${exportMonthLabel || currentMonthLabelFor()}.jpg`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
