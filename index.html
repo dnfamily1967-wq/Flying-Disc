@@ -106,6 +106,27 @@
     line-height: 1.15;
     text-align: center;
   }
+  .refresh-btn {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    width: 34px;
+    height: 34px;
+    margin: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.14);
+    border: 1.5px solid rgba(255,255,255,0.35);
+    color: #fff;
+    font-size: 15px;
+    padding: 0;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    cursor: pointer;
+  }
+  .refresh-btn:active { transform: scale(0.92); }
 .hero-logo {
     width: 64px;
     height: 64px;
@@ -737,6 +758,7 @@
 
 <div class="hero">
   <button id="adminBtn" class="admin-btn">Admin</button>
+  <button id="refreshAppBtn" class="refresh-btn" title="Clear cache & refresh app">🔄</button>
   <img src="icon-192.png" alt="Flying Disc Morning Walkers logo" class="hero-logo">
   <div class="hero-text">
   <div class="tag">🥏 Flying Disc</div>
@@ -2590,6 +2612,22 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// ---- Manual "clear cache & refresh" — a fallback for anyone whose app is stuck on an old
+// version even after the auto-update check above (e.g. it was already open when the update landed).
+document.getElementById('refreshAppBtn').addEventListener('click', () => {
+  if (!confirm('Clear the app\'s cached data and reload? Use this if you\'re seeing old/stale data.')) return;
+  const tasks = [];
+  if ('serviceWorker' in navigator) {
+    tasks.push(navigator.serviceWorker.getRegistrations().then((regs) => Promise.all(regs.map((r) => r.unregister()))));
+  }
+  if (window.caches && caches.keys) {
+    tasks.push(caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))));
+  }
+  Promise.all(tasks).catch((err) => console.error('Cache clear error', err)).finally(() => {
+    window.location.reload();
+  });
+});
 </script>
 </body>
 </html>
