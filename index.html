@@ -232,7 +232,7 @@
   .phaP { color: #2E7D42; }
   .phaA { color: #8C2E2E; }
   .phaH { color: #1E4FAE; }
-  .circleRow { display: flex; gap: 4px; }
+  .circleRow { display: flex; gap: 6px; flex-wrap: wrap; }
   .fineRow .circleRow, .mfCounts .circleRow { flex: 1; }
   .miniCircle {
     width: 26px;
@@ -546,7 +546,8 @@
   .fineRow {
     display: flex;
     align-items: center;
-    gap: 6px;
+    flex-wrap: wrap;
+    gap: 6px 10px;
     padding: 7px 0;
     border-bottom: 1px solid #F2EFE4;
   }
