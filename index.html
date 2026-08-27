@@ -250,6 +250,10 @@
   .miniCircle.mc-green { background: #2E7D42; }
   .miniCircle.mc-yellow { background: var(--gold); }
   .miniCircle.mc-red { background: var(--red); }
+  /* Monthly Fine Sheet only: bigger circles with more breathing room, since that row has the
+     space for it (unlike the compact PHA badges next to each name on the Home tab). */
+  .fineRow .circleRow { gap: 10px; }
+  .fineRow .miniCircle { width: 30px; height: 30px; font-size: 14px; }
   .pname.absent { color: #C4C2B6; text-decoration: line-through; font-weight: 500; }
   .pname.holiday { color: #1E4FAE; font-style: italic; }
   .badge {
