@@ -847,7 +847,7 @@
   <div class="tabPanel" id="tab-accounts" style="display:none;">
   <div class="card accent-gold" id="accountsUploadCard">
     <h2>📁 LOAD ACCOUNTS FILE</h2>
-    <div class="legend" style="margin-top:0;">Upload the team's Excel accounts file (.xlsx) — the "Account" sheet (contributions/balance) and "Exp" sheet (expense ledger) load automatically and sync to everyone.</div>
+    <div class="legend" style="margin-top:0;">Upload the team's Excel accounts file (.xlsx) — the "Account" sheet (contributions/balance) and "Exp" sheet (expense ledger) load automatically and sync to everyone. Only Aug-2026-onward data is kept, it's merged with what's already saved (nothing is wiped), and only players currently on your roster get their contribution rows updated.</div>
     <input type="file" id="accountsFileInput" accept=".xlsx,.xls">
     <div class="legend" id="accountsUploadStatus" style="display:none;"></div>
   </div>
@@ -1989,6 +1989,63 @@ function parseWorkbookToAccounts(workbook) {
   return { contribution, expenses };
 }
 
+// ---- Upload merge: a fresh Excel upload overlays onto what's already stored instead of wiping
+// it — and only updates rows for players who are currently in the app's roster (so a typo or a
+// former player's name in the sheet doesn't create a stray row). Both inputs are already
+// Aug-2026-onward only (parseContributionSheet/parseExpenseSheet already enforce that cutoff).
+function mergeContribution(existing, fresh, rosterNames) {
+  if (!fresh) return existing || null;
+  const monthsBase = existing ? existing.months.slice() : [];
+  fresh.months.forEach((m) => { if (!monthsBase.includes(m)) monthsBase.push(m); });
+  const freshIdxOf = (m) => fresh.months.indexOf(m);
+  const oldIdxOf = (m) => (existing ? existing.months.indexOf(m) : -1);
+
+  const peopleByName = {};
+  (existing ? existing.people : []).forEach((p) => {
+    const vals = monthsBase.map((m) => {
+      const oi = oldIdxOf(m);
+      return oi >= 0 ? (p.values[oi] || '') : '';
+    });
+    peopleByName[p.name] = vals;
+  });
+  fresh.people.forEach((p) => {
+    if (!rosterNames.includes(p.name)) return; // only ingest players who exist in the app roster
+    const vals = peopleByName[p.name] || monthsBase.map(() => '');
+    monthsBase.forEach((m, i) => {
+      const fi = freshIdxOf(m);
+      if (fi >= 0 && p.values[fi]) vals[i] = p.values[fi];
+    });
+    peopleByName[p.name] = vals;
+  });
+
+  const people = Object.keys(peopleByName).map((name) => ({ name, values: peopleByName[name] }));
+  const oldSummary = (existing && existing.summary) || {};
+  const freshSummary = fresh.summary || {};
+  const summary = {};
+  new Set([...Object.keys(oldSummary), ...Object.keys(freshSummary)]).forEach((k) => {
+    summary[k] = monthsBase.map((m) => {
+      const fi = freshIdxOf(m);
+      if (fi >= 0 && freshSummary[k] && freshSummary[k][fi]) return freshSummary[k][fi];
+      const oi = oldIdxOf(m);
+      return (oi >= 0 && oldSummary[k]) ? (oldSummary[k][oi] || '') : '';
+    });
+  });
+  return { months: monthsBase, people, summary };
+}
+
+// Appends only genuinely new entries from the fresh sheet (exact-match duplicates are skipped),
+// so entries already added manually or via the Contributions auto-sync are never touched.
+function mergeExpenses(existingExpenses, freshExpenses) {
+  const existing = Array.isArray(existingExpenses) ? existingExpenses.slice() : [];
+  const key = (e) => [e.date, e.head, e.received, e.exp, e.remark].join('|');
+  const seen = new Set(existing.map(key));
+  freshExpenses.forEach((e) => {
+    const k = key(e);
+    if (!seen.has(k)) { existing.push(e); seen.add(k); }
+  });
+  return existing;
+}
+
 // Applies the Aug-2026 cutoff to whatever's already stored/synced too (not just fresh uploads),
 // so already-loaded data is trimmed the same way as soon as it renders.
 // Returns the filtered view plus keepIdx (filtered-column-position -> real index in the
@@ -2463,7 +2520,10 @@ document.getElementById('accountsFileInput').addEventListener('change', (e) => {
       return;
     }
     accountsStatusEl.textContent = 'Saving…';
-    accountsDocRef.set({ ...parsed, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' })
+    const rosterNames = players.map((p) => String(p.name).trim().toUpperCase());
+    const mergedContribution = mergeContribution(accountsData && accountsData.contribution, parsed.contribution, rosterNames);
+    const mergedExpenses = mergeExpenses(accountsData && accountsData.expenses, parsed.expenses);
+    accountsDocRef.set({ contribution: mergedContribution, expenses: mergedExpenses, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' }, { merge: true })
       .then(() => {
         accountsStatusEl.style.display = 'none';
         alert('Accounts file loaded ✅');
