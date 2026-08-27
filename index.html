@@ -871,7 +871,7 @@
 
   <div class="card accent-red">
     <h2 id="accountsExpTitle">🧾 EXPENSE LEDGER</h2>
-    <div id="accountsExpAddRow" style="display:none;"><button class="secondary" id="addExpenseBtn">➕ ADD ENTRY</button></div>
+    <div id="accountsExpAddRow" style="display:none;"><button class="secondary" id="addExpenseBtn">➕ ADD ENTRY</button><button class="secondary" id="purgeOldExpBtn" style="margin-top:8px; border-color:var(--red); color:#8C2E2E;">🧹 REMOVE PRE-AUG-2026 ENTRIES</button></div>
     <div id="accountsExpResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
   </div>
   </div>
@@ -2387,6 +2387,35 @@ function openExpenseModal(editIdx) {
 }
 function closeExpenseModal() { expenseModalOverlay.classList.remove('show'); }
 document.getElementById('addExpenseBtn').addEventListener('click', () => openExpenseModal(null));
+
+// ---- Admin: one-time cleanup — drop expense line-items from before Aug-2026, keeping only the
+// balance they carried forward (as a single "Opening Balance" entry) so later totals stay correct.
+document.getElementById('purgeOldExpBtn').addEventListener('click', () => {
+  if (!accountsData || !Array.isArray(accountsData.expenses) || !accountsData.expenses.length) {
+    alert('No expense entries to clean up.');
+    return;
+  }
+  const before = [];
+  const onOrAfter = [];
+  accountsData.expenses.forEach((e) => {
+    const ym = expenseDateToYYYYMM(e.date);
+    if (ym !== null && ym < ACCOUNTS_CUTOFF_YYYYMM) before.push(e); else onOrAfter.push(e);
+  });
+  if (!before.length) { alert('No entries before August 2026 found — nothing to remove.'); return; }
+  if (!confirm(`Remove ${before.length} expense entrie(s) from before August 2026? Only the balance they carried forward will be kept, as one "Opening Balance" line. This cannot be undone.`)) return;
+
+  const lastOldBalance = parseFloat(before[before.length - 1].balance);
+  const updated = onOrAfter.slice();
+  if (!isNaN(lastOldBalance)) {
+    updated.unshift({
+      date: '01-08-2026', head: 'Opening Balance', received: '', exp: '',
+      balance: String(lastOldBalance), remark: 'Carried forward — earlier entries removed'
+    });
+  }
+  accountsDocRef.set({ expenses: updated, updatedAt: Date.now(), uploadedBy: currentUser || 'Admin' }, { merge: true })
+    .then(() => alert(`Removed ${before.length} old entrie(s) ✅`))
+    .catch((err) => { console.error('Purge old expenses failed', err); alert('Failed: ' + err.message); });
+});
 document.getElementById('expenseModalCancelBtn').addEventListener('click', closeExpenseModal);
 document.getElementById('expenseModalSaveBtn').addEventListener('click', () => {
   const date = document.getElementById('expModalDate').value.trim();
