@@ -754,7 +754,7 @@
   .expRow { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
   .expRow:last-child { border-bottom: none; }
   .expSelect { width: auto; margin: 0; flex-shrink: 0; accent-color: var(--red); }
-  .expDate { flex-shrink: 0; width: 42px; color: var(--muted); font-size: 10.5px; font-weight: 700; }
+  .expDate { flex-shrink: 0; width: 46px; color: var(--muted); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
   .expHead { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .expHead .expRemark { color: var(--muted); font-weight: 400; }
   .expAmt { flex-shrink: 0; font-weight: 800; font-size: 12.5px; white-space: nowrap; }
@@ -1962,6 +1962,13 @@ function expenseDateToISO(str) {
   if (!d) return '';
   return `${d.y}-${String(d.mo).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
 }
+// A consistent "26 AUG" display, regardless of which format the date happens to be stored in
+// (ISO from the date-picker, "D-Mon" from Excel, etc.) — so the ledger list never mixes styles.
+function formatDateForDisplay(str) {
+  const d = parseFlexibleDate(str);
+  if (!d) return String(str || '—');
+  return `${d.d} ${MONTH_NAMES_3[d.mo - 1]}`;
+}
 
 // "Account" sheet: a header row has a cell literally "FLYERS" — the name column. Columns to its
 // right whose header looks like a month (e.g. "Aug-26") are the contribution columns. Rows named
@@ -2406,7 +2413,7 @@ function renderAccounts() {
       return `
       <div class="expRow">
         ${isAdmin ? `<input type="checkbox" class="expSelect" data-idx="${idx}">` : ''}
-        <span class="expDate">${e.date || '—'}</span>
+        <span class="expDate">${formatDateForDisplay(e.date)}</span>
         <span class="expHead" title="${escHtml(e.head || '')}${e.remark ? ' — ' + escHtml(e.remark) : ''}">${headText}</span>
         ${amtHtml}
         ${isAdmin ? `<div class="rowActions"><button class="edit rowEditBtn" data-idx="${idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></div>` : ''}
