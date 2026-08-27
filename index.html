@@ -839,7 +839,6 @@
   <div class="card accent-green" id="resetCard">
     <button id="makeBtn">🏆 MAKE TEAMS</button>
     <button class="secondary" id="reshuffleBtn" style="display:none;">🔀 RESHUFFLE</button>
-    <button class="secondary" id="resetBtn">↺ RESET TO DEFAULT NUMBERS</button>
     <div class="status" id="status" style="display:none;"></div>
   </div>
 
@@ -1119,7 +1118,6 @@ function applyAdminVisibility() {
   }
   document.getElementById('addPlayerBlock').style.display = isFullAdmin ? '' : 'none';
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
-  document.getElementById('resetBtn').style.display = isFullAdmin ? '' : 'none';
   document.getElementById('bulkHolidayCard').style.display = isAdmin ? '' : 'none';
   const resetPassCard = document.getElementById('resetPassCard');
   if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
@@ -1432,9 +1430,17 @@ plistEl.addEventListener('click', (e) => {
   if (!btn) return;
   const i = Number(btn.dataset.i);
   const act = btn.dataset.act;
+  if (act === 'del') {
+    const name = players[i] ? players[i].name : 'this player';
+    showConfirmModal(`Delete ${name} from the player list? This cannot be undone.`, () => {
+      players.splice(i, 1);
+      render();
+      save();
+    });
+    return;
+  }
   if (act === 'absent') players[i].status = players[i].status === 'absent' ? 'present' : 'absent';
   if (act === 'holiday') players[i].status = players[i].status === 'holiday' ? 'present' : 'holiday';
-  if (act === 'del') players.splice(i, 1);
   render();
   save();
 });
@@ -1501,12 +1507,6 @@ function makeTeams() {
 
 document.getElementById('makeBtn').addEventListener('click', makeTeams);
 reshuffleBtn.addEventListener('click', makeTeams);
-document.getElementById('resetBtn').addEventListener('click', () => {
-  if (!confirm('Are you sure? This will erase everyone\'s current list/ratings and restore the default list — this affects every phone.')) return;
-  players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, status: 'present' }));
-  render();
-  save();
-});
 
 // ---- Firebase / Firestore cloud sync ----
 const firebaseConfig = {
@@ -1615,7 +1615,7 @@ function save() {
     console.error('Local save failed', e);
   }
   suppressNextSnapshot = true;
-  playersDocRef.set({ list: players, updatedAt: Date.now() })
+  playersDocRef.set({ list: players, statusDate: todayStr(), updatedAt: Date.now() })
     .then(() => showSaved())
     .catch((e) => {
       console.error('Cloud save failed', e);
@@ -1651,6 +1651,21 @@ function load() {
     if (suppressNextSnapshot) { suppressNextSnapshot = false; return; }
     if (doc.exists && Array.isArray(doc.data().list)) {
       players = normalizePlayers(doc.data().list);
+      // A new day started since these present/absent/holiday marks were last saved — everyone
+      // goes back to "present" (normal) so admin marks fresh absentees for today, instead of
+      // yesterday's marks silently carrying over.
+      const serverStatusDate = doc.data().statusDate || '';
+      const today = todayStr();
+      if (serverStatusDate !== today) {
+        players = players.map((p) => ({ ...p, status: 'present' }));
+        try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
+        render();
+        suppressNextSnapshot = true;
+        playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e) => {
+          console.error('Day-rollover save failed', e);
+        });
+        return;
+      }
       try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
       render();
     }
@@ -1723,13 +1738,14 @@ function resetAttendanceForDay(dateStr) {
 document.getElementById('resetAttnDayBtn').addEventListener('click', () => {
   const dateStr = attnDateInput.value;
   if (!dateStr) return;
-  if (!confirm(`Reset (delete) the attendance record for ${dateStr}? This cannot be undone.`)) return;
-  resetAttendanceForDay(dateStr)
-    .then(() => alert(`Attendance for ${dateStr} has been reset ✅`))
-    .catch((e) => {
-      console.error('Attendance reset failed', e);
-      alert('Reset failed: ' + e.message);
-    });
+  showConfirmModal(`Reset (delete) the attendance record for ${dateStr}? This cannot be undone.`, () => {
+    resetAttendanceForDay(dateStr)
+      .then(() => alert(`Attendance for ${dateStr} has been reset ✅`))
+      .catch((e) => {
+        console.error('Attendance reset failed', e);
+        alert('Reset failed: ' + e.message);
+      });
+  });
 });
 
 // ---- Monthly fine calculation: takes just one month's data and counts present/holiday/absent ----
