@@ -41,6 +41,8 @@
     --red-soft: #FBE0E0;
     --blue: #2F6FED;
     --blue-soft: #DCE8FE;
+    --purple: #7B4FA0;
+    --purple-soft: #EEE2F5;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -563,7 +565,7 @@
     margin-top: 10px;
   }
 
-  /* App hamesha mobile-app jaisa hi dikhe — chahe screen kitna bhi bada ho */
+  /* The app should always look like a mobile app — no matter how big the screen is */
   .wrap { padding: 0 8px; max-width: 480px; }
   .hero { padding: 20px 16px 22px; max-width: 480px; margin: 0 auto; }
   h1 { font-size: 30px; }
@@ -643,6 +645,23 @@
   .navBtn .navLabel { font-size: 10.5px; font-weight: 700; }
   .navBtn.active { color: var(--green-deep); background: var(--gold-soft); }
   .navBtn:active { transform: scale(0.96); }
+
+  /* ===== ALL-CAPS, LOGICAL, COLORFUL STYLING ===== */
+  h1, .card h2, .team h3, button, .navLabel, .modalCard h2,
+  .modalLabel, .sortLabel, .sortBtn, .mfTitle, .badge, .chip,
+  .fineVerdict, .mfVerdict, .attnGroup b, .admin-btn {
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .card h2 { letter-spacing: 0.4px; }
+
+  /* Color-coded card accents so each section reads at a glance */
+  .card.accent-orange { border-top: 4px solid var(--orange); }
+  .card.accent-blue { border-top: 4px solid var(--blue); }
+  .card.accent-gold { border-top: 4px solid var(--gold); }
+  .card.accent-red { border-top: 4px solid var(--red); }
+  .card.accent-purple { border-top: 4px solid var(--purple); }
+  .card.accent-green { border-top: 4px solid var(--green-mid); }
 </style>
 </head>
 <body>
@@ -662,90 +681,90 @@
   <div class="myFineCard" id="myFineCard" style="display:none;"></div>
 
   <div class="tabPanel" id="tab-home">
-  <div class="card">
+  <div class="card accent-orange">
     <div id="addPlayerBlock">
-    <h2>➕ Add a player</h2>
+    <h2>➕ ADD A PLAYER</h2>
     <div class="addRow">
       <input id="nameInput" placeholder="Player name" />
       <button id="addBtn">Add</button>
     </div>
     </div>
     <div class="sortRow">
-      <span class="sortLabel">Sort:</span>
-      <button class="sortBtn" id="sortNameBtn" data-mode="name">Name <span id="nameArrow">↑</span></button>
-      <button class="sortBtn" id="sortNumBtn" data-mode="number">Number <span id="numArrow">↕</span></button>
+      <span class="sortLabel">SORT:</span>
+      <button class="sortBtn" id="sortNameBtn" data-mode="name">NAME <span id="nameArrow">↑</span></button>
+      <button class="sortBtn" id="sortNumBtn" data-mode="number">SKILL <span id="numArrow">↕</span></button>
     </div>
     <ul class="plist" id="plist"></ul>
-    <button class="secondary" id="saveBtn" style="margin-top:14px;">💾 Save</button>
+    <button class="secondary" id="saveBtn" style="margin-top:14px;">💾 SAVE</button>
     <div class="saved-msg" id="savedMsg">Saved ✅</div>
-    <div class="legend">Number = skill level (higher = better) · <b>absent</b> = bina bataye · <b>holiday</b> = approved leave (kabhi fine nahi). Fine sirf tab lagti hai jab mahine mein absent din 10 se zyada ho jayein — 📊 "Attendance" tab mein Monthly Fine Sheet dekhein.</div>
+    <div class="legend">Number = skill level (higher = better) · <b>absent</b> = unexcused absence · <b>holiday</b> = approved leave (never fined). A fine only applies once unexcused absences pass 10 days in a month — check the Monthly Fine Sheet in the 📊 Attendance tab for full detail.</div>
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
   </div>
   </div>
 
   <div class="tabPanel" id="tab-teams" style="display:none;">
-  <div class="card" id="resetCard">
-    <button id="makeBtn">🏆 Make Teams</button>
-    <button class="secondary" id="reshuffleBtn" style="display:none;">🔀 Reshuffle</button>
-    <button class="secondary" id="resetBtn">↺ Reset to Default Numbers</button>
+  <div class="card accent-green" id="resetCard">
+    <button id="makeBtn">🏆 MAKE TEAMS</button>
+    <button class="secondary" id="reshuffleBtn" style="display:none;">🔀 RESHUFFLE</button>
+    <button class="secondary" id="resetBtn">↺ RESET TO DEFAULT NUMBERS</button>
     <div class="status" id="status" style="display:none;"></div>
   </div>
 
   <div class="teams" id="teamsOut" style="display:none;">
-    <div class="team a"><h3>🟢 Team A</h3><ol id="teamA"></ol></div>
-    <div class="team b"><h3>🟠 Team B</h3><ol id="teamB"></ol></div>
+    <div class="team a"><h3>🟢 TEAM A</h3><ol id="teamA"></ol></div>
+    <div class="team b"><h3>🟠 TEAM B</h3><ol id="teamB"></ol></div>
   </div>
   </div>
 
   <div class="tabPanel" id="tab-attendance" style="display:none;">
-  <div class="card">
-    <h2>🗓️ Daily Attendance</h2>
+  <div class="card accent-blue">
+    <h2>🗓️ DAILY ATTENDANCE</h2>
     <div class="attnRow">
       <input type="date" id="attnDateInput">
-      <button class="secondary" id="loadAttnBtn">View</button>
+      <button class="secondary" id="loadAttnBtn">👁️ VIEW</button>
     </div>
     <div class="attnBlock" id="attnResult"></div>
   </div>
 
-  <div class="card">
-    <h2>📊 Attendance Stats</h2>
-    <button class="secondary" id="loadStatsBtn" style="margin-top:0;">🔄 Sabki Stats Dekhein</button>
+  <div class="card accent-gold">
+    <h2>📊 ATTENDANCE STATS</h2>
+    <button class="secondary" id="loadStatsBtn" style="margin-top:0;">🔄 REFRESH EVERYONE'S STATS</button>
     <div id="statsResult" style="margin-top:12px;"></div>
   </div>
 
-  <div class="card">
-    <h2>💰 Monthly Fine Sheet</h2>
+  <div class="card accent-red">
+    <h2>💰 MONTHLY FINE SHEET</h2>
     <div class="monthRow">
       <input type="month" id="monthlySheetInput">
-      <button class="secondary" id="loadMonthlySheetBtn">View</button>
+      <button class="secondary" id="loadMonthlySheetBtn">👁️ VIEW</button>
     </div>
     <div id="monthlySheetResult" style="margin-top:12px;"></div>
-    <div class="legend">Rule: mahine mein <b>❌ bina-bataye absent</b> agar 10 din se zyada ho, tabhi fine lagegi. 20 din present ho, ya holiday + present milakar poore din ho (absent kam ho) — to fine nahi lagegi. 🏖️ holiday se kabhi fine nahi lagti.</div>
+    <div class="legend">Rule: a fine applies only if <b>❌ unexcused absences</b> exceed 10 days in the month. Being present 20 days, or present + holiday covering the whole month (fewer absences), means no fine at all. 🏖️ Holidays never cause a fine.</div>
   </div>
   </div>
 
   <div class="tabPanel" id="tab-holiday" style="display:none;">
-  <div class="card" id="bulkHolidayCard">
-    <h2>🏖️ Bulk Holiday (multi-day)</h2>
+  <div class="card accent-purple" id="bulkHolidayCard">
+    <h2>🏖️ BULK HOLIDAY (MULTI-DAY)</h2>
     <select id="bulkHolidayName"></select>
     <div class="bulkRow">
       <input type="date" id="bulkHolidayStart">
       <input type="date" id="bulkHolidayEnd">
     </div>
-    <button id="bulkHolidaySaveBtn">💾 Holiday Range Save Karein</button>
+    <button id="bulkHolidaySaveBtn">💾 SAVE HOLIDAY RANGE</button>
     <div class="legend" id="bulkHolidayStatus" style="display:none;"></div>
   </div>
 
-  <div class="card" id="resetPassCard">
-    <h2>🔁 Reset Player Password</h2>
-    <div class="legend" style="margin-top:0;">Agar koi player apna naya password bhool jaye, to yahan se unka password wapas default ("disc") kiya ja sakta hai. Agli baar login karte waqt unse naya password set karne ko poocha jayega.</div>
+  <div class="card accent-purple" id="resetPassCard">
+    <h2>🔁 RESET PLAYER PASSWORD</h2>
+    <div class="legend" style="margin-top:0;">If a player forgets their new password, you can reset it back to the default ("disc") from here. They'll be asked to set a new password the next time they log in — full detail shown automatically once reset.</div>
     <select id="resetPassName"></select>
-    <button class="secondary" id="resetPassBtn">Password Reset Karein</button>
+    <button class="secondary" id="resetPassBtn">🔑 RESET PASSWORD</button>
   </div>
   </div>
 
   <div class="install-hint">
-    📲 To use this like an app on your phone: open your browser menu and tap <b>"Add to Home Screen"</b> or <b>"Install App"</b>.
+    📲 TO USE THIS LIKE AN APP ON YOUR PHONE: open your browser menu and tap <b>"Add to Home Screen"</b> or <b>"Install App"</b>.
   </div>
 
 </div>
@@ -760,28 +779,28 @@
 <div class="modalOverlay" id="loginOverlay">
   <div class="modalCard">
     <div id="loginStep1">
-      <h2>🔐 Login</h2>
-      <label class="modalLabel">Apna naam chunein</label>
+      <h2>🔐 LOGIN</h2>
+      <label class="modalLabel">Choose your name</label>
       <select id="loginNameSelect"></select>
       <label class="modalLabel">Password</label>
       <input type="password" id="loginPassInput" placeholder="Password" autocomplete="off">
-      <div class="err" id="loginErr">Galat password, dobara try karein.</div>
+      <div class="err" id="loginErr">Wrong password, please try again.</div>
       <div class="modalBtnRow">
-        <button class="secondary" id="loginCancelBtn" type="button">Cancel</button>
-        <button id="loginSubmitBtn" type="button">Login</button>
+        <button class="secondary" id="loginCancelBtn" type="button">✖ CANCEL</button>
+        <button id="loginSubmitBtn" type="button">🔓 LOGIN</button>
       </div>
     </div>
     <div id="loginStep2" style="display:none;">
-      <h2>🔑 Naya Password Set Karein</h2>
-      <div class="legend" id="setPassHint" style="margin-top:0;">Pehli baar login ho raha hai — apna naya password set karein.</div>
-      <label class="modalLabel" id="newPassLabel">Naya password</label>
+      <h2>🔑 SET NEW PASSWORD</h2>
+      <div class="legend" id="setPassHint" style="margin-top:0;">First time logging in — set your new password.</div>
+      <label class="modalLabel" id="newPassLabel">New password</label>
       <input type="password" id="newPassInput" placeholder="Naya password" autocomplete="off" maxlength="12">
-      <label class="modalLabel">Dobara likhein (confirm)</label>
+      <label class="modalLabel">Re-enter (confirm)</label>
       <input type="password" id="confirmPassInput" placeholder="Confirm password" autocomplete="off" maxlength="12">
-      <div class="err" id="setPassErr">Kuch galat hai, dobara try karein.</div>
+      <div class="err" id="setPassErr">Something's wrong, please try again.</div>
       <div class="modalBtnRow">
-        <button class="secondary" id="setPassCancelBtn" type="button">Cancel</button>
-        <button id="setPassSubmitBtn" type="button">Save &amp; Login</button>
+        <button class="secondary" id="setPassCancelBtn" type="button">✖ CANCEL</button>
+        <button id="setPassSubmitBtn" type="button">💾 SAVE &amp; LOGIN</button>
       </div>
     </div>
   </div>
@@ -800,8 +819,8 @@ let players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, status: 'pr
 let monthlyPHA = {}; // name -> { present, absent, holiday } for the current month, shown next to each player
 const plistEl = document.getElementById('plist');
 
-// Purane saved data mein sirf boolean "absent" hota tha; ab teen states hain:
-// 'present' | 'absent' (bina bataye, fine) | 'holiday' (approved leave, no fine)
+// Older saved data only had a boolean "absent"; now there are three states:
+// 'present' | 'absent' (unexcused, fined) | 'holiday' (approved leave, no fine)
 function normalizePlayers(list) {
   if (!Array.isArray(list)) return list;
   return list.map(p => {
@@ -825,7 +844,7 @@ function applyAdminVisibility() {
     const shortName = currentUser.split(' ')[0].slice(0, 7);
     adminBtn.innerHTML = `<span style="font-size:16px;">${isAdmin ? '👑' : '👤'}</span><span style="font-size:8px;margin-top:2px;">${shortName}</span>`;
   } else {
-    adminBtn.textContent = 'Login';
+    adminBtn.textContent = 'LOGIN';
   }
   document.getElementById('addPlayerBlock').style.display = isAdmin ? '' : 'none';
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
@@ -841,8 +860,8 @@ function applyAdminVisibility() {
   const loginStatusEl = document.getElementById('loginStatus');
   if (loginStatusEl) {
     loginStatusEl.textContent = currentUser
-      ? `👋 ${currentUser}${isAdmin ? ' · Admin' : ''}`
-      : 'Guest view · login karke attendance dekhein';
+      ? `👋 ${currentUser}${isAdmin ? ' · ADMIN' : ''}`
+      : 'Guest view · log in to see full attendance detail';
   }
 }
 
@@ -892,13 +911,13 @@ function showSetPasswordStep(name) {
   setPassErrEl.style.display = 'none';
   const admin = isAdminName(name);
   if (admin) {
-    setPassHintEl.textContent = `${name}, apna default password badal kar naya password set karein (koi bhi password chalega).`;
-    newPassLabelEl.textContent = 'Naya password (kam se kam 4 characters)';
+    setPassHintEl.textContent = `${name}, change your default password and set a new one (any password works).`;
+    newPassLabelEl.textContent = 'New password (at least 4 characters)';
     newPassInput.setAttribute('inputmode', 'text');
     newPassInput.removeAttribute('maxlength');
   } else {
-    setPassHintEl.textContent = `${name}, pehli baar login ho raha hai — apna 4 digit ka naya password set karein.`;
-    newPassLabelEl.textContent = 'Naya password (4 digit number)';
+    setPassHintEl.textContent = `${name}, this is your first login — set your new 4-digit password.`;
+    newPassLabelEl.textContent = 'New password (4-digit number)';
     newPassInput.setAttribute('inputmode', 'numeric');
     newPassInput.setAttribute('maxlength', '4');
   }
@@ -908,7 +927,7 @@ function showSetPasswordStep(name) {
 
 document.getElementById('adminBtn').addEventListener('click', () => {
   if (currentUser) {
-    if (confirm(`${currentUser} ko logout karein? (Sirf is phone/browser par)`)) {
+    if (confirm(`Log out ${currentUser}? (This phone/browser only)`)) {
       currentUser = '';
       isAdmin = false;
       localStorage.removeItem('disc-team-user');
@@ -926,7 +945,7 @@ document.getElementById('setPassCancelBtn').addEventListener('click', closeLogin
 
 document.getElementById('loginSubmitBtn').addEventListener('click', () => {
   if (!passwordsReady) {
-    alert('Data load ho raha hai, thoda ruk kar dobara try karein (2-3 second).');
+    alert('Data is still loading — please wait a moment and try again (2-3 seconds).');
     return;
   }
   const name = loginNameSelect.value;
@@ -938,7 +957,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', () => {
   }
   loginErrEl.style.display = 'none';
   if (expected === DEFAULT_PASSWORD) {
-    // Password abhi bhi default hai — naya password set karwaya jayega
+    // Password is still the default — prompt them to set a new one
     showSetPasswordStep(name);
     return;
   }
@@ -957,22 +976,22 @@ document.getElementById('setPassSubmitBtn').addEventListener('click', () => {
   const admin = isAdminName(name);
 
   if (!newPass || newPass !== confirmPass) {
-    setPassErrEl.textContent = 'Dono password match nahi ho rahe, dobara try karein.';
+    setPassErrEl.textContent = "Both passwords don't match — please try again.";
     setPassErrEl.style.display = 'block';
     return;
   }
   if (newPass === DEFAULT_PASSWORD) {
-    setPassErrEl.textContent = `Naya password "${DEFAULT_PASSWORD}" nahi ho sakta, kuch aur set karein.`;
+    setPassErrEl.textContent = `New password can't be "${DEFAULT_PASSWORD}" — please choose something else.`;
     setPassErrEl.style.display = 'block';
     return;
   }
   if (!admin && !/^\d{4}$/.test(newPass)) {
-    setPassErrEl.textContent = 'Player ke liye password sirf 4 digit ka number hona chahiye (jaise 1234).';
+    setPassErrEl.textContent = 'Player passwords must be a 4-digit number (e.g. 1234).';
     setPassErrEl.style.display = 'block';
     return;
   }
   if (admin && newPass.length < 4) {
-    setPassErrEl.textContent = 'Password kam se kam 4 characters ka hona chahiye.';
+    setPassErrEl.textContent = 'Password must be at least 4 characters.';
     setPassErrEl.style.display = 'block';
     return;
   }
@@ -981,11 +1000,11 @@ document.getElementById('setPassSubmitBtn').addEventListener('click', () => {
   savePasswordFor(name, newPass)
     .then(() => {
       completeLogin(name);
-      alert('Naya password set ho gaya ✅ Agli baar isi password se login karein.');
+      alert('New password set ✅ Use it to log in next time.');
     })
     .catch((e) => {
       console.error('Password save failed', e);
-      setPassErrEl.textContent = 'Password save nahi ho paya: ' + e.message;
+      setPassErrEl.textContent = 'Password save failed: ' + e.message;
       setPassErrEl.style.display = 'block';
     });
 });
@@ -1181,7 +1200,7 @@ function makeTeams() {
 document.getElementById('makeBtn').addEventListener('click', makeTeams);
 reshuffleBtn.addEventListener('click', makeTeams);
 document.getElementById('resetBtn').addEventListener('click', () => {
-  if (!confirm('Pakka? Isse sabki current list/ratings mit jayengi aur default list wapas aa jayegi — ye sabhi phones mein bhi ho jayega.')) return;
+  if (!confirm('Are you sure? This will erase everyone\'s current list/ratings and restore the default list — this affects every phone.')) return;
   players = DEFAULT_NAMES.map(([name, rating]) => ({ name, rating, status: 'present' }));
   render();
   save();
@@ -1199,7 +1218,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const playersDocRef = db.collection('disc_team').doc('players');
-// Har player ka apna password alag-alag save hota hai (default 'disc', jab tak khud change na karein)
+// Each player's password is stored separately (default 'disc' until they change it)
 const passwordsDocRef = db.collection('disc_team').doc('passwords');
 const DEFAULT_PASSWORD = 'disc';
 let passwordMap = {}; // name -> password
@@ -1234,8 +1253,8 @@ function loadPasswords() {
     passwordsReady = true; // allow local-only use if cloud is unreachable
   });
 }
-// Attendance ko bhi usi "disc_team" collection mein alag doc id se rakha hai
-// (naya top-level collection banane par Firestore security rules usse block kar sakte hain)
+// Attendance is also kept in the same "disc_team" collection under a separate doc id
+// (creating a new top-level collection could get blocked by Firestore security rules)
 function attendanceDocRef(dateStr) {
   return db.collection('disc_team').doc(`attendance_${dateStr}`);
 }
@@ -1251,9 +1270,9 @@ function todayStr() {
 }
 
 // ---- Fine rule ----
-// Har mahine "bina bataye absent" (holiday mark NAHI) agar is se zyada din ho, tabhi fine lagegi.
-// 20 din present ho, ya (holiday + present) milakar poore din ho — jab tak absent count is limit
-// ke andar hai, fine NAHI lagegi. Holiday se kabhi fine nahi lagti.
+// A fine only applies once "unexcused absences" (not marked holiday) exceed this many days in a month.
+// Being present 20 days, or (holiday + present) covering the full month — as long as the absent
+// count stays within this limit, there's NO fine. Holidays never cause a fine.
 const FINE_ABSENT_THRESHOLD = 10;
 
 function monthStr(d = new Date()) {
@@ -1262,7 +1281,7 @@ function monthStr(d = new Date()) {
   return `${yyyy}-${mm}`;
 }
 
-// Har baar jab admin "Save" dabata hai, aaj ki date ke against attendance snapshot bhi save ho jata hai
+// Every time admin presses "Save", an attendance snapshot for today's date is also saved
 function saveAttendanceSnapshot() {
   const dateStr = todayStr();
   const record = players.map(p => ({ name: p.name, status: p.status || (p.absent ? 'absent' : 'present') }));
@@ -1274,13 +1293,13 @@ function saveAttendanceSnapshot() {
     console.log('Attendance saved for', dateStr);
   }).catch((e) => {
     console.error('Attendance save failed', e);
-    alert('Attendance cloud mein save nahi ho payi: ' + e.message);
+    alert('Attendance failed to save to the cloud: ' + e.message);
   });
 }
 
 function save() {
   if (!cloudReady) {
-    alert('Abhi data load ho raha hai, thoda ruk kar dobara try karo (2-3 second).');
+    alert('Data is still loading — please wait and try again (2-3 seconds).');
     return;
   }
   try {
@@ -1346,7 +1365,7 @@ function normalizeAttnStatus(p) {
 
 function renderAttendanceResult(dateStr, data) {
   if (!data || !Array.isArray(data.players) || data.players.length === 0) {
-    attnResultEl.innerHTML = `<div class="err" style="display:block;">Is date (${dateStr}) ke liye koi attendance record nahi mila.</div>`;
+    attnResultEl.innerHTML = `<div class="err" style="display:block;">No attendance record found for this date (${dateStr}).</div>`;
     return;
   }
   const present = data.players.filter(p => normalizeAttnStatus(p) === 'present');
@@ -1374,7 +1393,7 @@ function loadAttendance(dateStr) {
     .then((doc) => renderAttendanceResult(dateStr, doc.exists ? doc.data() : null))
     .catch((e) => {
       console.error('Attendance load failed', e);
-      attnResultEl.innerHTML = `<div class="err" style="display:block;">Load nahi ho paya: ${e.message}</div>`;
+      attnResultEl.innerHTML = `<div class="err" style="display:block;">Failed to load: ${e.message}</div>`;
     });
 }
 
@@ -1384,11 +1403,11 @@ document.getElementById('loadAttnBtn').addEventListener('click', () => {
   loadAttendance(dateStr);
 });
 
-// ---- Attendance stats: har player ka % present, kitni holiday, kitni absent (sabhi saved dates milakar) ----
+// ---- Attendance stats: each player's % present, holiday count, absent count (across all saved dates) ----
 const statsResultEl = document.getElementById('statsResult');
 
 function loadStats() {
-  statsResultEl.innerHTML = '<div class="legend">Load ho raha hai…</div>';
+  statsResultEl.innerHTML = '<div class="legend">Loading full detail…</div>';
   db.collection('disc_team')
     .where(firebase.firestore.FieldPath.documentId(), '>=', 'attendance_')
     .where(firebase.firestore.FieldPath.documentId(), '<', 'attendance_\uf8ff')
@@ -1409,14 +1428,14 @@ function loadStats() {
     })
     .catch((e) => {
       console.error('Stats load failed', e);
-      statsResultEl.innerHTML = `<div class="err" style="display:block;">Stats load nahi ho payi: ${e.message}</div>`;
+      statsResultEl.innerHTML = `<div class="err" style="display:block;">Failed to load stats: ${e.message}</div>`;
     });
 }
 
 function renderStats(totals, totalDays) {
   const names = Object.keys(totals).sort();
   if (names.length === 0) {
-    statsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">Abhi tak koi attendance save nahi hui. Pehle "Daily Attendance" ke through Save karein.</div>';
+    statsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No attendance has been saved yet. Save one first via "Daily Attendance".</div>';
     return;
   }
   const rows = names.map((name) => {
@@ -1432,12 +1451,12 @@ function renderStats(totals, totalDays) {
       <span class="statsMeta">🏖️${t.holiday} ❌${t.absent}</span>
     </div>`;
   }).join('');
-  statsResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${totalDays} din ka record · % = present rate · 🏖️ holiday · ❌ absent</div>` + rows;
+  statsResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${totalDays} days on record · % = present rate · 🏖️ holiday · ❌ absent</div>` + rows;
 }
 
 document.getElementById('loadStatsBtn').addEventListener('click', loadStats);
 
-// ---- Monthly fine calculation: sirf ek mahine ka data leke present/holiday/absent ginta hai ----
+// ---- Monthly fine calculation: takes just one month's data and counts present/holiday/absent ----
 function computeMonthlyTotals(month, onDone, onErr) {
   db.collection('disc_team')
     .where(firebase.firestore.FieldPath.documentId(), '>=', 'attendance_')
@@ -1467,7 +1486,7 @@ function computeMonthlyTotals(month, onDone, onErr) {
 }
 
 function isFined(t) {
-  // Fine sirf "bina bataye absent" (holiday mark nahi) ke count par depend karti hai.
+  // The fine only depends on the count of "unexcused absences" (not marked holiday).
   return !!t && t.absent > FINE_ABSENT_THRESHOLD;
 }
 
@@ -1478,7 +1497,7 @@ monthlySheetInput.value = monthStr();
 function renderMonthlySheet(month, totals, daysCounted) {
   const names = Object.keys(totals).sort();
   if (names.length === 0) {
-    monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">Is mahine (${month}) ka koi attendance record nahi mila.</div>`;
+    monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">No attendance record found for this month (${month}).</div>`;
     return;
   }
   const rows = names.map((name) => {
@@ -1492,15 +1511,15 @@ function renderMonthlySheet(month, totals, daysCounted) {
       <span class="fineVerdict ${fined ? 'bad' : 'good'}">${fined ? '⚠️ FINE' : '✅ No Fine'}</span>
     </div>`;
   }).join('');
-  monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${daysCounted} din ka record mila ${month} mein.</div>` + rows;
+  monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${daysCounted} days of full detail found for ${month}.</div>` + rows;
 }
 
 function loadMonthlySheet(month) {
-  monthlySheetResultEl.innerHTML = '<div class="legend">Load ho raha hai…</div>';
+  monthlySheetResultEl.innerHTML = '<div class="legend">Loading full detail…</div>';
   computeMonthlyTotals(
     month,
     (totals, daysCounted) => renderMonthlySheet(month, totals, daysCounted),
-    (e) => { monthlySheetResultEl.innerHTML = `<div class="err" style="display:block;">Load nahi ho paya: ${e.message}</div>`; }
+    (e) => { monthlySheetResultEl.innerHTML = `<div class="err" style="display:block;">Failed to load: ${e.message}</div>`; }
   );
 }
 
@@ -1510,7 +1529,7 @@ document.getElementById('loadMonthlySheetBtn').addEventListener('click', () => {
   loadMonthlySheet(m);
 });
 
-// ---- Player ke khud ke login mein top par uska is-mahine ka fine status dikhta hai ----
+// ---- Shows the logged-in player's own fine status for this month at the top ----
 function refreshMyFineCard() {
   const card = document.getElementById('myFineCard');
   if (!currentUser) {
@@ -1525,7 +1544,7 @@ function refreshMyFineCard() {
     card.style.display = 'flex';
     card.innerHTML = `
       <div>
-        <div class="mfTitle">Is mahine (${m}) ka attendance</div>
+        <div class="mfTitle">THIS MONTH'S (${m}) ATTENDANCE</div>
         <div class="mfName">👋 ${currentUser}</div>
         <div class="mfCounts">✅ ${t.present} present · 🏖️ ${t.holiday} holiday · ❌ ${t.absent} absent</div>
       </div>
@@ -1537,7 +1556,7 @@ function refreshMyFineCard() {
   });
 }
 
-// ---- Player list ke har naam ke bagal P/A/H (is mahine ka present/absent/holiday count) dikhane ke liye ----
+// ---- Shows P/A/H (this month's present/absent/holiday count) next to every player's name ----
 function refreshPlayerListPHA() {
   computeMonthlyTotals(monthStr(), (totals) => {
     monthlyPHA = totals;
@@ -1545,7 +1564,7 @@ function refreshPlayerListPHA() {
   }, (e) => console.error('P/A/H cache load failed', e));
 }
 
-// ---- Bulk holiday: admin ek player ko ek saath kai dinon ke liye holiday par daal sakta hai ----
+// ---- Bulk holiday: admin can put a player on holiday for many days at once ----
 const bulkStatusEl = document.getElementById('bulkHolidayStatus');
 
 function dateRangeList(startStr, endStr) {
@@ -1564,10 +1583,10 @@ function dateRangeList(startStr, endStr) {
 async function bulkSetHoliday(name, startStr, endStr) {
   const dates = dateRangeList(startStr, endStr);
   if (dates.length === 0) {
-    alert('Sahi date range chunein (end date, start date ke baad ya barabar honi chahiye).');
+    alert('Please choose a valid date range (end date must be on or after the start date).');
     return;
   }
-  if (!confirm(`${name} ko ${dates.length} din (${dates[0]} se ${dates[dates.length - 1]}) holiday par mark karein?`)) return;
+  if (!confirm(`Mark ${name} on holiday for ${dates.length} day(s) (${dates[0]} to ${dates[dates.length - 1]})?`)) return;
 
   const btn = document.getElementById('bulkHolidaySaveBtn');
   btn.disabled = true;
@@ -1593,14 +1612,14 @@ async function bulkSetHoliday(name, startStr, endStr) {
       console.error('Bulk holiday failed for', dateStr, e);
       bulkStatusEl.style.display = 'none';
       btn.disabled = false;
-      alert(`${dateStr} ke liye save nahi ho paya: ${e.message}`);
+      alert(`Failed to save for ${dateStr}: ${e.message}`);
       return;
     }
   }
 
   bulkStatusEl.style.display = 'none';
   btn.disabled = false;
-  alert(`${name} ke liye ${dates.length} din holiday save ho gayi ✅`);
+  alert(`${dates.length} day(s) of holiday saved for ${name} ✅`);
   loadAttendance(attnDateInput.value);
 }
 
@@ -1609,7 +1628,7 @@ document.getElementById('bulkHolidaySaveBtn').addEventListener('click', () => {
   const startStr = document.getElementById('bulkHolidayStart').value;
   const endStr = document.getElementById('bulkHolidayEnd').value;
   if (!name || !startStr || !endStr) {
-    alert('Player aur dono dates (start, end) chunein.');
+    alert('Please choose a player and both dates (start, end).');
     return;
   }
   bulkSetHoliday(name, startStr, endStr);
@@ -1618,14 +1637,14 @@ document.getElementById('bulkHolidaySaveBtn').addEventListener('click', () => {
 document.getElementById('resetPassBtn').addEventListener('click', () => {
   const name = document.getElementById('resetPassName').value;
   if (!name) return;
-  if (!confirm(`${name} ka password reset karke default ("${DEFAULT_PASSWORD}") kar dein?`)) return;
+  if (!confirm(`Reset ${name}'s password back to the default ("${DEFAULT_PASSWORD}")?`)) return;
   savePasswordFor(name, DEFAULT_PASSWORD)
     .then(() => {
-      alert(`${name} ka password reset ho gaya. Agli baar login karte waqt unhe naya password set karne ko kaha jayega.`);
+      alert(`${name}'s password has been reset. They'll be asked to set a new password next time they log in.`);
     })
     .catch((e) => {
       console.error('Password reset failed', e);
-      alert('Reset nahi ho paya: ' + e.message);
+      alert('Reset failed: ' + e.message);
     });
 });
 
@@ -1634,6 +1653,7 @@ load();
 loadPasswords();
 loadAttendance(attnDateInput.value); // show today's attendance (if already saved) on open
 loadMonthlySheet(monthlySheetInput.value); // show this month's fine sheet on open
+loadStats(); // show everyone's attendance stats in full detail as soon as the app opens
 refreshMyFineCard(); // show logged-in player's own fine status at the top
 refreshPlayerListPHA(); // show P/A/H mini-stats next to every player's name
 
