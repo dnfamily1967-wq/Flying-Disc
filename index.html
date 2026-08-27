@@ -735,6 +735,13 @@
     <button id="bulkHolidaySaveBtn">💾 Holiday Range Save Karein</button>
     <div class="legend" id="bulkHolidayStatus" style="display:none;"></div>
   </div>
+
+  <div class="card" id="resetPassCard">
+    <h2>🔁 Reset Player Password</h2>
+    <div class="legend" style="margin-top:0;">Agar koi player apna naya password bhool jaye, to yahan se unka password wapas default ("disc") kiya ja sakta hai. Agli baar login karte waqt unse naya password set karne ko poocha jayega.</div>
+    <select id="resetPassName"></select>
+    <button class="secondary" id="resetPassBtn">Password Reset Karein</button>
+  </div>
   </div>
 
   <div class="install-hint">
@@ -752,15 +759,30 @@
 
 <div class="modalOverlay" id="loginOverlay">
   <div class="modalCard">
-    <h2>🔐 Login</h2>
-    <label class="modalLabel">Apna naam chunein</label>
-    <select id="loginNameSelect"></select>
-    <label class="modalLabel">Password</label>
-    <input type="password" id="loginPassInput" placeholder="Password" autocomplete="off">
-    <div class="err" id="loginErr">Galat password, dobara try karein.</div>
-    <div class="modalBtnRow">
-      <button class="secondary" id="loginCancelBtn" type="button">Cancel</button>
-      <button id="loginSubmitBtn" type="button">Login</button>
+    <div id="loginStep1">
+      <h2>🔐 Login</h2>
+      <label class="modalLabel">Apna naam chunein</label>
+      <select id="loginNameSelect"></select>
+      <label class="modalLabel">Password</label>
+      <input type="password" id="loginPassInput" placeholder="Password" autocomplete="off">
+      <div class="err" id="loginErr">Galat password, dobara try karein.</div>
+      <div class="modalBtnRow">
+        <button class="secondary" id="loginCancelBtn" type="button">Cancel</button>
+        <button id="loginSubmitBtn" type="button">Login</button>
+      </div>
+    </div>
+    <div id="loginStep2" style="display:none;">
+      <h2>🔑 Naya Password Set Karein</h2>
+      <div class="legend" id="setPassHint" style="margin-top:0;">Pehli baar login ho raha hai — apna naya password set karein.</div>
+      <label class="modalLabel" id="newPassLabel">Naya password</label>
+      <input type="password" id="newPassInput" placeholder="Naya password" autocomplete="off" maxlength="12">
+      <label class="modalLabel">Dobara likhein (confirm)</label>
+      <input type="password" id="confirmPassInput" placeholder="Confirm password" autocomplete="off" maxlength="12">
+      <div class="err" id="setPassErr">Kuch galat hai, dobara try karein.</div>
+      <div class="modalBtnRow">
+        <button class="secondary" id="setPassCancelBtn" type="button">Cancel</button>
+        <button id="setPassSubmitBtn" type="button">Save &amp; Login</button>
+      </div>
     </div>
   </div>
 </div>
@@ -790,9 +812,12 @@ function normalizePlayers(list) {
 
 // ---- Named login (only Pawan, Shankar, Dippu get admin/edit power) ----
 const ADMIN_NAMES = ['PAWAN', 'SHANKAR', 'DIPPU'];
-const LOGIN_PASSWORD = 'disc';
 let currentUser = localStorage.getItem('disc-team-user') || '';
 let isAdmin = !!currentUser && ADMIN_NAMES.includes(currentUser.toUpperCase());
+
+function isAdminName(name) {
+  return ADMIN_NAMES.includes(String(name || '').toUpperCase());
+}
 
 function applyAdminVisibility() {
   const adminBtn = document.getElementById('adminBtn');
@@ -806,6 +831,8 @@ function applyAdminVisibility() {
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('resetBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('bulkHolidayCard').style.display = isAdmin ? '' : 'none';
+  const resetPassCard = document.getElementById('resetPassCard');
+  if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
   const navHolidayBtn = document.getElementById('navHolidayBtn');
   if (navHolidayBtn) {
     navHolidayBtn.style.display = isAdmin ? '' : 'none';
@@ -823,17 +850,60 @@ const loginOverlay = document.getElementById('loginOverlay');
 const loginNameSelect = document.getElementById('loginNameSelect');
 const loginPassInput = document.getElementById('loginPassInput');
 const loginErrEl = document.getElementById('loginErr');
+const loginStep1El = document.getElementById('loginStep1');
+const loginStep2El = document.getElementById('loginStep2');
+const newPassInput = document.getElementById('newPassInput');
+const confirmPassInput = document.getElementById('confirmPassInput');
+const setPassErrEl = document.getElementById('setPassErr');
+const setPassHintEl = document.getElementById('setPassHint');
+const newPassLabelEl = document.getElementById('newPassLabel');
+let pendingLoginName = '';
 
 function openLoginModal() {
   const names = players.map(p => p.name);
   loginNameSelect.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
   loginPassInput.value = '';
   loginErrEl.style.display = 'none';
+  pendingLoginName = '';
+  loginStep1El.style.display = '';
+  loginStep2El.style.display = 'none';
   loginOverlay.classList.add('show');
 }
 
 function closeLoginModal() {
   loginOverlay.classList.remove('show');
+  pendingLoginName = '';
+}
+
+function completeLogin(name) {
+  currentUser = name;
+  isAdmin = isAdminName(currentUser);
+  localStorage.setItem('disc-team-user', currentUser);
+  closeLoginModal();
+  applyAdminVisibility();
+  render();
+  refreshMyFineCard();
+}
+
+function showSetPasswordStep(name) {
+  pendingLoginName = name;
+  newPassInput.value = '';
+  confirmPassInput.value = '';
+  setPassErrEl.style.display = 'none';
+  const admin = isAdminName(name);
+  if (admin) {
+    setPassHintEl.textContent = `${name}, apna default password badal kar naya password set karein (koi bhi password chalega).`;
+    newPassLabelEl.textContent = 'Naya password (kam se kam 4 characters)';
+    newPassInput.setAttribute('inputmode', 'text');
+    newPassInput.removeAttribute('maxlength');
+  } else {
+    setPassHintEl.textContent = `${name}, pehli baar login ho raha hai — apna 4 digit ka naya password set karein.`;
+    newPassLabelEl.textContent = 'Naya password (4 digit number)';
+    newPassInput.setAttribute('inputmode', 'numeric');
+    newPassInput.setAttribute('maxlength', '4');
+  }
+  loginStep1El.style.display = 'none';
+  loginStep2El.style.display = '';
 }
 
 document.getElementById('adminBtn').addEventListener('click', () => {
@@ -852,24 +922,76 @@ document.getElementById('adminBtn').addEventListener('click', () => {
 });
 
 document.getElementById('loginCancelBtn').addEventListener('click', closeLoginModal);
+document.getElementById('setPassCancelBtn').addEventListener('click', closeLoginModal);
 
 document.getElementById('loginSubmitBtn').addEventListener('click', () => {
+  if (!passwordsReady) {
+    alert('Data load ho raha hai, thoda ruk kar dobara try karein (2-3 second).');
+    return;
+  }
   const name = loginNameSelect.value;
   const pass = loginPassInput.value;
-  if (pass !== LOGIN_PASSWORD) {
+  const expected = currentPasswordFor(name);
+  if (pass !== expected) {
     loginErrEl.style.display = 'block';
     return;
   }
-  currentUser = name;
-  isAdmin = ADMIN_NAMES.includes(currentUser.toUpperCase());
-  localStorage.setItem('disc-team-user', currentUser);
-  closeLoginModal();
-  applyAdminVisibility();
-  render();
-  refreshMyFineCard();
+  loginErrEl.style.display = 'none';
+  if (expected === DEFAULT_PASSWORD) {
+    // Password abhi bhi default hai — naya password set karwaya jayega
+    showSetPasswordStep(name);
+    return;
+  }
+  completeLogin(name);
 });
+
 loginPassInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('loginSubmitBtn').click();
+});
+
+document.getElementById('setPassSubmitBtn').addEventListener('click', () => {
+  const name = pendingLoginName;
+  if (!name) { closeLoginModal(); return; }
+  const newPass = newPassInput.value;
+  const confirmPass = confirmPassInput.value;
+  const admin = isAdminName(name);
+
+  if (!newPass || newPass !== confirmPass) {
+    setPassErrEl.textContent = 'Dono password match nahi ho rahe, dobara try karein.';
+    setPassErrEl.style.display = 'block';
+    return;
+  }
+  if (newPass === DEFAULT_PASSWORD) {
+    setPassErrEl.textContent = `Naya password "${DEFAULT_PASSWORD}" nahi ho sakta, kuch aur set karein.`;
+    setPassErrEl.style.display = 'block';
+    return;
+  }
+  if (!admin && !/^\d{4}$/.test(newPass)) {
+    setPassErrEl.textContent = 'Player ke liye password sirf 4 digit ka number hona chahiye (jaise 1234).';
+    setPassErrEl.style.display = 'block';
+    return;
+  }
+  if (admin && newPass.length < 4) {
+    setPassErrEl.textContent = 'Password kam se kam 4 characters ka hona chahiye.';
+    setPassErrEl.style.display = 'block';
+    return;
+  }
+  setPassErrEl.style.display = 'none';
+
+  savePasswordFor(name, newPass)
+    .then(() => {
+      completeLogin(name);
+      alert('Naya password set ho gaya ✅ Agli baar isi password se login karein.');
+    })
+    .catch((e) => {
+      console.error('Password save failed', e);
+      setPassErrEl.textContent = 'Password save nahi ho paya: ' + e.message;
+      setPassErrEl.style.display = 'block';
+    });
+});
+
+confirmPassInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('setPassSubmitBtn').click();
 });
 
 applyAdminVisibility();
@@ -973,6 +1095,15 @@ function populateBulkHolidaySelect() {
   const current = sel.value;
   sel.innerHTML = players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
   if (current && players.some(p => p.name === current)) sel.value = current;
+  populateResetPassSelect();
+}
+
+function populateResetPassSelect() {
+  const sel = document.getElementById('resetPassName');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+  if (current && players.some(p => p.name === current)) sel.value = current;
 }
 
 plistEl.addEventListener('click', (e) => {
@@ -1068,6 +1199,41 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const playersDocRef = db.collection('disc_team').doc('players');
+// Har player ka apna password alag-alag save hota hai (default 'disc', jab tak khud change na karein)
+const passwordsDocRef = db.collection('disc_team').doc('passwords');
+const DEFAULT_PASSWORD = 'disc';
+let passwordMap = {}; // name -> password
+let passwordsReady = false;
+let suppressNextPasswordSnapshot = false;
+
+function currentPasswordFor(name) {
+  return (passwordMap && passwordMap[name]) || DEFAULT_PASSWORD;
+}
+
+function savePasswordFor(name, newPass) {
+  passwordMap = { ...passwordMap, [name]: newPass };
+  try { localStorage.setItem('disc-team-passwords', JSON.stringify(passwordMap)); } catch (e) {}
+  suppressNextPasswordSnapshot = true;
+  return passwordsDocRef.set({ map: passwordMap, updatedAt: Date.now() });
+}
+
+function loadPasswords() {
+  try {
+    const raw = localStorage.getItem('disc-team-passwords');
+    if (raw) passwordMap = JSON.parse(raw);
+  } catch (e) { /* ignore */ }
+  passwordsDocRef.onSnapshot((doc) => {
+    passwordsReady = true;
+    if (suppressNextPasswordSnapshot) { suppressNextPasswordSnapshot = false; return; }
+    if (doc.exists && doc.data().map) {
+      passwordMap = doc.data().map;
+      try { localStorage.setItem('disc-team-passwords', JSON.stringify(passwordMap)); } catch (e) {}
+    }
+  }, (err) => {
+    console.error('Password sync error (using local/default):', err);
+    passwordsReady = true; // allow local-only use if cloud is unreachable
+  });
+}
 // Attendance ko bhi usi "disc_team" collection mein alag doc id se rakha hai
 // (naya top-level collection banane par Firestore security rules usse block kar sakte hain)
 function attendanceDocRef(dateStr) {
@@ -1449,8 +1615,23 @@ document.getElementById('bulkHolidaySaveBtn').addEventListener('click', () => {
   bulkSetHoliday(name, startStr, endStr);
 });
 
+document.getElementById('resetPassBtn').addEventListener('click', () => {
+  const name = document.getElementById('resetPassName').value;
+  if (!name) return;
+  if (!confirm(`${name} ka password reset karke default ("${DEFAULT_PASSWORD}") kar dein?`)) return;
+  savePasswordFor(name, DEFAULT_PASSWORD)
+    .then(() => {
+      alert(`${name} ka password reset ho gaya. Agli baar login karte waqt unhe naya password set karne ko kaha jayega.`);
+    })
+    .catch((e) => {
+      console.error('Password reset failed', e);
+      alert('Reset nahi ho paya: ' + e.message);
+    });
+});
+
 render();
 load();
+loadPasswords();
 loadAttendance(attnDateInput.value); // show today's attendance (if already saved) on open
 loadMonthlySheet(monthlySheetInput.value); // show this month's fine sheet on open
 refreshMyFineCard(); // show logged-in player's own fine status at the top
