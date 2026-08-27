@@ -2189,9 +2189,15 @@ function filterExpensePairsToCurrentMonth(pairs) {
 // ---- Admin: delete a single figure (a person's contribution row, or one expense entry) ----
 function deleteContributionPerson(name) {
   if (!accountsData || !accountsData.contribution || !Array.isArray(accountsData.contribution.people)) return;
-  if (!confirm(`Delete ${name}'s contribution row? This cannot be undone.`)) return;
+  if (!confirm(`Delete ${name}'s contribution row? Any expense-ledger entries auto-added for their payments will be removed too. This cannot be undone.`)) return;
   const updatedPeople = accountsData.contribution.people.filter((p) => p.name !== name);
-  accountsDocRef.update({ 'contribution.people': updatedPeople }).catch((err) => {
+  const updates = { 'contribution.people': updatedPeople };
+  if (Array.isArray(accountsData.expenses)) {
+    const linkPrefix = `${name}|`;
+    const updatedExpenses = accountsData.expenses.filter((e) => !(e.linkedContribution && e.linkedContribution.startsWith(linkPrefix)));
+    if (updatedExpenses.length !== accountsData.expenses.length) updates.expenses = updatedExpenses;
+  }
+  accountsDocRef.update(updates).catch((err) => {
     console.error('Delete contribution row failed', err);
     alert('Delete failed: ' + err.message);
   });
@@ -2678,9 +2684,14 @@ document.getElementById('personModalSaveBtn').addEventListener('click', () => {
   if (runningBalance === null) runningBalance = 0;
 
   contribution.months.forEach((monthLabel, i) => {
-    if (values[i] === oldValues[i] || !isMonthPaid(values[i])) return;
+    if (values[i] === oldValues[i]) return;
     const linkTag = `${name}|${monthLabel}`;
     const linkedIdx = expenses.findIndex((e) => e.linkedContribution === linkTag);
+    if (!isMonthPaid(values[i])) {
+      // Went from paid back to blank/0 — remove the auto-added ledger entry so it doesn't linger.
+      if (linkedIdx >= 0) expenses.splice(linkedIdx, 1);
+      return;
+    }
     if (linkedIdx >= 0) {
       expenses[linkedIdx] = { ...expenses[linkedIdx], received: String(values[i]).trim() };
     } else {
