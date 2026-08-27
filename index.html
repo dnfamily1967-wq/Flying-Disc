@@ -299,6 +299,12 @@
   }
   .chip.absent.on { background: var(--red-soft); border-color: var(--red); color: #8C2E2E; }
   .chip.holiday.on { background: var(--blue-soft); border-color: var(--blue); color: #1E4FAE; }
+  .chip.teamA.on { background: #E4F5E7; border-color: #2E7D42; color: #2E7D42; }
+  .chip.teamB.on { background: var(--orange-soft); border-color: var(--orange); color: #C6491C; }
+  .chip.draw.on { background: #EFEBDC; border-color: var(--muted); color: var(--ink); }
+  .matchRow { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid #F2EFE4; }
+  .matchRow:last-child { border-bottom: none; }
+  .matchRowLabel { width: 62px; flex-shrink: 0; font-size: 13px; font-weight: 700; }
 
   .del {
     background: none;
@@ -872,6 +878,24 @@
     <div class="team a"><h3>🟢 TEAM A</h3><ol id="teamA"></ol></div>
     <div class="team b"><h3>🟠 TEAM B</h3><ol id="teamB"></ol></div>
   </div>
+
+  <div class="card accent-orange" id="matchResultsCard" style="display:none;">
+    <h2>🏆 MATCH RESULTS — <span id="matchResultsDate"></span></h2>
+    <div class="legend" style="margin-top:0;">Record who won each match today. Saved date-wise so you can check back later.</div>
+    <div id="matchRows"></div>
+    <button class="secondary" id="addMatchBtn" style="margin-top:10px;">➕ ADD MATCH</button>
+    <button id="saveMatchResultsBtn" style="margin-top:10px;">💾 SAVE MATCH RESULTS</button>
+    <div class="legend" id="matchSavedStatus" style="display:none; margin-top:10px;"></div>
+  </div>
+
+  <div class="card accent-orange">
+    <h2>📜 MATCH HISTORY</h2>
+    <div class="attnRow">
+      <input type="date" id="matchHistoryDateInput">
+      <button class="secondary" id="loadMatchHistoryBtn">👁️ VIEW</button>
+    </div>
+    <div id="matchHistoryResult"></div>
+  </div>
   </div>
 
   <div class="tabPanel" id="tab-attendance" style="display:none;">
@@ -1181,6 +1205,11 @@ function applyAdminVisibility() {
   document.getElementById('addPlayerBlock').style.display = isFullAdmin ? '' : 'none';
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('bulkHolidayCard').style.display = isAdmin ? '' : 'none';
+  const matchResultsCardEl = document.getElementById('matchResultsCard');
+  const teamsOutEl = document.getElementById('teamsOut');
+  if (matchResultsCardEl && teamsOutEl && teamsOutEl.style.display !== 'none') {
+    matchResultsCardEl.style.display = isAdmin ? '' : 'none';
+  }
   const resetPassCard = document.getElementById('resetPassCard');
   if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
   const resetAttnDayBtn = document.getElementById('resetAttnDayBtn');
@@ -1601,10 +1630,106 @@ function makeTeams() {
   statusEl.textContent = teamA.length === teamB.length
     ? teamA.length + ' vs ' + teamB.length + ' — even ✅'
     : teamA.length + ' vs ' + teamB.length + ' (odd count, 1 extra)';
+
+  lastTeamA = teamA.map(p => p.name);
+  lastTeamB = teamB.map(p => p.name);
+  matchResults = [1, 2, 3].map((n) => ({ match: n, winner: null }));
+  const matchResultsDateEl = document.getElementById('matchResultsDate');
+  if (matchResultsDateEl) matchResultsDateEl.textContent = todayStr();
+  const matchResultsCard = document.getElementById('matchResultsCard');
+  if (matchResultsCard) matchResultsCard.style.display = isAdmin ? '' : 'none';
+  const matchSavedStatus = document.getElementById('matchSavedStatus');
+  if (matchSavedStatus) matchSavedStatus.style.display = 'none';
+  renderMatchRows();
 }
 
 document.getElementById('makeBtn').addEventListener('click', makeTeams);
 reshuffleBtn.addEventListener('click', makeTeams);
+
+// ---- Match results: record who won each match today, saved date-wise ----
+let lastTeamA = [], lastTeamB = [];
+let matchResults = []; // [{ match: 1, winner: null | 'A' | 'B' | 'draw' }]
+
+function renderMatchRows() {
+  const el = document.getElementById('matchRows');
+  if (!el) return;
+  el.innerHTML = matchResults.map((m, i) => `
+    <div class="matchRow">
+      <span class="matchRowLabel">Match ${m.match}</span>
+      <button class="chip teamA ${m.winner === 'A' ? 'on' : ''}" data-i="${i}" data-winner="A">🟢 Team A</button>
+      <button class="chip teamB ${m.winner === 'B' ? 'on' : ''}" data-i="${i}" data-winner="B">🟠 Team B</button>
+      <button class="chip draw ${m.winner === 'draw' ? 'on' : ''}" data-i="${i}" data-winner="draw">🤝 Draw</button>
+    </div>`).join('');
+}
+
+document.getElementById('matchRows').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-winner]');
+  if (!btn) return;
+  const i = Number(btn.dataset.i);
+  const winner = btn.dataset.winner;
+  matchResults[i].winner = (matchResults[i].winner === winner) ? null : winner;
+  renderMatchRows();
+});
+
+document.getElementById('addMatchBtn').addEventListener('click', () => {
+  matchResults.push({ match: matchResults.length + 1, winner: null });
+  renderMatchRows();
+});
+
+document.getElementById('saveMatchResultsBtn').addEventListener('click', () => {
+  const dateStr = todayStr();
+  const winsA = matchResults.filter((m) => m.winner === 'A').length;
+  const winsB = matchResults.filter((m) => m.winner === 'B').length;
+  db.collection('disc_team').doc('matches_' + dateStr).set({
+    date: dateStr,
+    teamA: lastTeamA,
+    teamB: lastTeamB,
+    results: matchResults,
+    winsA, winsB,
+    savedAt: Date.now()
+  }).then(() => {
+    const statusEl2 = document.getElementById('matchSavedStatus');
+    statusEl2.style.display = 'block';
+    statusEl2.textContent = `Saved ✅ Team A ${winsA} — ${winsB} Team B`;
+  }).catch((err) => {
+    console.error('Save match results failed', err);
+    alert('Save failed: ' + err.message);
+  });
+});
+
+const matchHistoryDateInput = document.getElementById('matchHistoryDateInput');
+if (matchHistoryDateInput) matchHistoryDateInput.value = todayStr();
+
+document.getElementById('loadMatchHistoryBtn').addEventListener('click', () => {
+  const dateStr = matchHistoryDateInput.value;
+  if (!dateStr) return;
+  const resultEl = document.getElementById('matchHistoryResult');
+  resultEl.innerHTML = '<div class="legend">Loading…</div>';
+  db.collection('disc_team').doc('matches_' + dateStr).get().then((doc) => {
+    if (!doc.exists) {
+      resultEl.innerHTML = `<div class="err" style="display:block;">No match record found for ${dateStr}.</div>`;
+      return;
+    }
+    const data = doc.data();
+    const results = Array.isArray(data.results) ? data.results : [];
+    const winsA = results.filter((m) => m.winner === 'A').length;
+    const winsB = results.filter((m) => m.winner === 'B').length;
+    const rows = results.map((m) => `
+      <div class="matchRow">
+        <span class="matchRowLabel">Match ${m.match}</span>
+        <span>${m.winner === 'A' ? '🟢 Team A won' : m.winner === 'B' ? '🟠 Team B won' : m.winner === 'draw' ? '🤝 Draw' : '—'}</span>
+      </div>`).join('');
+    resultEl.innerHTML = `
+      <div class="legend" style="margin-top:0;">🟢 Team A: ${(data.teamA || []).join(', ')}</div>
+      <div class="legend">🟠 Team B: ${(data.teamB || []).join(', ')}</div>
+      <div style="font-weight:800; margin:8px 0;">Team A ${winsA} — ${winsB} Team B</div>
+      ${rows}
+    `;
+  }).catch((err) => {
+    console.error('Load match history failed', err);
+    resultEl.innerHTML = `<div class="err" style="display:block;">Failed to load: ${err.message}</div>`;
+  });
+});
 
 // ---- Firebase / Firestore cloud sync ----
 const firebaseConfig = {
