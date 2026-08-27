@@ -465,6 +465,65 @@
   .statsPct { width: 38px; text-align: right; font-size: 12.5px; font-weight: 800; flex-shrink: 0; }
   .statsMeta { font-size: 11px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
 
+  .myFineCard {
+    background: linear-gradient(135deg, #ffffff 0%, #FBFAF4 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: 0 2px 10px rgba(30,30,20,0.05);
+  }
+  .myFineCard.fined { border-color: var(--red); background: linear-gradient(135deg, #ffffff 0%, var(--red-soft) 100%); }
+  .myFineCard .mfTitle { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .myFineCard .mfName { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 800; color: var(--green-deep); margin-top: 2px; }
+  .myFineCard .mfCounts { font-size: 12.5px; color: var(--ink); margin-top: 4px; }
+  .myFineCard .mfVerdict {
+    font-size: 12.5px;
+    font-weight: 800;
+    padding: 8px 13px;
+    border-radius: 20px;
+    white-space: nowrap;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .myFineCard .mfVerdict.good { background: #E4F5E7; color: #2E7D42; }
+  .myFineCard .mfVerdict.bad { background: var(--red-soft); color: #8C2E2E; }
+
+  .fineRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid #F2EFE4;
+    flex-wrap: wrap;
+  }
+  .fineRow:last-child { border-bottom: none; }
+  .fineRow.fined { background: rgba(209,69,69,0.05); border-radius: 10px; padding-left: 6px; padding-right: 6px; }
+  .fineName { width: 100px; flex-shrink: 0; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fineCounts { flex: 1; font-size: 12px; color: var(--muted); min-width: 120px; }
+  .fineVerdict { font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 14px; white-space: nowrap; flex-shrink: 0; }
+  .fineVerdict.good { background: #E4F5E7; color: #2E7D42; }
+  .fineVerdict.bad { background: var(--red-soft); color: #8C2E2E; }
+
+  .monthRow { display: flex; gap: 8px; align-items: center; }
+  .monthRow input[type="month"] {
+    flex: 1;
+    min-width: 0;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 11px 12px;
+    font-size: 14.5px;
+    font-family: inherit;
+    background: #FCFBF7;
+    color: var(--ink);
+  }
+  .monthRow input[type="month"]:focus { outline: none; border-color: var(--green-mid); background: #fff; }
+  .monthRow button { width: auto; margin: 0; padding: 0 16px; border-radius: 12px; font-size: 13.5px; }
+
   .bulkRow { display: flex; gap: 8px; margin-top: 10px; }
   .bulkRow input[type="date"] {
     flex: 1;
@@ -583,6 +642,8 @@
 
 <div class="wrap">
 
+  <div class="myFineCard" id="myFineCard" style="display:none;"></div>
+
   <div class="tabPanel" id="tab-home">
   <div class="card">
     <div id="addPlayerBlock">
@@ -600,7 +661,7 @@
     <ul class="plist" id="plist"></ul>
     <button class="secondary" id="saveBtn" style="margin-top:14px;">💾 Save</button>
     <div class="saved-msg" id="savedMsg">Saved ✅</div>
-    <div class="legend">Number = skill level (higher = better) · <b>absent</b> = bina bataye (fine lagegi) · <b>holiday</b> = approved leave (no fine)</div>
+    <div class="legend">Number = skill level (higher = better) · <b>absent</b> = bina bataye · <b>holiday</b> = approved leave (kabhi fine nahi). Fine sirf tab lagti hai jab mahine mein absent din 10 se zyada ho jayein — 📊 "Attendance" tab mein Monthly Fine Sheet dekhein.</div>
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
   </div>
   </div>
@@ -633,6 +694,16 @@
     <h2>📊 Attendance Stats</h2>
     <button class="secondary" id="loadStatsBtn" style="margin-top:0;">🔄 Sabki Stats Dekhein</button>
     <div id="statsResult" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>💰 Monthly Fine Sheet</h2>
+    <div class="monthRow">
+      <input type="month" id="monthlySheetInput">
+      <button class="secondary" id="loadMonthlySheetBtn">View</button>
+    </div>
+    <div id="monthlySheetResult" style="margin-top:12px;"></div>
+    <div class="legend">Rule: mahine mein <b>❌ bina-bataye absent</b> agar 10 din se zyada ho, tabhi fine lagegi. 20 din present ho, ya holiday + present milakar poore din ho (absent kam ho) — to fine nahi lagegi. 🏖️ holiday se kabhi fine nahi lagti.</div>
   </div>
   </div>
 
@@ -755,6 +826,7 @@ document.getElementById('adminBtn').addEventListener('click', () => {
       localStorage.removeItem('disc-team-user');
       applyAdminVisibility();
       render();
+      refreshMyFineCard();
     }
     return;
   }
@@ -776,6 +848,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', () => {
   closeLoginModal();
   applyAdminVisibility();
   render();
+  refreshMyFineCard();
 });
 loginPassInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('loginSubmitBtn').click();
@@ -985,6 +1058,18 @@ function todayStr() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// ---- Fine rule ----
+// Har mahine "bina bataye absent" (holiday mark NAHI) agar is se zyada din ho, tabhi fine lagegi.
+// 20 din present ho, ya (holiday + present) milakar poore din ho — jab tak absent count is limit
+// ke andar hai, fine NAHI lagegi. Holiday se kabhi fine nahi lagti.
+const FINE_ABSENT_THRESHOLD = 10;
+
+function monthStr(d = new Date()) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${yyyy}-${mm}`;
+}
+
 // Har baar jab admin "Save" dabata hai, aaj ki date ke against attendance snapshot bhi save ho jata hai
 function saveAttendanceSnapshot() {
   const dateStr = todayStr();
@@ -1020,6 +1105,8 @@ function save() {
     });
   saveAttendanceSnapshot();
   if (attnDateInput && attnDateInput.value === todayStr()) loadAttendance(todayStr());
+  refreshMyFineCard();
+  if (monthlySheetInput && monthlySheetInput.value === monthStr()) loadMonthlySheet(monthStr());
 }
 
 let savedTimer;
@@ -1157,6 +1244,106 @@ function renderStats(totals, totalDays) {
 
 document.getElementById('loadStatsBtn').addEventListener('click', loadStats);
 
+// ---- Monthly fine calculation: sirf ek mahine ka data leke present/holiday/absent ginta hai ----
+function computeMonthlyTotals(month, onDone, onErr) {
+  db.collection('disc_team')
+    .where(firebase.firestore.FieldPath.documentId(), '>=', 'attendance_')
+    .where(firebase.firestore.FieldPath.documentId(), '<', 'attendance_\uf8ff')
+    .get()
+    .then((snap) => {
+      const totals = {}; // name -> { present, absent, holiday, total }
+      let daysCounted = 0;
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (!data.date || !data.date.startsWith(month)) return;
+        if (!Array.isArray(data.players)) return;
+        daysCounted++;
+        data.players.forEach((p) => {
+          const status = normalizeAttnStatus(p);
+          if (!totals[p.name]) totals[p.name] = { present: 0, absent: 0, holiday: 0, total: 0 };
+          totals[p.name].total++;
+          totals[p.name][status] = (totals[p.name][status] || 0) + 1;
+        });
+      });
+      onDone(totals, daysCounted);
+    })
+    .catch((e) => {
+      console.error('Monthly totals load failed', e);
+      if (onErr) onErr(e);
+    });
+}
+
+function isFined(t) {
+  // Fine sirf "bina bataye absent" (holiday mark nahi) ke count par depend karti hai.
+  return !!t && t.absent > FINE_ABSENT_THRESHOLD;
+}
+
+const monthlySheetResultEl = document.getElementById('monthlySheetResult');
+const monthlySheetInput = document.getElementById('monthlySheetInput');
+monthlySheetInput.value = monthStr();
+
+function renderMonthlySheet(month, totals, daysCounted) {
+  const names = Object.keys(totals).sort();
+  if (names.length === 0) {
+    monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">Is mahine (${month}) ka koi attendance record nahi mila.</div>`;
+    return;
+  }
+  const rows = names.map((name) => {
+    const t = totals[name];
+    const fined = isFined(t);
+    const crown = ADMIN_NAMES.includes(name.toUpperCase()) ? '👑 ' : '';
+    return `
+    <div class="fineRow ${fined ? 'fined' : ''}">
+      <span class="fineName">${crown}${name}</span>
+      <span class="fineCounts">✅ ${t.present} present · 🏖️ ${t.holiday} holiday · ❌ ${t.absent} absent</span>
+      <span class="fineVerdict ${fined ? 'bad' : 'good'}">${fined ? '⚠️ FINE' : '✅ No Fine'}</span>
+    </div>`;
+  }).join('');
+  monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${daysCounted} din ka record mila ${month} mein.</div>` + rows;
+}
+
+function loadMonthlySheet(month) {
+  monthlySheetResultEl.innerHTML = '<div class="legend">Load ho raha hai…</div>';
+  computeMonthlyTotals(
+    month,
+    (totals, daysCounted) => renderMonthlySheet(month, totals, daysCounted),
+    (e) => { monthlySheetResultEl.innerHTML = `<div class="err" style="display:block;">Load nahi ho paya: ${e.message}</div>`; }
+  );
+}
+
+document.getElementById('loadMonthlySheetBtn').addEventListener('click', () => {
+  const m = monthlySheetInput.value;
+  if (!m) return;
+  loadMonthlySheet(m);
+});
+
+// ---- Player ke khud ke login mein top par uska is-mahine ka fine status dikhta hai ----
+function refreshMyFineCard() {
+  const card = document.getElementById('myFineCard');
+  if (!currentUser) {
+    card.style.display = 'none';
+    return;
+  }
+  const m = monthStr();
+  computeMonthlyTotals(m, (totals) => {
+    const t = totals[currentUser] || { present: 0, absent: 0, holiday: 0, total: 0 };
+    const fined = isFined(t);
+    card.className = 'myFineCard' + (fined ? ' fined' : '');
+    card.style.display = 'flex';
+    card.innerHTML = `
+      <div>
+        <div class="mfTitle">Is mahine (${m}) ka attendance</div>
+        <div class="mfName">👋 ${currentUser}</div>
+        <div class="mfCounts">✅ ${t.present} present · 🏖️ ${t.holiday} holiday · ❌ ${t.absent} absent</div>
+      </div>
+      <div class="mfVerdict ${fined ? 'bad' : 'good'}">${fined ? '⚠️ FINE' : '✅ No Fine'}</div>
+    `;
+  }, (e) => {
+    console.error('My fine card load failed', e);
+    card.style.display = 'none';
+  });
+}
+
 // ---- Bulk holiday: admin ek player ko ek saath kai dinon ke liye holiday par daal sakta hai ----
 const bulkStatusEl = document.getElementById('bulkHolidayStatus');
 
@@ -1230,6 +1417,8 @@ document.getElementById('bulkHolidaySaveBtn').addEventListener('click', () => {
 render();
 load();
 loadAttendance(attnDateInput.value); // show today's attendance (if already saved) on open
+loadMonthlySheet(monthlySheetInput.value); // show this month's fine sheet on open
+refreshMyFineCard(); // show logged-in player's own fine status at the top
 
 // ---- Bottom nav: switch between Home / Teams / Attendance / Holiday sections ----
 function showTab(tab) {
