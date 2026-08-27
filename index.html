@@ -790,6 +790,7 @@
 </head>
 <body>
 
+<div id="appContent" style="display:none;">
 <div class="hero">
   <button id="adminBtn" class="admin-btn">Admin</button>
   <button id="refreshAppBtn" class="refresh-btn" title="Clear cache & refresh app">🔄</button>
@@ -990,6 +991,16 @@
   <button class="navBtn" id="navAccountsBtn" data-tab="accounts" style="display:none;"><span class="navIcon">💰</span><span class="navLabel">Accounts</span></button>
   <button class="navBtn" id="navHolidayBtn" data-tab="holiday" style="display:none;"><span class="navIcon">🏖️</span><span class="navLabel">Holiday</span></button>
 </nav>
+</div>
+
+<div id="loginGate" style="min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; background:radial-gradient(120% 140% at 15% 0%, #2E6B45 0%, #1F4B33 55%, #123424 100%); text-align:center;">
+  <img src="icon-192.png" alt="Flying Disc Morning Walkers logo" style="width:96px; height:96px; border-radius:50%; object-fit:cover; box-shadow:0 3px 10px rgba(0,0,0,0.25); margin-bottom:16px;">
+  <div style="color:var(--orange); font-weight:700; font-size:12px; letter-spacing:2px; text-transform:uppercase;">🥏 Flying Disc</div>
+  <h1 style="font-family:'Outfit',sans-serif; font-size:28px; font-weight:800; color:#fff; margin:4px 0 0;">Morning Walkers</h1>
+  <div style="color:#C9DACB; font-size:14px; margin-top:6px;">Jubilee Park</div>
+  <div style="color:#C9DACB; font-size:13.5px; margin-top:24px; max-width:280px; line-height:1.5;">Please log in with your name to use the app.</div>
+  <button id="loginGateBtn" style="width:auto; margin-top:18px; padding:14px 32px; background:var(--orange); border:none; border-radius:13px; color:#fff; font-weight:700; font-size:15px; box-shadow:0 4px 14px rgba(255,107,53,0.28); cursor:pointer;">👋 LOG IN</button>
+</div>
 
 <div class="modalOverlay" id="loginOverlay">
   <div class="modalCard">
@@ -1197,6 +1208,7 @@ function completeLogin(name) {
   render();
   refreshMyFineCard();
   renderMyDuesAndBalance();
+  applyLoginGate();
 }
 
 function showSetPasswordStep(name) {
@@ -1232,11 +1244,29 @@ document.getElementById('adminBtn').addEventListener('click', () => {
       render();
       refreshMyFineCard();
       renderMyDuesAndBalance();
+      applyLoginGate();
     }
     return;
   }
   openLoginModal();
 });
+
+document.getElementById('loginGateBtn').addEventListener('click', openLoginModal);
+
+// ---- Login gate: nothing in the app is visible until someone logs in with their name ----
+function applyLoginGate() {
+  const gate = document.getElementById('loginGate');
+  const content = document.getElementById('appContent');
+  if (!gate || !content) return;
+  if (currentUser) {
+    gate.style.display = 'none';
+    content.style.display = '';
+  } else {
+    gate.style.display = 'flex';
+    content.style.display = 'none';
+    openLoginModal();
+  }
+}
 
 document.getElementById('loginCancelBtn').addEventListener('click', closeLoginModal);
 document.getElementById('setPassCancelBtn').addEventListener('click', closeLoginModal);
@@ -2938,6 +2968,7 @@ document.getElementById('accountsFileInput').addEventListener('change', (e) => {
 });
 
 render();
+applyLoginGate();
 load();
 loadPasswords();
 loadAttendance(attnDateInput.value); // show today's attendance (if already saved) on open
