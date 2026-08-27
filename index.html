@@ -233,6 +233,7 @@
   .phaA { color: #8C2E2E; }
   .phaH { color: #1E4FAE; }
   .circleRow { display: flex; gap: 4px; }
+  .fineRow .circleRow, .mfCounts .circleRow { flex: 1; }
   .miniCircle {
     width: 20px;
     height: 20px;
@@ -1725,7 +1726,7 @@ function renderMonthlySheet(month, totals, daysCounted) {
     return `
     <div class="fineRow ${fined ? 'fined' : ''}">
       <span class="fineName">${crown}${name}</span>
-      <span class="fineCounts">✅<span class="countNum">${t.present}</span> P · 🏖️<span class="countNum">${t.holiday}</span> H · ❌<span class="countNum">${t.absent}</span> A</span>
+      <span class="circleRow"><span class="miniCircle mc-green">${t.present}</span><span class="miniCircle mc-yellow">${t.holiday}</span><span class="miniCircle mc-red">${t.absent}</span></span>
       <span class="fineVerdict ${fined ? 'bad' : 'good'}">${fined ? '⚠️ FINE' : '✅ OK'}</span>
     </div>`;
   }).join('');
