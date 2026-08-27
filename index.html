@@ -223,6 +223,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .pnameRow { display: flex; align-items: center; gap: 4px; min-width: 0; width: 100%; }
+  .pnameRow .pname { width: auto; flex: 1 1 auto; min-width: 0; }
+  .pbday {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, #FF9A5A 0%, var(--orange) 55%, #C6491C 100%);
+    padding: 2px 6px;
+    border-radius: 10px;
+    white-space: nowrap;
+    line-height: 1.4;
+    box-shadow: 0 1px 3px rgba(198,73,28,0.35);
+  }
   .phaLine {
     display: flex;
     gap: 6px;
@@ -688,7 +705,7 @@
   .addRow { gap: 6px; }
   .addRow input { font-size: 15px; padding: 11px 12px; border-radius: 11px; min-width: 0; }
   .addRow button { padding: 0 14px; border-radius: 11px; font-size: 14px; }
-  .pinfo { width: 118px; flex-shrink: 0; }
+  .pinfo { width: 128px; flex-shrink: 0; }
   .pname {
     font-size: 14.5px;
     font-weight: 700;
@@ -696,6 +713,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .pbday { font-size: 8.5px; padding: 2px 5px; }
   .phaLine { font-size: 10px; }
   .rating { width: 40px; flex-shrink: 0; font-size: 14px; padding: 8px 3px; border-radius: 10px; }
   .chip { font-size: 9.5px; padding: 6px 7px; width: auto; text-align: center; border-radius: 14px; flex-shrink: 0; }
@@ -705,10 +723,11 @@
     border: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
     border-radius: 14px;
-    padding: 10px 10px;
+    padding: 10px 8px;
     margin-bottom: 7px;
     box-shadow: 0 1px 4px rgba(30,30,20,0.04);
     flex-wrap: nowrap;
+    gap: 6px 8px;
   }
   ul.plist li:last-child { margin-bottom: 0; }
   .ratingMid { flex: 1; }
@@ -1568,11 +1587,17 @@ function render() {
     const crown = ADMIN_NAMES.includes(p.name.toUpperCase()) ? '👑 ' : '';
     const pha = monthlyPHA[p.name] || { present: 0, absent: 0, holiday: 0, total: 0 };
     const phaHtml = `<span class="circleRow"><span class="miniCircle mc-green">${pha.present}</span><span class="miniCircle mc-yellow">${pha.holiday}</span><span class="miniCircle mc-red">${pha.absent}</span></span>`;
+    const bdayHtml = p.bday ? `<span class="pbday">🎂${formatBdayShort(p.bday)}</span>` : '';
+    const nameRowHtml = `
+      <div class="pnameRow">
+        <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
+        ${bdayHtml}
+      </div>`;
     if (isFullAdmin) {
       return `
     <li style="background:${bg}; border-left:4px solid ${border};">
       <div class="pinfo">
-        <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
+        ${nameRowHtml}
         ${phaHtml}
       </div>
       <div class="ratingMid">
@@ -1589,7 +1614,7 @@ function render() {
       return `
     <li style="background:${bg}; border-left:4px solid ${border};">
       <div class="pinfo">
-        <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
+        ${nameRowHtml}
         ${phaHtml}
       </div>
       <div class="ratingMid">
@@ -1605,7 +1630,7 @@ function render() {
     return `
     <li style="background:${bg}; border-left:4px solid ${border};">
       <div class="pinfo">
-        <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
+        ${nameRowHtml}
         ${phaHtml}
       </div>
       <div class="ratingMid">
@@ -1647,6 +1672,12 @@ const bdayEditHintEl = document.getElementById('bdayEditHint');
 function formatBday(b) {
   if (!b || !b.d || !b.m) return '';
   return `${String(b.d).padStart(2, '0')} ${MONTH_SHORT[b.m - 1]}`;
+}
+
+// Compact "1-JAN" style used next to each name on the Home tab.
+function formatBdayShort(b) {
+  if (!b || !b.d || !b.m) return '';
+  return `${b.d}-${MONTH_SHORT[b.m - 1].toUpperCase()}`;
 }
 
 // Days from today until the next occurrence of this birthday (0 = today, wraps to next year if passed).
@@ -3163,17 +3194,58 @@ document.getElementById('exportPreviewDownloadBtn').addEventListener('click', as
   btn.textContent = '⏳ PREPARING…';
   btn.disabled = true;
   try {
-    // The template is now genuinely visible on screen (inside the preview modal), so html2canvas
-    // captures it exactly as laid out — no off-screen mobile clipping quirks.
     const el = document.getElementById('exportTemplate');
-    const canvas = await html2canvas(el, { backgroundColor: '#FFFDF7', scale: 2, useCORS: true, width: el.scrollWidth, height: el.scrollHeight });
-    const jpegUrl = canvas.toDataURL('image/jpeg', 0.92);
-    const a = document.createElement('a');
-    a.href = jpegUrl;
-    a.download = `accounts-summary-${exportMonthLabel || currentMonthLabelFor()}.jpg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const fullWidth = el.scrollWidth;
+    const fullHeight = el.scrollHeight;
+    // Phones have a narrow viewport (often under 400px) while this template is a fixed 860px
+    // wide. html2canvas otherwise sizes its internal render window off the real viewport, which
+    // is what causes the cropped/blank/partial captures seen on mobile. Forcing an explicit,
+    // generous windowWidth/windowHeight (plus scrollX/Y reset) makes it render the template at
+    // its real full size regardless of how small or scrolled the phone's screen is.
+    const canvas = await html2canvas(el, {
+      backgroundColor: '#FFFDF7',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      width: fullWidth,
+      height: fullHeight,
+      windowWidth: fullWidth + 40,
+      windowHeight: fullHeight + 40,
+      scrollX: 0,
+      scrollY: 0,
+    });
+    const filename = `accounts-summary-${exportMonthLabel || currentMonthLabelFor()}.jpg`;
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+    if (!blob) throw new Error('Could not generate image.');
+
+    // Phones (mainly iPhone/Safari) mostly ignore the `download` attribute and just open the
+    // image instead of saving it. The native Share sheet ("Save Image", WhatsApp, etc.) is the
+    // reliable way to get an image onto a phone, so offer that first when it's supported.
+    let sharedViaSheet = false;
+    if (navigator.canShare && navigator.share) {
+      try {
+        const file = new File([blob], filename, { type: 'image/jpeg' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          sharedViaSheet = true;
+        }
+      } catch (shareErr) {
+        if (shareErr && shareErr.name === 'AbortError') { sharedViaSheet = true; } // user cancelled the sheet — not a failure
+      }
+    }
+    if (!sharedViaSheet) {
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // On browsers that ignore `download` and just navigate to the blob (older iOS Safari),
+      // this also opens it in a new tab as a fallback so the user can long-press → Save Image.
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    }
   } catch (err) {
     console.error('Export summary failed', err);
     alert('Export failed: ' + err.message);
