@@ -939,43 +939,49 @@
   </div>
   </div>
 
-  <div id="exportTemplate" style="position:absolute; left:-9999px; top:0; width:820px; background:#FFFDF7; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:28px; color:#2B2B22;">
+  <div id="exportTemplate" style="position:absolute; left:-9999px; top:0; width:860px; background:#FFFDF7; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:28px; color:#2B2B22;">
     <div style="display:flex; align-items:center; gap:14px; border-bottom:3px solid #1F5C3F; padding-bottom:16px; margin-bottom:20px;">
-      <img id="exportLogo" src="icon-192.png" style="width:56px; height:56px; border-radius:50%; object-fit:cover;">
-      <div>
+      <img id="exportLogo" src="icon-192.png" style="width:56px; height:56px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+      <div style="min-width:0;">
         <div style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#1F5C3F;">Flying Disc Morning Walkers</div>
         <div style="font-size:13px; color:#8A8570;">Jubilee Park &middot; Accounts Summary</div>
       </div>
-      <div id="exportMonthBadge" style="margin-left:auto; background:#1F5C3F; color:#fff; font-weight:800; font-size:14px; padding:6px 14px; border-radius:16px;">AUG-26</div>
+      <div id="exportMonthBadge" style="margin-left:auto; flex-shrink:0; background:#1F5C3F; color:#fff; font-weight:800; font-size:14px; padding:6px 14px; border-radius:16px;">AUG-26</div>
     </div>
 
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:22px;">
-      <div style="flex:1; background:#F1EBDA; border-radius:12px; padding:14px; text-align:center;">
-        <div style="font-size:10.5px; font-weight:800; color:#8A7A4C; text-transform:uppercase;">Old Balance</div>
-        <div id="exportOldBalance" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#6B5A2E; margin-top:4px;">₹0</div>
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; box-sizing:border-box;">
+      <div style="flex:1; min-width:0; box-sizing:border-box; background:#F1EBDA; border-radius:12px; padding:12px 8px; text-align:center;">
+        <div style="font-size:10px; font-weight:800; color:#8A7A4C; text-transform:uppercase;">Old Balance</div>
+        <div id="exportOldBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#6B5A2E; margin-top:4px;">₹0</div>
       </div>
       <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">+</div>
-      <div style="flex:1; background:#EAF4EC; border-radius:12px; padding:14px; text-align:center;">
-        <div style="font-size:10.5px; font-weight:800; color:#4C7A5A; text-transform:uppercase;">Collected</div>
-        <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#1F5C3F; margin-top:4px;">₹0</div>
+      <div style="flex:1; min-width:0; box-sizing:border-box; background:#EAF4EC; border-radius:12px; padding:12px 8px; text-align:center;">
+        <div style="font-size:10px; font-weight:800; color:#4C7A5A; text-transform:uppercase;">Collected</div>
+        <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#1F5C3F; margin-top:4px;">₹0</div>
       </div>
       <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">−</div>
-      <div style="flex:1; background:#FBECEC; border-radius:12px; padding:14px; text-align:center;">
-        <div style="font-size:10.5px; font-weight:800; color:#A15252; text-transform:uppercase;">Expenses</div>
-        <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#8C2E2E; margin-top:4px;">₹0</div>
+      <div style="flex:1; min-width:0; box-sizing:border-box; background:#FBECEC; border-radius:12px; padding:12px 8px; text-align:center;">
+        <div style="font-size:10px; font-weight:800; color:#A15252; text-transform:uppercase;">Expenses</div>
+        <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8C2E2E; margin-top:4px;">₹0</div>
       </div>
       <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">=</div>
-      <div style="flex:1; background:#FCF3DC; border-radius:12px; padding:14px; text-align:center; border:2px solid #E0A62B;">
-        <div style="font-size:10.5px; font-weight:800; color:#8A6D1F; text-transform:uppercase;">Balance</div>
-        <div id="exportBalance" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#8A6D1F; margin-top:4px;">₹0</div>
+      <div style="flex:1; min-width:0; box-sizing:border-box; background:#FCF3DC; border-radius:12px; padding:10px 8px; text-align:center; border:2px solid #E0A62B;">
+        <div style="font-size:10px; font-weight:800; color:#8A6D1F; text-transform:uppercase;">Balance</div>
+        <div id="exportBalance" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8A6D1F; margin-top:4px;">₹0</div>
       </div>
+    </div>
+
+    <div id="exportCurrentBalanceBanner" style="background:#1F5C3F; border-radius:12px; padding:12px 16px; text-align:center; margin-bottom:22px; box-sizing:border-box;">
+      <span style="font-size:11px; font-weight:800; color:#C9DACB; text-transform:uppercase;">Current Team Balance (incl. any advance paid ahead)</span>
+      <span id="exportCurrentBalance" style="font-family:'Outfit',sans-serif; font-size:19px; font-weight:800; color:#fff; margin-left:10px;">₹0</span>
     </div>
 
     <div style="display:flex; gap:24px; align-items:flex-start;">
       <div style="flex:1; min-width:0;">
         <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:8px;">💰 COLLECTIONS THIS MONTH</div>
-        <div id="exportCollectionsList" style="font-size:13px; margin-bottom:16px;"></div>
-        <div id="exportAdvanceSection" style="display:none;">
+        <div id="exportCollectionsList" style="font-size:13px;"></div>
+        <div id="exportCollectionsTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #1F5C3F; font-weight:800; font-size:13.5px; color:#1F5C3F;"></div>
+        <div id="exportAdvanceSection" style="display:none; margin-top:16px;">
           <div style="font-size:14px; font-weight:800; color:#8A6D1F; margin-bottom:8px;">🔜 ADVANCE PAYMENTS (PAID AHEAD)</div>
           <div id="exportAdvanceList" style="font-size:13px;"></div>
         </div>
@@ -984,6 +990,7 @@
       <div style="flex:1; min-width:0;">
         <div style="font-size:14px; font-weight:800; color:#8C2E2E; margin-bottom:8px;">🧾 EXPENSES THIS MONTH</div>
         <div id="exportExpensesList" style="font-size:13px;"></div>
+        <div id="exportExpensesTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #8C2E2E; font-weight:800; font-size:13.5px; color:#8C2E2E;"></div>
       </div>
     </div>
 
@@ -2735,12 +2742,15 @@ document.getElementById('exportSummaryBtn').addEventListener('click', async () =
     // Uses this month's own balance (not the latest overall) so the four boxes always add up
     // exactly: Old Balance + Collected − Expenses = Balance, even if later months already exist.
     const balanceNow = curIdx >= 0 ? chain.balances[curIdx] : oldBalance;
+    // The TRUE current balance, including any advance months already collected beyond this one.
+    const currentBalance = chain.balances.length ? chain.balances[chain.balances.length - 1] : balanceNow;
 
     document.getElementById('exportMonthBadge').textContent = monthLabel;
     document.getElementById('exportOldBalance').textContent = '₹' + oldBalance;
     document.getElementById('exportTotalCollected').textContent = '₹' + totalCollected;
     document.getElementById('exportTotalExp').textContent = '₹' + totalExp;
     document.getElementById('exportBalance').textContent = '₹' + balanceNow;
+    document.getElementById('exportCurrentBalance').textContent = '₹' + currentBalance;
     document.getElementById('exportGeneratedDate').textContent = new Date().toLocaleDateString();
 
     const collectionsRows = curIdx >= 0
@@ -2750,6 +2760,7 @@ document.getElementById('exportSummaryBtn').addEventListener('click', async () =
         </div>`).join('')
       : '';
     document.getElementById('exportCollectionsList').innerHTML = collectionsRows || '<div style="color:#A8A38C;">No collections recorded this month.</div>';
+    document.getElementById('exportCollectionsTotal').innerHTML = `<span>TOTAL</span><span>₹${totalCollected}</span>`;
 
     // Advance payments: anyone who has already paid a month beyond the current one (e.g. Sanjay
     // paying September while it's still August) — shown separately so it's not lost from the export.
@@ -2779,8 +2790,9 @@ document.getElementById('exportSummaryBtn').addEventListener('click', async () =
         <span>${formatDateForDisplay(e.date)} — ${e.head || ''}</span><span style="font-weight:800; color:#8C2E2E;">₹${e.exp}</span>
       </div>`).join('');
     document.getElementById('exportExpensesList').innerHTML = expensesRows || '<div style="color:#A8A38C;">No expenses recorded this month.</div>';
+    document.getElementById('exportExpensesTotal').innerHTML = `<span>TOTAL</span><span>₹${totalExp}</span>`;
 
-    const canvas = await html2canvas(document.getElementById('exportTemplate'), { backgroundColor: '#FFFDF7', scale: 2, useCORS: true });
+    const canvas = await html2canvas(document.getElementById('exportTemplate'), { backgroundColor: '#FFFDF7', scale: 2, useCORS: true, width: 860, windowWidth: 860 });
     const jpegUrl = canvas.toDataURL('image/jpeg', 0.92);
     const a = document.createElement('a');
     a.href = jpegUrl;
