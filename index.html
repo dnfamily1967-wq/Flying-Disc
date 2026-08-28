@@ -3016,6 +3016,15 @@ function filterContributionByCutoff(contribution) {
   const people = (contribution.people || []).map((p) => ({ name: p.name, values: keepIdx.map((i) => (p.values && p.values[i]) || '') }));
   const summary = {};
   Object.keys(contribution.summary || {}).forEach((k) => { summary[k] = keepIdx.map((i) => contribution.summary[k][i]); });
+  // The real current calendar month always shows up as a column here, even before anyone has
+  // entered anything for it — keepIdx -1 marks it as "not a real stored column yet"; saving a
+  // value against it (via the person modal) creates the real column at that point.
+  const curLabel = currentMonthLabelFor();
+  if (!months.includes(curLabel)) {
+    months.push(curLabel);
+    keepIdx.push(-1);
+    people.forEach((p) => p.values.push(''));
+  }
   return { months, people, summary, keepIdx };
 }
 
@@ -3605,10 +3614,13 @@ function openPersonModal(name) {
     ? filterContributionByCutoff(contribution)
     : { months: [currentMonthLabelFor()], people: [] };
   const filteredPerson = name ? filtered.people.find((p) => p.name === name) : null;
-  personModalMonthsEl.innerHTML = filtered.months.map((m, i) => `
+  personModalMonthsEl.innerHTML = filtered.months.map((m, i) => {
+    const existing = filteredPerson ? (filteredPerson.values[i] || '') : '';
+    return `
     <label class="modalLabel">${m}</label>
-    <input type="text" class="personMonthInput" data-month-idx="${i}" placeholder="₹ amount" value="${filteredPerson ? (filteredPerson.values[i] || '') : ''}">
-  `).join('');
+    <input type="text" class="personMonthInput" data-month-idx="${i}" placeholder="₹ amount" value="${existing || '500'}">
+  `;
+  }).join('');
   personModalOverlay.classList.add('show');
 }
 function closePersonModal() { personModalOverlay.classList.remove('show'); }
@@ -3628,10 +3640,24 @@ document.getElementById('personModalSaveBtn').addEventListener('click', () => {
     if (existing) oldValues = existing.values.slice();
   }
   const values = oldValues.slice();
+
+  // If the current real month wasn't a stored column yet (keepIdx -1, shown as a blank
+  // placeholder column in the modal), create it for real now, extending every existing person's
+  // values array to match — so the new column appears for everyone, not just whoever's being saved.
+  const curLabel = currentMonthLabelFor();
+  if (lastContributionKeepIdx.includes(-1) && !contribution.months.includes(curLabel)) {
+    contribution.months.push(curLabel);
+    contribution.people.forEach((p) => p.values.push(''));
+    oldValues.push('');
+    values.push('');
+  }
+  const realIdxForVirtual = contribution.months.indexOf(curLabel);
+
   document.querySelectorAll('.personMonthInput').forEach((inp) => {
     const filteredIdx = Number(inp.dataset.monthIdx);
-    const realIdx = lastContributionKeepIdx.length ? lastContributionKeepIdx[filteredIdx] : filteredIdx;
-    if (realIdx !== undefined) values[realIdx] = inp.value.trim();
+    let realIdx = lastContributionKeepIdx.length ? lastContributionKeepIdx[filteredIdx] : filteredIdx;
+    if (realIdx === -1) realIdx = realIdxForVirtual;
+    if (realIdx !== undefined && realIdx >= 0) values[realIdx] = inp.value.trim();
   });
 
   const removeName = personModalEditName || name;
