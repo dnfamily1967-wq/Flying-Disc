@@ -225,8 +225,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .pnameRow { display: flex; align-items: center; gap: 4px; min-width: 0; width: 100%; }
-  .pnameRow .pname { width: auto; flex: 1 1 auto; min-width: 0; }
+  .pnameRow { display: flex; align-items: center; gap: 4px; min-width: 0; width: 100%; flex-wrap: wrap; }
+  .pnameRow .pname { width: auto; flex: 1 1 auto; min-width: max-content; }
   .pbday {
     flex-shrink: 0;
     display: inline-flex;
