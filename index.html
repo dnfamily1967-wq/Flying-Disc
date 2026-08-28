@@ -1309,10 +1309,18 @@ const plistEl = document.getElementById('plist');
 // 'present' | 'absent' (unexcused, fined) | 'holiday' (approved leave, no fine)
 function normalizePlayers(list) {
   if (!Array.isArray(list)) return list;
-  return list.map(p => {
+  const mapped = list.map(p => {
     const bday = p.bday || BIRTHDAY_MAP[String(p.name || '').toUpperCase()] || null;
     if (p.status) return { ...p, bday };
     return { name: p.name, rating: p.rating, status: p.absent ? 'absent' : 'present', bday };
+  });
+  // Guard against duplicate names ever ending up in the roster (keeps the first occurrence) —
+  // a duplicate here would otherwise get double-counted every time attendance is saved.
+  const seen = new Set();
+  return mapped.filter((p) => {
+    if (seen.has(p.name)) return false;
+    seen.add(p.name);
+    return true;
   });
 }
 
@@ -2106,7 +2114,13 @@ function monthStr(d = new Date()) {
 // button (saveTodayAttendance), never automatically from an ordinary roster save.
 function saveAttendanceSnapshot() {
   const dateStr = todayStr();
-  const record = players.map(p => ({ name: p.name, status: p.status || (p.absent ? 'absent' : 'present') }));
+  const seen = new Set(); // guard: the roster shouldn't have duplicate names, but never save two rows for one if it does
+  const record = [];
+  players.forEach((p) => {
+    if (seen.has(p.name)) return;
+    seen.add(p.name);
+    record.push({ name: p.name, status: p.status || (p.absent ? 'absent' : 'present') });
+  });
   attendanceDocRef(dateStr).set({
     date: dateStr,
     players: record,
@@ -2409,7 +2423,10 @@ function computeMonthlyTotals(month, onDone, onErr) {
         if (!data.date || !data.date.startsWith(month)) return;
         if (!Array.isArray(data.players)) return;
         daysCounted++;
+        const seenToday = new Set(); // guard: never count the same name twice within one day's record
         data.players.forEach((p) => {
+          if (!p || !p.name || seenToday.has(p.name)) return;
+          seenToday.add(p.name);
           const status = normalizeAttnStatus(p);
           if (!totals[p.name]) totals[p.name] = { present: 0, absent: 0, holiday: 0, total: 0 };
           totals[p.name].total++;
