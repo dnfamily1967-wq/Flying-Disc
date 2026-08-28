@@ -140,14 +140,21 @@
     margin-bottom: 10px;
     display: block;
   }
-  .heroAvatarWrap { text-align: center; margin: -4px 0 12px; }
+  .heroAvatarWrap { text-align: center; margin: -6px 0 16px; }
+  .heroAvatarRing {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--orange) 100%);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
   .heroAvatar {
-    width: 56px;
-    height: 56px;
+    width: 84px;
+    height: 84px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2.5px solid rgba(255,255,255,0.85);
-    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+    display: block;
+    border: 3px solid var(--green-deep);
   }
   .tag {
     color: var(--orange);
@@ -245,31 +252,38 @@
     border: 1px solid var(--line);
     background: var(--green-soft, #E4F0E7);
   }
-  .loginAvatarWrap { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 10px 0 2px; }
+  .loginAvatarWrap { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 14px 0 6px; }
+  .loginAvatarRing {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--green-mid) 100%);
+    box-shadow: 0 4px 14px rgba(30,30,20,0.18);
+  }
   .loginAvatar {
-    width: 64px;
-    height: 64px;
+    width: 84px;
+    height: 84px;
     border-radius: 50%;
     background: #E4F0E7 center/cover no-repeat;
-    border: 2px solid var(--line);
+    border: 3px solid #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'Outfit', sans-serif;
-    font-size: 22px;
+    font-size: 30px;
     font-weight: 800;
     color: var(--green-deep);
   }
   .loginPhotoBtn {
     width: auto;
     margin: 0;
-    background: none;
+    background: var(--gold-soft);
     border: none;
-    color: var(--green-mid);
+    color: #8A6512;
     font-size: 12.5px;
-    font-weight: 700;
-    padding: 2px 6px;
-    text-decoration: underline;
+    font-weight: 800;
+    padding: 6px 14px;
+    border-radius: 20px;
   }
   .pnameRow .pname { width: auto; flex: 1 1 auto; min-width: max-content; }
   .pbday {
@@ -988,7 +1002,7 @@
   <button id="refreshAppBtn" class="refresh-btn" title="Clear cache & refresh app">🔄</button>
   <img src="icon-192.png" alt="Flying Disc Morning Walkers logo" class="hero-logo">
   <div class="heroAvatarWrap" id="heroAvatarWrap" style="display:none;">
-    <img class="heroAvatar" id="heroAvatarImg" alt="">
+    <div class="heroAvatarRing"><img class="heroAvatar" id="heroAvatarImg" alt=""></div>
   </div>
   <div class="hero-text">
   <div class="tag">🥏 Flying Disc</div>
@@ -1285,7 +1299,7 @@
       <label class="modalLabel">Choose your name</label>
       <select id="loginNameSelect"></select>
       <div class="loginAvatarWrap">
-        <div class="loginAvatar" id="loginAvatar"></div>
+        <div class="loginAvatarRing"><div class="loginAvatar" id="loginAvatar"></div></div>
         <button class="loginPhotoBtn" id="loginPhotoBtn" type="button">📷 Change Photo</button>
         <input type="file" id="loginPhotoInput" accept="image/*" style="display:none;">
       </div>
