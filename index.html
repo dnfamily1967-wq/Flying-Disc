@@ -733,34 +733,34 @@
   .addRow { gap: 6px; }
   .addRow input { font-size: 15px; padding: 11px 12px; border-radius: 11px; min-width: 0; }
   .addRow button { padding: 0 14px; border-radius: 11px; font-size: 14px; }
-  .pinfo { width: 116px; flex-shrink: 0; }
+  .pinfo { width: 92px; flex-shrink: 0; }
   .pname {
-    font-size: 14.5px;
+    font-size: 13px;
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .pbday { font-size: 8.5px; padding: 2px 5px; }
-  .phaLine { font-size: 10px; }
-  .rating { width: 34px; flex-shrink: 0; font-size: 13px; padding: 6px 2px; border-radius: 10px; }
-  .chip { font-size: 9.5px; padding: 7px 8px; width: auto; text-align: center; border-radius: 14px; flex-shrink: 0; }
-  .del { font-size: 18px; flex-shrink: 0; }
-  .edit { font-size: 13px; }
+  .pbday { font-size: 8px; padding: 1px 4px; }
+  .phaLine { font-size: 9px; }
+  .rating { width: 26px; flex-shrink: 0; font-size: 11px; padding: 5px 1px; border-radius: 8px; }
+  .chip { font-size: 8px; padding: 6px 5px; width: auto; text-align: center; border-radius: 12px; flex-shrink: 0; }
+  .del { font-size: 15px; flex-shrink: 0; }
+  .edit { font-size: 11px; }
   ul.plist li {
     background: #FCFBF7;
     border: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
     border-radius: 14px;
-    padding: 10px 8px;
+    padding: 8px 6px;
     margin-bottom: 7px;
     box-shadow: 0 1px 4px rgba(30,30,20,0.04);
-    flex-wrap: wrap;
-    gap: 8px 6px;
+    flex-wrap: nowrap;
+    gap: 3px;
   }
   ul.plist li:last-child { margin-bottom: 0; }
-  .ratingMid { flex: 0 1 auto; gap: 3px; }
-  .actrow { gap: 6px; flex: 1 1 auto; justify-content: flex-end; }
+  .ratingMid { flex: 0 0 auto; gap: 2px; }
+  .actrow { gap: 3px; flex: 0 0 auto; justify-content: flex-end; }
   .legend { font-size: 12.5px; }
   button { padding: 14px; font-size: 15.5px; border-radius: 13px; }
   .sortLabel { font-size: 11px; flex-shrink: 0; }
@@ -1482,6 +1482,7 @@ function completeLogin(name) {
   logLoginEvent(name);
   renderLoginLog(lastLoginLogEntries);
   claimSession(name);
+  showTab('home'); // always land on Home right after logging in, regardless of whichever tab was open before
 }
 
 function showSetPasswordStep(name) {
