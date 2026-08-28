@@ -2114,7 +2114,10 @@ function logLoginEvent(name) {
   // if two people logged in close together.
   loginLogDocRef.set({
     entries: firebase.firestore.FieldValue.arrayUnion({ name, ts: Date.now() })
-  }, { merge: true }).catch((err) => console.error('Login log failed', err));
+  }, { merge: true }).catch((err) => {
+    console.error('Login log failed', err);
+    alert('Could not record this login in the log: ' + err.message);
+  });
 }
 function renderLoginLog(entries) {
   if (!isAdmin) { loginLogCard.style.display = 'none'; return; }
