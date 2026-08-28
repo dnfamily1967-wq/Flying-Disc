@@ -1017,8 +1017,11 @@
   </div>
 
   <div class="card accent-gold" id="loginLogCard" style="display:none;">
-    <h2>🔔 RECENT LOGINS</h2>
-    <div id="loginLogResult"></div>
+    <h2 id="loginLogHeading" style="cursor:pointer; justify-content:space-between;">
+      <span>🔔 RECENT LOGINS <span id="loginLogCount"></span></span>
+      <span id="loginLogToggleIcon">▼</span>
+    </h2>
+    <div id="loginLogResult" style="display:none;"></div>
   </div>
 
   <div class="card accent-orange">
@@ -2299,7 +2302,23 @@ function renderLoginLog(entries) {
     return `<div class="fineRow"><span class="fineName">${e.name}</span><span class="fineCounts">${when}</span></div>`;
   }).join('');
   loginLogResultEl.innerHTML = rows;
+  const countEl = document.getElementById('loginLogCount');
+  if (countEl) countEl.textContent = `(${latestPerPerson.length})`;
+  applyLoginLogExpanded();
 }
+// Collapsed by default — a card with everyone's recent logins gets long fast, so it starts
+// minimized and only expands when the admin taps the heading.
+let loginLogExpanded = false;
+function applyLoginLogExpanded() {
+  const resultEl = document.getElementById('loginLogResult');
+  const iconEl = document.getElementById('loginLogToggleIcon');
+  if (resultEl) resultEl.style.display = loginLogExpanded ? '' : 'none';
+  if (iconEl) iconEl.textContent = loginLogExpanded ? '▲' : '▼';
+}
+document.getElementById('loginLogHeading').addEventListener('click', () => {
+  loginLogExpanded = !loginLogExpanded;
+  applyLoginLogExpanded();
+});
 let lastLoginLogEntries = [];
 loginLogDocRef.onSnapshot((doc) => {
   lastLoginLogEntries = doc.exists ? (doc.data().entries || []) : [];
