@@ -130,8 +130,8 @@
     cursor: pointer;
   }
   .refresh-btn:active { transform: scale(0.92); }
-  .heroTop { display: flex; align-items: flex-start; }
-  .heroLogoWrap { flex: 1; display: flex; justify-content: center; }
+  .heroTop { position: relative; text-align: center; min-height: 44px; }
+  .heroLogoWrap { display: block; }
 .hero-logo {
     width: 150px;
     height: 150px;
@@ -139,9 +139,10 @@
     object-fit: cover;
     box-shadow: 0 4px 16px rgba(0,0,0,0.32);
     display: block;
+    margin: 0 auto;
     flex-shrink: 0;
   }
-  .heroAvatarWrap { flex-shrink: 0; margin-top: -6px; }
+  .heroAvatarWrap { position: absolute; left: 0; top: -2px; }
   .heroAvatarRing {
     display: inline-flex;
     padding: 2px;
