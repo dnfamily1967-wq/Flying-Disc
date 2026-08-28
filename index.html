@@ -254,6 +254,21 @@
   }
   .myPhotoActions { display: flex; flex-direction: column; gap: 8px; flex: 1; }
   .myPhotoActions button { margin: 0; width: 100%; }
+  .loginAvatarWrap { display: flex; justify-content: center; margin: 10px 0 2px; }
+  .loginAvatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #E4F0E7 center/cover no-repeat;
+    border: 2px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Outfit', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--green-deep);
+  }
   .pnameRow .pname { width: auto; flex: 1 1 auto; min-width: max-content; }
   .pbday {
     flex-shrink: 0;
@@ -1273,6 +1288,7 @@
       <h2>🔐 LOGIN</h2>
       <label class="modalLabel">Choose your name</label>
       <select id="loginNameSelect"></select>
+      <div class="loginAvatarWrap"><div class="loginAvatar" id="loginAvatar"></div></div>
       <label class="modalLabel">Password</label>
       <input type="password" id="loginPassInput" placeholder="Password" autocomplete="off">
       <div class="err" id="loginErr">Wrong password, please try again.</div>
@@ -1500,7 +1516,23 @@ function openLoginModal() {
   loginStep1El.style.display = '';
   loginStep2El.style.display = 'none';
   loginOverlay.classList.add('show');
+  updateLoginAvatar();
 }
+
+function updateLoginAvatar() {
+  const avatar = document.getElementById('loginAvatar');
+  if (!avatar) return;
+  const name = loginNameSelect.value;
+  const p = players.find((pl) => pl.name === name);
+  if (p && p.photo) {
+    avatar.style.backgroundImage = `url("${p.photo}")`;
+    avatar.textContent = '';
+  } else {
+    avatar.style.backgroundImage = 'none';
+    avatar.textContent = name ? name.charAt(0).toUpperCase() : '?';
+  }
+}
+loginNameSelect.addEventListener('change', updateLoginAvatar);
 
 function closeLoginModal() {
   loginOverlay.classList.remove('show');
