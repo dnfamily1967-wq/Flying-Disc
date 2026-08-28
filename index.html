@@ -1082,6 +1082,13 @@
     <select id="resetPassName"></select>
     <button class="secondary" id="resetPassBtn">🔑 RESET PASSWORD</button>
   </div>
+
+  <div class="card accent-red" id="forceLogoutCard">
+    <h2>🔴 FORCE LOGOUT A PLAYER</h2>
+    <div class="legend" style="margin-top:0;">Signs a player out of every other device/browser right away — also happens automatically any time someone logs in fresh somewhere, so only one device stays logged in as them at a time.</div>
+    <select id="forceLogoutName"></select>
+    <button class="secondary" id="forceLogoutBtn" style="border-color:var(--red); color:#8C2E2E;">🔴 FORCE LOGOUT</button>
+  </div>
   </div>
 
   <div class="tabPanel" id="tab-accounts" style="display:none;">
@@ -1396,6 +1403,8 @@ function applyAdminVisibility() {
   }
   const resetPassCard = document.getElementById('resetPassCard');
   if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
+  const forceLogoutCard = document.getElementById('forceLogoutCard');
+  if (forceLogoutCard) forceLogoutCard.style.display = isAdmin ? '' : 'none';
   const resetAttnDayBtn = document.getElementById('resetAttnDayBtn');
   if (resetAttnDayBtn) resetAttnDayBtn.style.display = isFullAdmin ? '' : 'none';
   const clearOldAttnBtn = document.getElementById('clearOldAttnBtn');
@@ -1466,6 +1475,7 @@ function completeLogin(name) {
   applyLoginGate();
   logLoginEvent(name);
   renderLoginLog(lastLoginLogEntries);
+  claimSession(name);
 }
 
 function showSetPasswordStep(name) {
@@ -1744,6 +1754,15 @@ function populateBulkHolidaySelect() {
 
 function populateResetPassSelect() {
   const sel = document.getElementById('resetPassName');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+  if (current && players.some(p => p.name === current)) sel.value = current;
+  populateForceLogoutSelect();
+}
+
+function populateForceLogoutSelect() {
+  const sel = document.getElementById('forceLogoutName');
   if (!sel) return;
   const current = sel.value;
   sel.innerHTML = players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
@@ -2128,6 +2147,57 @@ loginLogDocRef.onSnapshot((doc) => {
     loginLogDocRef.set({ entries: trimmed }, { merge: true }).catch((err) => console.error('Login log trim failed', err));
   }
 }, (err) => console.error('Login log sync error', err));
+
+// ---- Single active session per person: logging in fresh anywhere claims a new session token
+// for that name; every device watches for its own token being replaced and signs itself out the
+// moment that happens — which also gives admin a "force logout" for free (just claim a new,
+// unknown token for that name and nobody currently has it).
+const sessionsDocRef = db.collection('disc_team').doc('sessions');
+function generateSessionId() {
+  return 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+}
+let mySessionId = localStorage.getItem('disc-team-session') || '';
+function claimSession(name) {
+  mySessionId = generateSessionId();
+  localStorage.setItem('disc-team-session', mySessionId);
+  sessionsDocRef.set({ [name]: mySessionId }, { merge: true }).catch((err) => console.error('Session claim failed', err));
+}
+function forceLogoutLocal(message) {
+  currentUser = '';
+  isAdmin = false;
+  isFullAdmin = false;
+  isAttendanceAdmin = false;
+  localStorage.removeItem('disc-team-user');
+  localStorage.removeItem('disc-team-session');
+  mySessionId = '';
+  applyAdminVisibility();
+  render();
+  refreshMyFineCard();
+  renderMyDuesAndBalance();
+  applyLoginGate();
+  renderLoginLog(lastLoginLogEntries);
+  if (message) alert(message);
+}
+sessionsDocRef.onSnapshot((doc) => {
+  if (!currentUser) return;
+  const serverSid = doc.exists ? doc.data()[currentUser] : null;
+  // Only act once we actually have our own claimed token to compare against — an empty
+  // mySessionId just means this tab hasn't claimed one yet (e.g. right after a page reload
+  // before completeLogin's claim finishes), not that someone else logged in.
+  if (serverSid && mySessionId && serverSid !== mySessionId) {
+    forceLogoutLocal(`You've been logged out — ${currentUser} logged in on another device/browser, or an admin logged you out.`);
+  }
+}, (err) => console.error('Session sync error', err));
+
+document.getElementById('forceLogoutBtn').addEventListener('click', () => {
+  const name = document.getElementById('forceLogoutName').value;
+  if (!name) return;
+  showConfirmModal(`Force logout ${name} from every other device/browser? They'll be signed out automatically within a few seconds if the app is open there.`, () => {
+    sessionsDocRef.set({ [name]: generateSessionId() }, { merge: true })
+      .then(() => alert(`${name} has been force-logged-out ✅`))
+      .catch((err) => { console.error('Force logout failed', err); alert('Failed: ' + err.message); });
+  });
+});
 
 // Each player's password is stored separately (default 'disc' until they change it)
 const passwordsDocRef = db.collection('disc_team').doc('passwords');
