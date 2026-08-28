@@ -957,7 +957,9 @@
     <ul class="plist" id="plist"></ul>
     <button class="secondary" id="saveBtn" style="margin-top:14px;">💾 SAVE</button>
     <div class="saved-msg" id="savedMsg">Saved ✅</div>
-    <div class="legend">Number = skill level (higher = better) · <b>absent</b> = unexcused absence · <b>holiday</b> = approved leave (never fined). A fine only applies once unexcused absences pass 10 days in a month — check the Monthly Fine Sheet in the 📊 Attendance tab for full detail.</div>
+    <button id="saveAttnBtn" style="margin-top:10px; background:var(--green-deep);">✅ SAVE TODAY'S ATTENDANCE</button>
+    <div class="saved-msg" id="savedAttnMsg">Today's attendance saved ✅</div>
+    <div class="legend">Number = skill level (higher = better) · <b>absent</b> = unexcused absence · <b>holiday</b> = approved leave (never fined). Marking present/absent/holiday above only updates the roster — tap <b>SAVE TODAY'S ATTENDANCE</b> separately once you've set everyone's status, so a day only gets recorded when you actually mean to record it. A fine only applies once unexcused absences pass 10 days in a month — check the Monthly Fine Sheet in the 📊 Attendance tab for full detail.</div>
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
   </div>
   </div>
@@ -2097,7 +2099,8 @@ function monthStr(d = new Date()) {
   return `${yyyy}-${mm}`;
 }
 
-// Every time admin presses "Save", an attendance snapshot for today's date is also saved
+// Writes today's attendance snapshot — only called from the explicit "Save today's attendance"
+// button (saveTodayAttendance), never automatically from an ordinary roster save.
 function saveAttendanceSnapshot() {
   const dateStr = todayStr();
   const record = players.map(p => ({ name: p.name, status: p.status || (p.absent ? 'absent' : 'present') }));
@@ -2130,11 +2133,6 @@ function save() {
       console.error('Cloud save failed', e);
       showSaved(); // still saved locally, so don't alarm the user
     });
-  saveAttendanceSnapshot();
-  if (attnDateInput && attnDateInput.value === todayStr()) loadAttendance(todayStr());
-  refreshMyFineCard();
-  if (monthlySheetInput && monthlySheetInput.value === monthStr()) loadMonthlySheet(monthStr());
-  refreshPlayerListPHA();
   refreshBdayBanner();
 }
 
@@ -2145,6 +2143,31 @@ function showSaved() {
   clearTimeout(savedTimer);
   savedTimer = setTimeout(() => { el.style.display = 'none'; }, 1500);
 }
+
+// Attendance is only ever recorded when this is pressed on purpose — never as a side effect of
+// an ordinary roster save (adding a player, changing a rating, etc.), so a day only shows up in
+// the Monthly Fine Sheet if someone deliberately confirmed it as an actual playing day.
+function saveTodayAttendance() {
+  if (!cloudReady) {
+    alert('Data is still loading — please wait and try again (2-3 seconds).');
+    return;
+  }
+  saveAttendanceSnapshot();
+  if (attnDateInput && attnDateInput.value === todayStr()) loadAttendance(todayStr());
+  refreshMyFineCard();
+  if (monthlySheetInput && monthlySheetInput.value === monthStr()) loadMonthlySheet(monthStr());
+  refreshPlayerListPHA();
+  showSavedAttn();
+}
+
+let savedAttnTimer;
+function showSavedAttn() {
+  const el = document.getElementById('savedAttnMsg');
+  el.style.display = 'block';
+  clearTimeout(savedAttnTimer);
+  savedAttnTimer = setTimeout(() => { el.style.display = 'none'; }, 1500);
+}
+document.getElementById('saveAttnBtn').addEventListener('click', saveTodayAttendance);
 
 document.getElementById('saveBtn').addEventListener('click', save);
 
