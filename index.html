@@ -634,6 +634,15 @@
   }
   .bdayEditRow input:focus, .bdayEditRow select:focus { outline: none; border-color: var(--green-mid); background: #fff; }
 
+  /* The global `* { max-width: 100% }` rule above squashes the fixed 860px-wide export
+     template down to the phone's narrow screen width before it's ever captured — which is
+     what caused the downloaded/shared JPG on mobile to come out with the summary boxes
+     wrapped onto separate lines instead of the wide laptop-style layout. Exempt the export
+     template and everything inside it from that global cap. */
+  #exportTemplate, #exportTemplate * {
+    max-width: none;
+  }
+
   .fineRow {
     display: flex;
     align-items: center;
