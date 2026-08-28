@@ -318,6 +318,7 @@
   }
   .chip.absent.on { background: var(--red-soft); border-color: var(--red); color: #8C2E2E; }
   .chip.holiday.on { background: var(--blue-soft); border-color: var(--blue); color: #1E4FAE; }
+  .chip:disabled { opacity: 0.55; cursor: not-allowed; }
   .chip.teamA.on { background: #E4F5E7; border-color: #2E7D42; color: #2E7D42; }
   .chip.teamB.on { background: var(--orange-soft); border-color: var(--orange); color: #C6491C; }
   .chip.draw.on { background: #EFEBDC; border-color: var(--muted); color: var(--ink); }
@@ -743,7 +744,7 @@
   .pbday { font-size: 8.5px; padding: 2px 5px; }
   .phaLine { font-size: 10px; }
   .rating { width: 40px; flex-shrink: 0; font-size: 14px; padding: 8px 3px; border-radius: 10px; }
-  .chip { font-size: 9.5px; padding: 6px 7px; width: auto; text-align: center; border-radius: 14px; flex-shrink: 0; }
+  .chip { font-size: 10px; padding: 8px 10px; width: auto; text-align: center; border-radius: 14px; flex-shrink: 0; }
   .del { font-size: 19px; flex-shrink: 0; }
   ul.plist li {
     background: #FCFBF7;
@@ -758,7 +759,7 @@
   }
   ul.plist li:last-child { margin-bottom: 0; }
   .ratingMid { flex: 1; }
-  .actrow { gap: 5px; }
+  .actrow { gap: 8px; }
   .legend { font-size: 12.5px; }
   button { padding: 14px; font-size: 15.5px; border-radius: 13px; }
   .sortLabel { font-size: 11px; flex-shrink: 0; }
@@ -784,6 +785,37 @@
     border-top: 1px solid var(--line);
     box-shadow: 0 -4px 16px rgba(20,40,25,0.10);
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  .undoToast {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    max-width: 448px;
+    margin: 0 auto;
+    z-index: 45;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  }
+  .undoToast button {
+    width: auto;
+    margin: 0;
+    background: var(--gold);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 800;
+    padding: 7px 14px;
+    border-radius: 10px;
+    flex-shrink: 0;
   }
   .navBtn {
     flex: 1;
@@ -959,6 +991,7 @@
     <div class="saved-msg" id="savedMsg">Saved ✅</div>
     <button id="saveAttnBtn" style="margin-top:10px; background:var(--green-deep);">✅ SAVE TODAY'S ATTENDANCE</button>
     <div class="saved-msg" id="savedAttnMsg">Today's attendance saved ✅</div>
+    <div class="legend" id="attnLockedNote" style="display:none; background:#FFF7E6; border:1.5px solid var(--gold); border-radius:12px; padding:10px 12px; margin-top:10px;">🔒 Today's attendance is already saved and locked here. To correct it, go to the <b>Attendance</b> tab → <b>Edit this day's attendance</b>.</div>
     <div class="legend">Number = skill level (higher = better) · <b>absent</b> = unexcused absence · <b>holiday</b> = approved leave (never fined). Marking present/absent/holiday above only updates the roster — tap <b>SAVE TODAY'S ATTENDANCE</b> separately once you've set everyone's status, so a day only gets recorded when you actually mean to record it. A fine only applies once unexcused absences pass 10 days in a month — check the Monthly Fine Sheet in the 📊 Attendance tab for full detail.</div>
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
   </div>
@@ -1161,6 +1194,11 @@
     📲 TO USE THIS LIKE AN APP ON YOUR PHONE: open your browser menu and tap <b>"Add to Home Screen"</b> or <b>"Install App"</b>.
   </div>
 
+</div>
+
+<div class="undoToast" id="undoToast">
+  <span id="undoToastMsg"></span>
+  <button id="undoToastBtn">UNDO</button>
 </div>
 
 <nav class="bottomNav" id="bottomNav">
@@ -1642,6 +1680,7 @@ function render() {
         ${bdayHtml}
       </div>`;
     if (isFullAdmin) {
+      const locked = todayAttendanceSaved;
       return `
     <li style="background:${bg}; border-left:4px solid ${border};">
       <div class="pinfo">
@@ -1652,13 +1691,14 @@ function render() {
         <input class="rating" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="9" value="${p.rating}" data-i="${i}" />
       </div>
       <div class="actrow">
-        <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
-        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday">holiday</button>
+        <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent" ${locked ? 'disabled' : ''}>absent</button>
+        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday</button>
         <button class="del" data-i="${i}" data-act="del">&times;</button>
       </div>
     </li>`;
     }
     if (isAttendanceAdmin) {
+      const locked = todayAttendanceSaved;
       return `
     <li style="background:${bg}; border-left:4px solid ${border};">
       <div class="pinfo">
@@ -1669,8 +1709,8 @@ function render() {
         <span class="rating">${p.rating}</span>
       </div>
       <div class="actrow">
-        <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
-        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday">holiday</button>
+        <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent" ${locked ? 'disabled' : ''}>absent</button>
+        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday</button>
       </div>
     </li>`;
     }
@@ -1838,10 +1878,37 @@ plistEl.addEventListener('click', (e) => {
     });
     return;
   }
-  if (act === 'absent') players[i].status = players[i].status === 'absent' ? 'present' : 'absent';
-  if (act === 'holiday') players[i].status = players[i].status === 'holiday' ? 'present' : 'holiday';
+  if (act === 'absent' || act === 'holiday') {
+    const prevStatus = players[i].status;
+    players[i].status = players[i].status === act ? 'present' : act;
+    showUndoToast(i, prevStatus, players[i].status, players[i].name);
+  }
   render();
   save();
+});
+
+// A brief "Undo" snackbar after marking someone absent/holiday — an easy safety net for an
+// accidental tap, since these chips sit close together and get pressed by mistake sometimes.
+let undoTimer = null;
+let undoState = null; // { i, prevStatus }
+function showUndoToast(i, prevStatus, newStatus, name) {
+  clearTimeout(undoTimer);
+  undoState = { i, prevStatus };
+  const el = document.getElementById('undoToast');
+  document.getElementById('undoToastMsg').textContent = newStatus === 'present'
+    ? `${name} marked present again`
+    : `${name} marked ${newStatus.toUpperCase()}`;
+  el.style.display = 'flex';
+  undoTimer = setTimeout(() => { el.style.display = 'none'; undoState = null; }, 5000);
+}
+document.getElementById('undoToastBtn').addEventListener('click', () => {
+  if (!undoState || !players[undoState.i]) { document.getElementById('undoToast').style.display = 'none'; return; }
+  players[undoState.i].status = undoState.prevStatus;
+  render();
+  save();
+  document.getElementById('undoToast').style.display = 'none';
+  clearTimeout(undoTimer);
+  undoState = null;
 });
 
 plistEl.addEventListener('change', (e) => {
@@ -2103,6 +2170,19 @@ function todayStr() {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
+
+// Once today's attendance has been saved, the Home tab's absent/holiday chips lock — any
+// further change has to go through the Attendance tab's deliberate "Edit this day's attendance"
+// flow instead, so it can't get silently overwritten by ordinary roster use for the rest of the day.
+let todayAttendanceSaved = false;
+db.collection('disc_team').doc(`attendance_${todayStr()}`).onSnapshot((doc) => {
+  todayAttendanceSaved = doc.exists;
+  const btn = document.getElementById('saveAttnBtn');
+  const note = document.getElementById('attnLockedNote');
+  if (btn) btn.style.display = todayAttendanceSaved ? 'none' : '';
+  if (note) note.style.display = todayAttendanceSaved ? '' : 'none';
+  render();
+}, (err) => console.error('Today-attendance lock check failed', err));
 
 // ---- Fine rule ----
 // A fine only applies once "unexcused absences" (not marked holiday) exceed this many days in a month.
