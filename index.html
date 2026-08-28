@@ -226,6 +226,34 @@
     text-overflow: ellipsis;
   }
   .pnameRow { display: flex; align-items: center; gap: 4px; min-width: 0; width: 100%; flex-wrap: wrap; }
+
+  .miniAvatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid var(--line);
+    background: var(--green-soft, #E4F0E7);
+  }
+  .myPhotoRow { display: flex; align-items: center; gap: 16px; }
+  .myPhotoAvatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #E4F0E7 center/cover no-repeat;
+    border: 2px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Outfit', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--green-deep);
+  }
+  .myPhotoActions { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .myPhotoActions button { margin: 0; width: 100%; }
   .pnameRow .pname { width: auto; flex: 1 1 auto; min-width: max-content; }
   .pbday {
     flex-shrink: 0;
@@ -968,6 +996,18 @@
     <div id="myDuesResult"></div>
   </div>
 
+  <div class="card accent-green" id="myPhotoCard" style="display:none;">
+    <h2>👤 MY PHOTO</h2>
+    <div class="myPhotoRow">
+      <div class="myPhotoAvatar" id="myPhotoAvatar"></div>
+      <div class="myPhotoActions">
+        <button class="secondary" id="myPhotoBtn">📷 Change Photo</button>
+        <button class="secondary" id="myPhotoRemoveBtn" style="display:none; border-color:var(--red); color:#8C2E2E;">Remove Photo</button>
+      </div>
+    </div>
+    <input type="file" id="myPhotoInput" accept="image/*" style="display:none;">
+  </div>
+
   <div class="card accent-gold" id="loginLogCard" style="display:none;">
     <h2>🔔 RECENT LOGINS</h2>
     <div id="loginLogResult"></div>
@@ -1478,6 +1518,7 @@ function completeLogin(name) {
   render();
   refreshMyFineCard();
   renderMyDuesAndBalance();
+  renderMyPhotoCard();
   applyLoginGate();
   logLoginEvent(name);
   renderLoginLog(lastLoginLogEntries);
@@ -1518,6 +1559,7 @@ document.getElementById('adminBtn').addEventListener('click', () => {
       render();
       refreshMyFineCard();
       renderMyDuesAndBalance();
+      renderMyPhotoCard();
       applyLoginGate();
       renderLoginLog(lastLoginLogEntries);
     }
@@ -1691,8 +1733,10 @@ function render() {
     const pha = monthlyPHA[p.name] || { present: 0, absent: 0, holiday: 0, total: 0 };
     const phaHtml = `<span class="circleRow"><span class="miniCircle mc-green">${pha.present}</span><span class="miniCircle mc-yellow">${pha.holiday}</span><span class="miniCircle mc-red">${pha.absent}</span></span>`;
     const bdayHtml = p.bday ? `<span class="pbday">🎂${formatBdayShort(p.bday)}</span>` : '';
+    const avatarHtml = p.photo ? `<img class="miniAvatar" src="${p.photo}" alt="">` : '';
     const nameRowHtml = `
       <div class="pnameRow">
+        ${avatarHtml}
         <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
         ${bdayHtml}
       </div>`;
@@ -1892,6 +1936,78 @@ function refreshBdayBanner() {
   bdayBannerEl.innerHTML = `<div class="bbTitle">Birthday Alert</div>${rows}`;
   bdayBannerEl.style.display = 'block';
 }
+
+// ---- My Photo: any logged-in player can upload/change their own profile photo. Stored as a
+// compressed base64 JPEG directly on their entry in the players list (no separate file storage
+// needed) — resized small client-side so it stays well within Firestore's document size limit
+// even with everyone's photo saved in the same doc.
+function renderMyPhotoCard() {
+  const card = document.getElementById('myPhotoCard');
+  const avatar = document.getElementById('myPhotoAvatar');
+  const removeBtn = document.getElementById('myPhotoRemoveBtn');
+  if (!card || !avatar) return;
+  if (!currentUser) { card.style.display = 'none'; return; }
+  const me = players.find((p) => p.name === currentUser.toUpperCase());
+  card.style.display = '';
+  if (me && me.photo) {
+    avatar.style.backgroundImage = `url("${me.photo}")`;
+    avatar.textContent = '';
+    if (removeBtn) removeBtn.style.display = '';
+  } else {
+    avatar.style.backgroundImage = 'none';
+    avatar.textContent = currentUser ? currentUser.charAt(0).toUpperCase() : '?';
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+}
+
+document.getElementById('myPhotoBtn').addEventListener('click', () => {
+  document.getElementById('myPhotoInput').click();
+});
+
+document.getElementById('myPhotoInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file || !currentUser) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const img = new Image();
+    img.onload = () => {
+      // Crop to a centered square, then downscale to a small fixed size — keeps every photo tiny.
+      const SIZE = 160;
+      const canvas = document.createElement('canvas');
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      const ctx = canvas.getContext('2d');
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2;
+      const sy = (img.height - side) / 2;
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      const i = players.findIndex((p) => p.name === currentUser.toUpperCase());
+      if (i === -1) { alert('Could not find your player entry.'); return; }
+      players[i].photo = dataUrl;
+      render();
+      save();
+      renderMyPhotoCard();
+    };
+    img.onerror = () => alert('Could not read that image — please try a different photo.');
+    img.src = evt.target.result;
+  };
+  reader.onerror = () => alert('Could not read that file.');
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('myPhotoRemoveBtn').addEventListener('click', () => {
+  if (!currentUser) return;
+  showConfirmModal('Remove your photo?', () => {
+    const i = players.findIndex((p) => p.name === currentUser.toUpperCase());
+    if (i === -1) return;
+    delete players[i].photo;
+    render();
+    save();
+    renderMyPhotoCard();
+  });
+});
 
 let editingRatingIdx = null; // which row's skill number is currently unlocked for editing (null = none)
 plistEl.addEventListener('click', (e) => {
@@ -2203,6 +2319,7 @@ function forceLogoutLocal(message) {
   render();
   refreshMyFineCard();
   renderMyDuesAndBalance();
+  renderMyPhotoCard();
   applyLoginGate();
   renderLoginLog(lastLoginLogEntries);
   if (message) alert(message);
@@ -3876,6 +3993,7 @@ loadMonthlySheet(monthlySheetInput.value); // show this month's fine sheet on op
 refreshMyFineCard(); // show logged-in player's own fine status at the top
 refreshPlayerListPHA(); // show P/A/H mini-stats next to every player's name
 refreshBdayBanner(); // show today's/upcoming birthday alert (if any) as soon as the app opens
+renderMyPhotoCard(); // show the logged-in player's own photo card (if already logged in from before)
 loadAccounts(); // show the latest uploaded accounts (contributions + expenses) as soon as the app opens
 
 const todayDateLineEl = document.getElementById('todayDateLine');
