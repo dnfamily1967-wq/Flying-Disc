@@ -1011,6 +1011,7 @@
     </div>
     <div class="attnBlock" id="attnResult"></div>
     <button class="secondary" id="resetAttnDayBtn" style="display:none; margin-top:10px; border-color:var(--red); color:#8C2E2E;">🗑️ RESET THIS DAY'S ATTENDANCE</button>
+    <button class="secondary" id="clearOldAttnBtn" style="display:none; margin-top:10px; border-color:var(--red); color:#8C2E2E;">🧹 CLEAR ALL ATTENDANCE BEFORE TODAY</button>
     <button class="secondary" id="editAttnDayBtn" style="display:none; margin-top:10px;">✏️ EDIT THIS DAY'S ATTENDANCE</button>
     <div id="editAttnPanel" style="display:none; margin-top:14px;">
       <div class="legend" style="margin-top:0;">Tap a player's status to correct it for this date, then save. Useful for fixing a mistake after the fact.</div>
@@ -1351,6 +1352,8 @@ function applyAdminVisibility() {
   if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
   const resetAttnDayBtn = document.getElementById('resetAttnDayBtn');
   if (resetAttnDayBtn) resetAttnDayBtn.style.display = isFullAdmin ? '' : 'none';
+  const clearOldAttnBtn = document.getElementById('clearOldAttnBtn');
+  if (clearOldAttnBtn) clearOldAttnBtn.style.display = isFullAdmin ? '' : 'none';
   const editAttnDayBtn = document.getElementById('editAttnDayBtn');
   if (editAttnDayBtn) editAttnDayBtn.style.display = isAdmin ? '' : 'none';
   if (!isAdmin) { const p = document.getElementById('editAttnPanel'); if (p) p.style.display = 'none'; }
@@ -2281,6 +2284,44 @@ document.getElementById('resetAttnDayBtn').addEventListener('click', () => {
       .catch((e) => {
         console.error('Attendance reset failed', e);
         alert('Reset failed: ' + e.message);
+      });
+  });
+});
+
+// ---- Admin: bulk-clear every attendance record dated before today — for wiping out days that
+// got auto-recorded before deliberate day-by-day tracking (the "Save today's attendance" button)
+// started being used.
+function clearAttendanceBeforeToday() {
+  const today = todayStr();
+  return db.collection('disc_team')
+    .where(firebase.firestore.FieldPath.documentId(), '>=', 'attendance_')
+    .where(firebase.firestore.FieldPath.documentId(), '<', 'attendance_\uf8ff')
+    .get()
+    .then((snap) => {
+      const toDelete = [];
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (data.date && data.date < today) toDelete.push(doc.ref);
+      });
+      if (!toDelete.length) return 0;
+      const batch = db.batch();
+      toDelete.forEach((ref) => batch.delete(ref));
+      return batch.commit().then(() => toDelete.length);
+    });
+}
+document.getElementById('clearOldAttnBtn').addEventListener('click', () => {
+  showConfirmModal(`Delete every attendance record dated before today (${todayStr()})? Use this to wipe out days that got recorded before you started deliberately tracking attendance. This cannot be undone.`, () => {
+    clearAttendanceBeforeToday()
+      .then((n) => {
+        alert(n ? `Removed ${n} old attendance record(s) ✅` : 'No records found before today.');
+        if (attnDateInput && attnDateInput.value) loadAttendance(attnDateInput.value);
+        refreshMyFineCard();
+        if (monthlySheetInput && monthlySheetInput.value) loadMonthlySheet(monthlySheetInput.value);
+        refreshPlayerListPHA();
+      })
+      .catch((e) => {
+        console.error('Bulk attendance clear failed', e);
+        alert('Failed: ' + e.message);
       });
   });
 });
