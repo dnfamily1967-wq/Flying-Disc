@@ -140,6 +140,15 @@
     margin-bottom: 10px;
     display: block;
   }
+  .heroAvatarWrap { text-align: center; margin: -4px 0 12px; }
+  .heroAvatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2.5px solid rgba(255,255,255,0.85);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+  }
   .tag {
     color: var(--orange);
     font-weight: 700;
@@ -985,6 +994,9 @@
   <button id="adminBtn" class="admin-btn">Admin</button>
   <button id="refreshAppBtn" class="refresh-btn" title="Clear cache & refresh app">🔄</button>
   <img src="icon-192.png" alt="Flying Disc Morning Walkers logo" class="hero-logo">
+  <div class="heroAvatarWrap" id="heroAvatarWrap" style="display:none;">
+    <img class="heroAvatar" id="heroAvatarImg" alt="">
+  </div>
   <div class="hero-text">
   <div class="tag">🥏 Flying Disc</div>
   <h1>Morning Walkers</h1>
@@ -1977,18 +1989,26 @@ function renderMyPhotoCard() {
   const card = document.getElementById('myPhotoCard');
   const avatar = document.getElementById('myPhotoAvatar');
   const removeBtn = document.getElementById('myPhotoRemoveBtn');
+  const heroWrap = document.getElementById('heroAvatarWrap');
+  const heroImg = document.getElementById('heroAvatarImg');
   if (!card || !avatar) return;
-  if (!currentUser) { card.style.display = 'none'; return; }
+  if (!currentUser) {
+    card.style.display = 'none';
+    if (heroWrap) heroWrap.style.display = 'none';
+    return;
+  }
   const me = players.find((p) => p.name === currentUser.toUpperCase());
   card.style.display = '';
   if (me && me.photo) {
     avatar.style.backgroundImage = `url("${me.photo}")`;
     avatar.textContent = '';
     if (removeBtn) removeBtn.style.display = '';
+    if (heroWrap && heroImg) { heroImg.src = me.photo; heroWrap.style.display = ''; }
   } else {
     avatar.style.backgroundImage = 'none';
     avatar.textContent = currentUser ? currentUser.charAt(0).toUpperCase() : '?';
     if (removeBtn) removeBtn.style.display = 'none';
+    if (heroWrap) heroWrap.style.display = 'none';
   }
 }
 
