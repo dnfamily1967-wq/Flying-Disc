@@ -2090,18 +2090,21 @@ const loginLogDocRef = db.collection('disc_team').doc('loginLog');
 const loginLogCard = document.getElementById('loginLogCard');
 const loginLogResultEl = document.getElementById('loginLogResult');
 function logLoginEvent(name) {
-  loginLogDocRef.get().then((doc) => {
-    const entries = (doc.exists && Array.isArray(doc.data().entries)) ? doc.data().entries : [];
-    entries.unshift({ name, ts: Date.now() });
-    return loginLogDocRef.set({ entries: entries.slice(0, 50) }, { merge: true });
-  }).catch((err) => console.error('Login log failed', err));
+  // Atomic append (no read-then-write) so two logins landing at nearly the same moment can never
+  // silently overwrite each other — the previous get()-then-set() approach could lose an entry
+  // if two people logged in close together.
+  loginLogDocRef.set({
+    entries: firebase.firestore.FieldValue.arrayUnion({ name, ts: Date.now() })
+  }, { merge: true }).catch((err) => console.error('Login log failed', err));
 }
 function renderLoginLog(entries) {
   if (!isAdmin) { loginLogCard.style.display = 'none'; return; }
   if (!entries || !entries.length) { loginLogCard.style.display = 'none'; return; }
-  // entries are newest-first, so keeping only the first occurrence of each name gives their latest login
+  // Sort newest-first explicitly (arrayUnion appends, it doesn't guarantee order), then keep
+  // only the first occurrence of each name for their latest login.
+  const sorted = entries.slice().sort((a, b) => b.ts - a.ts);
   const seen = new Set();
-  const latestPerPerson = entries.filter((e) => {
+  const latestPerPerson = sorted.filter((e) => {
     if (seen.has(e.name)) return false;
     seen.add(e.name);
     return true;
@@ -2118,6 +2121,12 @@ let lastLoginLogEntries = [];
 loginLogDocRef.onSnapshot((doc) => {
   lastLoginLogEntries = doc.exists ? (doc.data().entries || []) : [];
   renderLoginLog(lastLoginLogEntries);
+  // Housekeeping: with no more per-write capping, occasionally trim the stored array so it
+  // doesn't grow forever (isAdmin-gated so only an admin's browser ever does this write).
+  if (isAdmin && lastLoginLogEntries.length > 300) {
+    const trimmed = lastLoginLogEntries.slice().sort((a, b) => b.ts - a.ts).slice(0, 150);
+    loginLogDocRef.set({ entries: trimmed }, { merge: true }).catch((err) => console.error('Login log trim failed', err));
+  }
 }, (err) => console.error('Login log sync error', err));
 
 // Each player's password is stored separately (default 'disc' until they change it)
