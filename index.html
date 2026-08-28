@@ -286,7 +286,7 @@
   .badge-present { background: #E4F5E7; color: #2E7D42; }
   .badge-absent { background: var(--red-soft); color: #8C2E2E; }
   .badge-holiday { background: var(--blue-soft); color: #1E4FAE; }
-  .ratingMid { display: flex; align-items: center; justify-content: center; flex: 1; }
+  .ratingMid { display: flex; align-items: center; justify-content: center; flex: 1; gap: 4px; }
   .actrow { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
   .rating {
@@ -1696,6 +1696,9 @@ function render() {
       </div>`;
     if (isFullAdmin) {
       const locked = todayAttendanceSaved;
+      const ratingHtml = (editingRatingIdx === i)
+        ? `<input class="rating" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="9" value="${p.rating}" data-i="${i}" autofocus />`
+        : `<span class="rating ratingLocked" data-i="${i}">${p.rating}</span><button class="edit ratingEditBtn" data-i="${i}" title="Edit skill level">✏️</button>`;
       return `
     <li style="background:${bg}; border-left:4px solid ${border};">
       <div class="pinfo">
@@ -1703,7 +1706,7 @@ function render() {
         ${phaHtml}
       </div>
       <div class="ratingMid">
-        <input class="rating" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="9" value="${p.rating}" data-i="${i}" />
+        ${ratingHtml}
       </div>
       <div class="actrow">
         <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent" ${locked ? 'disabled' : ''}>absent</button>
@@ -1888,9 +1891,15 @@ function refreshBdayBanner() {
   bdayBannerEl.style.display = 'block';
 }
 
+let editingRatingIdx = null; // which row's skill number is currently unlocked for editing (null = none)
 plistEl.addEventListener('click', (e) => {
   const btn = e.target.closest('button');
   if (!btn) return;
+  if (btn.classList.contains('ratingEditBtn')) {
+    editingRatingIdx = Number(btn.dataset.i);
+    render();
+    return;
+  }
   const i = Number(btn.dataset.i);
   const act = btn.dataset.act;
   if (act === 'del') {
@@ -1941,9 +1950,19 @@ plistEl.addEventListener('change', (e) => {
   let val = parseInt(e.target.value, 10);
   if (isNaN(val) || val < 1) val = 1;
   players[i].rating = val;
+  editingRatingIdx = null; // lock it again once a value is actually committed
   render();
   save();
 });
+// blur doesn't bubble, so this needs the capture phase — re-locks the row if admin taps away
+// without changing anything (change wouldn't fire in that case).
+plistEl.addEventListener('blur', (e) => {
+  if (!e.target.classList || !e.target.classList.contains('rating')) return;
+  if (editingRatingIdx !== null) {
+    editingRatingIdx = null;
+    render();
+  }
+}, true);
 
 function addPlayer() {
   const name = nameInput.value.trim();
