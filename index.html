@@ -1011,7 +1011,7 @@
     </div>
     <div class="attnBlock" id="attnResult"></div>
     <button class="secondary" id="resetAttnDayBtn" style="display:none; margin-top:10px; border-color:var(--red); color:#8C2E2E;">🗑️ RESET THIS DAY'S ATTENDANCE</button>
-    <button class="secondary" id="clearOldAttnBtn" style="display:none; margin-top:10px; border-color:var(--red); color:#8C2E2E;">🧹 CLEAR ALL ATTENDANCE BEFORE TODAY</button>
+    <button class="secondary" id="clearOldAttnBtn" style="display:none; margin-top:10px; border-color:var(--red); color:#8C2E2E;">🧹 CLEAR ALL ATTENDANCE RECORDS</button>
     <button class="secondary" id="editAttnDayBtn" style="display:none; margin-top:10px;">✏️ EDIT THIS DAY'S ATTENDANCE</button>
     <div id="editAttnPanel" style="display:none; margin-top:14px;">
       <div class="legend" style="margin-top:0;">Tap a player's status to correct it for this date, then save. Useful for fixing a mistake after the fact.</div>
@@ -2032,8 +2032,15 @@ function logLoginEvent(name) {
 function renderLoginLog(entries) {
   if (!isAdmin) { loginLogCard.style.display = 'none'; return; }
   if (!entries || !entries.length) { loginLogCard.style.display = 'none'; return; }
+  // entries are newest-first, so keeping only the first occurrence of each name gives their latest login
+  const seen = new Set();
+  const latestPerPerson = entries.filter((e) => {
+    if (seen.has(e.name)) return false;
+    seen.add(e.name);
+    return true;
+  });
   loginLogCard.style.display = '';
-  const rows = entries.slice(0, 15).map((e) => {
+  const rows = latestPerPerson.slice(0, 20).map((e) => {
     const d = new Date(e.ts);
     const when = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     return `<div class="fineRow"><span class="fineName">${e.name}</span><span class="fineCounts">${when}</span></div>`;
@@ -2302,32 +2309,25 @@ document.getElementById('resetAttnDayBtn').addEventListener('click', () => {
   });
 });
 
-// ---- Admin: bulk-clear every attendance record dated before today — for wiping out days that
-// got auto-recorded before deliberate day-by-day tracking (the "Save today's attendance" button)
-// started being used.
-function clearAttendanceBeforeToday() {
-  const today = todayStr();
+// ---- Admin: wipe every attendance record (past, today, and any future ones the old Bulk
+// Holiday bug pre-created) for a clean restart of deliberate day-by-day tracking.
+function clearAllAttendance() {
   return db.collection('disc_team')
     .where(firebase.firestore.FieldPath.documentId(), '>=', 'attendance_')
     .where(firebase.firestore.FieldPath.documentId(), '<', 'attendance_\uf8ff')
     .get()
     .then((snap) => {
-      const toDelete = [];
-      snap.forEach((doc) => {
-        const data = doc.data();
-        if (data.date && data.date < today) toDelete.push(doc.ref);
-      });
-      if (!toDelete.length) return 0;
+      if (snap.empty) return 0;
       const batch = db.batch();
-      toDelete.forEach((ref) => batch.delete(ref));
-      return batch.commit().then(() => toDelete.length);
+      snap.forEach((doc) => batch.delete(doc.ref));
+      return batch.commit().then(() => snap.size);
     });
 }
 document.getElementById('clearOldAttnBtn').addEventListener('click', () => {
-  showConfirmModal(`Delete every attendance record dated before today (${todayStr()})? Use this to wipe out days that got recorded before you started deliberately tracking attendance. This cannot be undone.`, () => {
-    clearAttendanceBeforeToday()
+  showConfirmModal(`Delete every attendance record (past, today, and any future ones) for a clean restart? This cannot be undone.`, () => {
+    clearAllAttendance()
       .then((n) => {
-        alert(n ? `Removed ${n} old attendance record(s) ✅` : 'No records found before today.');
+        alert(n ? `Removed ${n} attendance record(s) ✅` : 'No attendance records found.');
         if (attnDateInput && attnDateInput.value) loadAttendance(attnDateInput.value);
         refreshMyFineCard();
         if (monthlySheetInput && monthlySheetInput.value) loadMonthlySheet(monthlySheetInput.value);
@@ -2561,7 +2561,10 @@ async function bulkSetHoliday(name, startStr, endStr) {
         if (i >= 0) record[i].status = 'holiday';
         else record.push({ name, status: 'holiday' });
       } else {
-        record = players.map(p => ({ name: p.name, status: p.name === name ? 'holiday' : 'present' }));
+        // No real attendance exists for this day — only record this one person's holiday.
+        // Fabricating "present" for everyone else here was exactly what inflated attendance
+        // counts on days (including future ones) that were never actually played.
+        record = [{ name, status: 'holiday' }];
       }
       await ref.set({ date: dateStr, players: record, savedAt: Date.now() });
     } catch (e) {
