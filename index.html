@@ -1262,6 +1262,11 @@
     <label class="modalLabel">Name</label>
     <input type="text" id="personModalName" placeholder="Player name">
     <div class="modalScroll" id="personModalMonths"></div>
+    <label class="modalLabel">Add a payment for another month</label>
+    <div class="addRow">
+      <input type="month" id="personAddMonthInput">
+      <button class="secondary" id="personAddMonthBtn" type="button">+ ADD</button>
+    </div>
     <div class="modalBtnRow">
       <button class="secondary" id="personModalCancelBtn" type="button">✖ CANCEL</button>
       <button id="personModalSaveBtn" type="button">💾 SAVE</button>
@@ -3605,24 +3610,74 @@ const personModalNameInput = document.getElementById('personModalName');
 const personModalMonthsEl = document.getElementById('personModalMonths');
 let personModalEditName = null; // null = adding a new person; otherwise the original name being edited
 
+let personModalBaseLabels = []; // the normally-visible months (current + any pending/flagged), fixed for this modal session
+let personModalExtraMonths = []; // months the admin explicitly added via the month-picker this session — always default to 500
+
 function openPersonModal(name) {
   personModalEditName = name || null;
   personModalTitleEl.textContent = name ? `✏️ EDIT ${name}` : '➕ ADD PERSON';
   personModalNameInput.value = name || '';
+  personModalExtraMonths = [];
   const contribution = accountsData && accountsData.contribution;
   const filtered = (contribution && contribution.months && contribution.months.length)
     ? filterContributionByCutoff(contribution)
     : { months: [currentMonthLabelFor()], people: [] };
   const filteredPerson = name ? filtered.people.find((p) => p.name === name) : null;
-  personModalMonthsEl.innerHTML = filtered.months.map((m, i) => {
-    const existing = filteredPerson ? (filteredPerson.values[i] || '') : '';
-    return `
-    <label class="modalLabel">${m}</label>
-    <input type="text" class="personMonthInput" data-month-idx="${i}" placeholder="₹ amount" value="${existing || '500'}">
-  `;
-  }).join('');
+  // The quick-entry form normally only shows: the real current month (always, even if paid, so
+  // it can be corrected), and any earlier month still pending for this person. A month that's
+  // already fully paid drops off the form once settled, and a future month never shows up here
+  // by default — but admin can deliberately add ANY month (e.g. someone paying in advance) using
+  // the month-picker below, which always defaults to 500 like a normal collection entry.
+  const curIdx = currentMonthIndex(filtered);
+  personModalBaseLabels = filtered.months.filter((m, i) => {
+    if (curIdx === -1) return true; // no real "current month" found — show everything as a fallback
+    if (i === curIdx) return true;
+    const val = filteredPerson ? filteredPerson.values[i] : '';
+    if (i > curIdx) return isMonthPaid(val); // a future month only shows up by default to review/fix an existing entry
+    return !isMonthPaid(val); // a past month only shows up by default while still pending
+  });
+  renderPersonModalMonthFields();
   personModalOverlay.classList.add('show');
 }
+
+function renderPersonModalMonthFields() {
+  const contribution = accountsData && accountsData.contribution;
+  const filtered = (contribution && contribution.months && contribution.months.length)
+    ? filterContributionByCutoff(contribution)
+    : { months: [], people: [] };
+  const filteredPerson = personModalEditName ? filtered.people.find((p) => p.name === personModalEditName) : null;
+  const curIdx = currentMonthIndex(filtered);
+  const labels = personModalBaseLabels.concat(personModalExtraMonths.filter((m) => !personModalBaseLabels.includes(m)));
+  personModalMonthsEl.innerHTML = labels.length ? labels.map((label) => {
+    const idx = filtered.months.indexOf(label);
+    const existing = (idx >= 0 && filteredPerson) ? (filteredPerson.values[idx] || '') : '';
+    // A future month only defaults to 500 if the admin deliberately added it via the picker —
+    // one auto-shown for review (because it already had a stray value) keeps its real value.
+    const isAutoShownFuture = curIdx !== -1 && idx > curIdx && !personModalExtraMonths.includes(label);
+    const val = isAutoShownFuture ? existing : (existing || '500');
+    return `
+    <label class="modalLabel">${label}</label>
+    <input type="text" class="personMonthInput" data-month-label="${label}" placeholder="₹ amount" value="${val}">
+  `;
+  }).join('') : '<div class="legend" style="margin-top:0;">✅ All dues settled — nothing to collect right now.</div>';
+}
+
+function monthInputValueToLabel(value) {
+  const m = String(value || '').match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  const monthIdx = Number(m[2]) - 1;
+  if (monthIdx < 0 || monthIdx > 11) return null;
+  return MONTH_NAMES_3[monthIdx] + '-' + String(Number(m[1])).slice(-2);
+}
+document.getElementById('personAddMonthBtn').addEventListener('click', () => {
+  const label = monthInputValueToLabel(document.getElementById('personAddMonthInput').value);
+  if (!label) { alert('Please pick a month first.'); return; }
+  if (!personModalBaseLabels.includes(label) && !personModalExtraMonths.includes(label)) {
+    personModalExtraMonths.push(label);
+  }
+  renderPersonModalMonthFields();
+});
+
 function closePersonModal() { personModalOverlay.classList.remove('show'); }
 document.getElementById('addPersonBtn').addEventListener('click', () => openPersonModal(null));
 document.getElementById('personModalCancelBtn').addEventListener('click', closePersonModal);
@@ -3641,23 +3696,20 @@ document.getElementById('personModalSaveBtn').addEventListener('click', () => {
   }
   const values = oldValues.slice();
 
-  // If the current real month wasn't a stored column yet (keepIdx -1, shown as a blank
-  // placeholder column in the modal), create it for real now, extending every existing person's
-  // values array to match — so the new column appears for everyone, not just whoever's being saved.
-  const curLabel = currentMonthLabelFor();
-  if (lastContributionKeepIdx.includes(-1) && !contribution.months.includes(curLabel)) {
-    contribution.months.push(curLabel);
-    contribution.people.forEach((p) => p.values.push(''));
-    oldValues.push('');
-    values.push('');
-  }
-  const realIdxForVirtual = contribution.months.indexOf(curLabel);
-
+  // Every field is identified by its month label — find its real column, creating a brand new
+  // one (and extending every other person's row to match) the first time that month is used, so
+  // it appears as a proper column for everyone, not just whoever's being saved right now.
   document.querySelectorAll('.personMonthInput').forEach((inp) => {
-    const filteredIdx = Number(inp.dataset.monthIdx);
-    let realIdx = lastContributionKeepIdx.length ? lastContributionKeepIdx[filteredIdx] : filteredIdx;
-    if (realIdx === -1) realIdx = realIdxForVirtual;
-    if (realIdx !== undefined && realIdx >= 0) values[realIdx] = inp.value.trim();
+    const label = inp.dataset.monthLabel;
+    let idx = contribution.months.indexOf(label);
+    if (idx === -1) {
+      contribution.months.push(label);
+      contribution.people.forEach((p) => p.values.push(''));
+      oldValues.push('');
+      values.push('');
+      idx = contribution.months.length - 1;
+    }
+    values[idx] = inp.value.trim();
   });
 
   const removeName = personModalEditName || name;
