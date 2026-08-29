@@ -1051,6 +1051,16 @@
       <input id="nameInput" placeholder="Player name" />
       <button id="addBtn">Add</button>
     </div>
+    <div class="addRow" style="margin-top:8px;">
+      <input type="number" id="nameBdayDay" placeholder="Birth day (optional)" min="1" max="31">
+      <select id="nameBdayMonth">
+        <option value="">Birth month</option>
+        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+      </select>
+    </div>
     </div>
     <div class="sortRow">
       <span class="sortLabel">SORT:</span>
@@ -1098,10 +1108,19 @@
   </div>
 
   <div class="card accent-gold" id="bdayCard">
-    <h2>🎂 BIRTHDAYS</h2>
-    <div class="legend" id="bdayEditHint" style="margin-top:0; display:none;">Set each player's birth day &amp; month below, then save. Everyone gets an alert on the app starting 7 days before.</div>
-    <ul class="bdayList" id="bdayList"></ul>
-    <button id="saveBdayBtn" style="margin-top:12px; display:none;">💾 SAVE BIRTHDAYS</button>
+    <h2 id="bdayHeading" style="cursor:pointer; justify-content:space-between;">
+      <span>🎂 BIRTHDAYS</span>
+      <span id="bdayToggleIcon">▼</span>
+    </h2>
+    <div id="bdayBody" style="display:none;">
+      <div class="legend" id="bdayEditHint" style="margin-top:0; display:none;">Set each player's birth day &amp; month below, then save. Everyone gets an alert on the app starting 7 days before.</div>
+      <button class="secondary" id="editBdayBtn" style="display:none; margin-bottom:10px;">✏️ EDIT BIRTHDAYS</button>
+      <ul class="bdayList" id="bdayList"></ul>
+      <div id="bdaySaveRow" style="display:none; gap:8px; margin-top:12px;" class="modalBtnRow">
+        <button class="secondary" id="cancelBdayBtn" type="button">✖ CANCEL</button>
+        <button id="saveBdayBtn" type="button">💾 SAVE BIRTHDAYS</button>
+      </div>
+    </div>
   </div>
   </div>
 
@@ -1879,6 +1898,8 @@ const bdayListEl = document.getElementById('bdayList');
 const bdayBannerEl = document.getElementById('bdayBanner');
 const saveBdayBtn = document.getElementById('saveBdayBtn');
 const bdayEditHintEl = document.getElementById('bdayEditHint');
+let bdayEditMode = false; // locked (read-only) by default — admin has to tap "Edit Birthdays" on purpose
+let bdayEditSnapshot = null; // players' bday values as they were when edit mode opened, for Cancel
 
 function formatBday(b) {
   if (!b || !b.d || !b.m) return '';
@@ -1905,8 +1926,11 @@ function daysUntilBday(b) {
 function renderBirthdays() {
   if (!bdayListEl) return;
   const canEdit = isFullAdmin;
-  saveBdayBtn.style.display = canEdit ? '' : 'none';
-  bdayEditHintEl.style.display = canEdit ? '' : 'none';
+  const editBtn = document.getElementById('editBdayBtn');
+  const saveRow = document.getElementById('bdaySaveRow');
+  if (editBtn) editBtn.style.display = (canEdit && !bdayEditMode) ? '' : 'none';
+  saveRow.style.display = (canEdit && bdayEditMode) ? 'flex' : 'none';
+  bdayEditHintEl.style.display = (canEdit && bdayEditMode) ? '' : 'none';
 
   const sorted = players.map((p, i) => ({ p, i, days: daysUntilBday(p.bday) }))
     .sort((a, b) => {
@@ -1917,7 +1941,7 @@ function renderBirthdays() {
     });
 
   bdayListEl.innerHTML = sorted.map(({ p, i, days }) => {
-    if (canEdit) {
+    if (canEdit && bdayEditMode) {
       const monthOptions = MONTH_SHORT.map((mn, mi) =>
         `<option value="${mi + 1}" ${p.bday && p.bday.m === mi + 1 ? 'selected' : ''}>${mn}</option>`
       ).join('');
@@ -1959,13 +1983,49 @@ bdayListEl && bdayListEl.addEventListener('change', (e) => {
   players[i].bday = (bday.d && bday.m) ? bday : null;
 });
 
+document.getElementById('editBdayBtn').addEventListener('click', () => {
+  bdayEditSnapshot = players.map((p) => (p.bday ? { ...p.bday } : null));
+  bdayEditMode = true;
+  renderBirthdays();
+});
+
+document.getElementById('cancelBdayBtn').addEventListener('click', () => {
+  if (bdayEditSnapshot) {
+    players.forEach((p, i) => { p.bday = bdayEditSnapshot[i] ? { ...bdayEditSnapshot[i] } : null; });
+  }
+  bdayEditMode = false;
+  bdayEditSnapshot = null;
+  renderBirthdays();
+});
+
 saveBdayBtn && saveBdayBtn.addEventListener('click', () => {
   if (!cloudReady) { alert('Data is still loading — please wait and try again (2-3 seconds).'); return; }
   suppressNextSnapshot = true;
   playersDocRef.set({ list: players, updatedAt: Date.now() }, { merge: true })
-    .then(() => { showSaved(); refreshBdayBanner(); })
+    .then(() => {
+      showSaved();
+      refreshBdayBanner();
+      bdayEditMode = false;
+      bdayEditSnapshot = null;
+      renderBirthdays();
+    })
     .catch((err) => { console.error('Save birthdays failed', err); alert('Save failed: ' + err.message); });
 });
+
+// Collapsed by default — an 18-player birthday list gets long fast, so it starts minimized and
+// only expands when tapped.
+let bdayExpanded = false;
+function applyBdayExpanded() {
+  const body = document.getElementById('bdayBody');
+  const icon = document.getElementById('bdayToggleIcon');
+  if (body) body.style.display = bdayExpanded ? '' : 'none';
+  if (icon) icon.textContent = bdayExpanded ? '▲' : '▼';
+}
+document.getElementById('bdayHeading').addEventListener('click', () => {
+  bdayExpanded = !bdayExpanded;
+  applyBdayExpanded();
+});
+applyBdayExpanded();
 
 // Shows a banner (on every tab) for anyone whose birthday is today or within the next 7 days.
 function refreshBdayBanner() {
@@ -2125,10 +2185,18 @@ plistEl.addEventListener('blur', (e) => {
 function addPlayer() {
   const name = nameInput.value.trim();
   if (!name) return;
-  players.push({ name, rating: 1, status: 'present' });
+  const dayEl = document.getElementById('nameBdayDay');
+  const monthEl = document.getElementById('nameBdayMonth');
+  const d = dayEl ? parseInt(dayEl.value, 10) : NaN;
+  const m = monthEl ? parseInt(monthEl.value, 10) : NaN;
+  const bday = (!isNaN(d) && d >= 1 && d <= 31 && !isNaN(m) && m >= 1 && m <= 12) ? { d, m } : null;
+  players.push({ name, rating: 1, status: 'present', bday });
   nameInput.value = '';
+  if (dayEl) dayEl.value = '';
+  if (monthEl) monthEl.value = '';
   render();
   save();
+  refreshBdayBanner();
 }
 
 document.getElementById('addBtn').addEventListener('click', addPlayer);
