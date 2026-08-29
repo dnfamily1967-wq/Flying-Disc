@@ -643,16 +643,25 @@
   body.onMatch .ballLog { margin: 0 0 3px; min-height: 0; }
   body.onMatch .matchupBlock { margin-bottom: 4px; }
   body.onMatch .matchupBlock label { margin-bottom: 3px; font-size: 9px; }
-  body.onMatch .tapChip { padding: 4px 8px; font-size: 11px; min-height: 30px; }
+  /* Bowler/batter name chips: one horizontally-swipeable row instead of wrapping several rows —
+     this alone saves the most vertical space when there are many players. */
+  body.onMatch .tapGrid { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; padding-bottom: 3px; }
+  body.onMatch .tapChip { padding: 4px 8px; font-size: 11px; min-height: 30px; flex: 0 0 auto; white-space: nowrap; }
   body.onMatch .padGrid { gap: 5px; margin-bottom: 5px; }
   body.onMatch .padGrid .padBtn { padding: 7px 0; font-size: 15px; min-height: 34px; }
   body.onMatch .padBtn.out { padding: 8px 0; font-size: 13px; margin-bottom: 0 !important; }
-  body.onMatch .padBtn.extra { padding: 7px 0; font-size: 11.5px; margin-bottom: 5px !important; }
+  body.onMatch .padBtn.extra { padding: 7px 0; font-size: 11.5px; margin-bottom: 4px !important; }
   body.onMatch .undoRow { margin-bottom: 5px; }
   body.onMatch .undoRow button { padding: 5px 14px; font-size: 11px; min-height: 30px; }
-  body.onMatch #endMatchBtn { padding: 8px; font-size: 12px; min-height: 34px; }
-  body.onMatch #netBonusLabel { font-size: 8.5px; margin-bottom: 4px; }
+  body.onMatch #endMatchBtn { padding: 6px; font-size: 11px; min-height: 28px; }
+  body.onMatch #matchStatsHeading { font-size: 10px; }
+  body.onMatch #matchScreen #matchStatsPanel { padding: 6px 8px; margin-bottom: 5px; }
+  /* Net Bonus is used rarely — collapse it behind a small toggle by default to reclaim space */
+  body.onMatch #netBonusLabel { font-size: 8.5px; margin-bottom: 4px; cursor: pointer; }
   body.onMatch #netBonusGrid { margin-bottom: 5px !important; }
+  body.onMatch #netBonusGrid.collapsed { display: none; }
+  .onMatchOnly { display: none; }
+  body.onMatch .onMatchOnly { display: inline; }
   body.onMatch #extraBtn { margin-bottom: 5px !important; }
 </style>
 </head>
@@ -828,7 +837,7 @@
         <button class="padBtn run6" data-run="6">6</button>
       </div>
       <button class="padBtn extra" id="extraBtn" style="width:100%; margin-bottom:8px;">WIDE / NO BALL</button>
-      <label id="netBonusLabel" style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); margin-bottom:6px; font-weight:700;">🥅 Net Bonus (strike always swaps)</label>
+      <label id="netBonusLabel" style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); margin-bottom:6px; font-weight:700;">🥅 Net Bonus (strike always swaps) <span id="netBonusToggleIcon" class="onMatchOnly"></span></label>
       <div class="padGrid" id="netBonusGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px;">
         <button class="padBtn net" data-net="1">1+1</button>
         <button class="padBtn net" data-net="2">1+2</button>
@@ -947,10 +956,19 @@ function loadState() {
       // Migrate older saved matches that predate these two settings.
       if (state.retirementRule === undefined) state.retirementRule = 'none';
       if (state.negOutSwapStrike === undefined) state.negOutSwapStrike = true;
+      // Migrate matches saved before manual bowler/batter selection was added — those had a
+      // bowler + pair auto-picked by the app. Clear that one-time so nothing is pre-selected
+      // that the scorer didn't actually tap themselves; future saves are left alone.
+      if (!state.manualPickMigrated) {
+        state.currentBowler = null;
+        state.striker = null;
+        state.nonStriker = null;
+        state.manualPickMigrated = true;
+      }
       return;
     }
   } catch (e) {}
-  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true };
+  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true, manualPickMigrated: true };
 }
 
 function saveState() {
@@ -1332,6 +1350,7 @@ startMatchBtn.addEventListener('click', () => {
   state.currentBowler = null;
   state.striker = null;
   state.nonStriker = null;
+  state.manualPickMigrated = true;
   state.legalBallsThisOver = 0;
   state.thisOverBalls = [];
   state.totalRuns = 0;
@@ -1902,6 +1921,21 @@ document.getElementById('rosterHeading').addEventListener('click', () => {
   applyRosterExpanded();
 });
 applyRosterExpanded();
+
+// Net Bonus row starts collapsed in the compact match view to save vertical space — tap the
+// label to reveal the 1+1 / 1+2 buttons. (Harmless outside a match; the CSS only hides it then.)
+let netBonusExpanded = false;
+function applyNetBonusExpanded() {
+  const grid = document.getElementById('netBonusGrid');
+  const icon = document.getElementById('netBonusToggleIcon');
+  if (grid) grid.classList.toggle('collapsed', !netBonusExpanded);
+  if (icon) icon.textContent = netBonusExpanded ? '▲' : '▼';
+}
+document.getElementById('netBonusLabel').addEventListener('click', () => {
+  netBonusExpanded = !netBonusExpanded;
+  applyNetBonusExpanded();
+});
+applyNetBonusExpanded();
 
 let historyExpanded = false;
 function applyHistoryExpanded() {
