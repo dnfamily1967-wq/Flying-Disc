@@ -573,6 +573,99 @@
     padding: 20px;
   }
   .modalOverlay.show { display: flex; }
+
+  .bdayPosterOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,20,12,0.7);
+    z-index: 60;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .bdayPosterOverlay.show { display: flex; }
+  .bdayPosterCard {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    background: radial-gradient(120% 140% at 20% 0%, #FF9A5A 0%, var(--orange) 45%, #C6491C 100%);
+    border-radius: 26px;
+    padding: 34px 24px 28px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    animation: bdayPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    overflow: hidden;
+  }
+  @keyframes bdayPop {
+    0% { transform: scale(0.7); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .bdayConfetti {
+    font-size: 22px;
+    letter-spacing: 6px;
+    margin-bottom: 6px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  }
+  .bdayPosterAvatars {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 6px 0 14px;
+  }
+  .bdayPosterAvatars img {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  }
+  .bdayPosterAvatars .bdayPosterInitial {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    background: rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Outfit', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  }
+  .bdayPosterTitle {
+    font-family: 'Outfit', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.5px;
+    text-shadow: 0 3px 10px rgba(0,0,0,0.25);
+    margin-bottom: 6px;
+  }
+  .bdayPosterNames {
+    font-family: 'Outfit', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: #FFF7E6;
+    margin-bottom: 10px;
+  }
+  .bdayPosterSub { color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 600; margin-bottom: 22px; }
+  #bdayPosterCloseBtn {
+    width: auto;
+    margin: 0 auto;
+    background: rgba(255,255,255,0.2);
+    border: 1.5px solid rgba(255,255,255,0.6);
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 9px 22px;
+    border-radius: 20px;
+    display: block;
+  }
   .modalCard {
     background: var(--card);
     border-radius: 20px;
@@ -1381,6 +1474,17 @@
   </div>
 </div>
 
+<div class="bdayPosterOverlay" id="bdayPosterOverlay">
+  <div class="bdayPosterCard">
+    <div class="bdayConfetti">🎉🎈🎊🎁🎈🎉🎊🎈🎁🎉</div>
+    <div class="bdayPosterAvatars" id="bdayPosterAvatars"></div>
+    <div class="bdayPosterTitle">HAPPY BIRTHDAY!</div>
+    <div class="bdayPosterNames" id="bdayPosterNames"></div>
+    <div class="bdayPosterSub">from everyone at Morning Walkers 🥏</div>
+    <button id="bdayPosterCloseBtn">✖ Close</button>
+  </div>
+</div>
+
 <div class="modalOverlay" id="confirmModalOverlay">
   <div class="modalCard" style="border-top: 5px solid var(--red);">
     <h2 style="color:#8C2E2E;">⚠️ CONFIRM DELETE</h2>
@@ -2045,7 +2149,32 @@ function refreshBdayBanner() {
   }).join('');
   bdayBannerEl.innerHTML = `<div class="bbTitle">Birthday Alert</div>${rows}`;
   bdayBannerEl.style.display = 'block';
+  maybeShowBdayPoster();
 }
+
+// A full poster celebration for whoever's birthday is TODAY, shown automatically once per day
+// per device the first time the app is opened that day. There's no server here to push a
+// notification while the app is closed — this fires the moment it's next opened instead.
+function maybeShowBdayPoster() {
+  const today = todayStr();
+  if (localStorage.getItem('bday-poster-shown') === today) return;
+  const todays = players.filter((p) => daysUntilBday(p.bday) === 0);
+  if (!todays.length) return;
+  localStorage.setItem('bday-poster-shown', today);
+  const avatarsEl = document.getElementById('bdayPosterAvatars');
+  const namesEl = document.getElementById('bdayPosterNames');
+  if (avatarsEl) {
+    avatarsEl.innerHTML = todays.map((p) => p.photo
+      ? `<img src="${p.photo}" alt="${p.name}">`
+      : `<div class="bdayPosterInitial">${p.name.charAt(0).toUpperCase()}</div>`
+    ).join('');
+  }
+  if (namesEl) namesEl.textContent = todays.map((p) => p.name).join(' & ');
+  document.getElementById('bdayPosterOverlay').classList.add('show');
+}
+document.getElementById('bdayPosterCloseBtn').addEventListener('click', () => {
+  document.getElementById('bdayPosterOverlay').classList.remove('show');
+});
 
 // ---- Profile photos: uploaded from the login screen (any name in the picker can set its own
 // photo there) and stored as a small compressed base64 JPEG directly on that player's entry —
