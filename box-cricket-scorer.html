@@ -423,6 +423,13 @@
     font-weight: 800;
   }
   .padBtn:active { transform: scale(0.94); }
+  @keyframes keyFlash {
+    0% { filter: brightness(1); transform: scale(0.92); }
+    35% { filter: brightness(1.8) saturate(1.3); box-shadow: 0 0 0 3px rgba(255,255,255,0.5) inset; }
+    100% { filter: brightness(1); transform: scale(1); }
+  }
+  .padBtn.keyFlash { animation: keyFlash 0.32s ease-out; }
+  .tapChip.keyFlash { animation: keyFlash 0.32s ease-out; }
   .padBtn.run4 { color: var(--amber); }
   .padBtn.run6 { color: var(--led); background: rgba(124,255,158,0.08); }
   .padBtn.net { color: var(--amber); background: rgba(245,166,35,0.08); font-size: 15px; }
@@ -1321,12 +1328,10 @@ startMatchBtn.addEventListener('click', () => {
   // proper innings, instead of the team on strike flipping every single over.
   state.bowlerOrder = [...state.team1Players, ...state.team2Players];
   state.currentOverIdx = 0;
-  state.currentBowler = state.bowlerOrder[0];
-  // Default pair suggestion: the first two players from the OPPOSING team to whoever's bowling —
-  // bowling and batting always come from different sides, like a real match.
-  const pair = suggestBatterPair(0);
-  state.striker = pair[0];
-  state.nonStriker = pair[1];
+  // Nothing is pre-picked — admin taps the bowler and both batters by hand before scoring starts.
+  state.currentBowler = null;
+  state.striker = null;
+  state.nonStriker = null;
   state.legalBallsThisOver = 0;
   state.thisOverBalls = [];
   state.totalRuns = 0;
@@ -1425,10 +1430,10 @@ function renderMatch() {
   document.getElementById('sbWkts').textContent = state.totalWkts;
   const oversDisplay = (oIdx) + '.' + state.legalBallsThisOver;
   document.getElementById('sbOverProgress').textContent = `${oversDisplay} OVERS BOWLED`;
-  document.getElementById('sbBowlerName').textContent = state.currentBowler;
-  document.getElementById('sbBatterName').textContent = state.striker;
+  document.getElementById('sbBowlerName').textContent = state.currentBowler || '—';
+  document.getElementById('sbBatterName').textContent = state.striker || '—';
   document.getElementById('sbBowlerFigures').textContent = `${currentOverRunsConceded()} runs · ${currentOverWkts()} wkt`;
-  const batterRuns = (state.battingStats[state.striker] && state.battingStats[state.striker].runs) || 0;
+  const batterRuns = (state.striker && state.battingStats[state.striker] && state.battingStats[state.striker].runs) || 0;
   document.getElementById('sbBatterRuns').textContent = `${batterRuns} run${batterRuns === 1 ? '' : 's'}`;
 
   // Bowler chips: only the CURRENT innings' bowling team, and only players who haven't bowled
@@ -1441,13 +1446,14 @@ function renderMatch() {
     `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''}" data-bowler="${p}">${p}</button>`
   ).join('');
 
-  // Batter chips: only the OPPOSING team to whoever's bowling — tap a name to bring them on strike
-  const batterOptions = opposingTeamPlayers(state.currentBowler);
-  batterChipsEl.innerHTML = batterOptions.map((p) => {
+  // Batter chips: only the OPPOSING team to whoever's bowling — tap a name to bring them on strike.
+  // Nothing shows until a bowler is picked, since we don't know which team should be batting yet.
+  const batterOptions = state.currentBowler ? opposingTeamPlayers(state.currentBowler) : [];
+  batterChipsEl.innerHTML = batterOptions.length ? batterOptions.map((p) => {
     const role = p === state.striker ? 'striker' : (p === state.nonStriker ? 'nonstriker' : '');
     const tag = p === state.striker ? '<span class="roleTag">🟢 STRIKER</span>' : (p === state.nonStriker ? '<span class="roleTag">🔴 NON-STRIKER</span>' : '');
     return `<button type="button" class="tapChip ${role}" data-batter="${p}">${p}${tag}</button>`;
-  }).join('');
+  }).join('') : '<span style="color:var(--muted); font-size:12px;">Select the bowler first</span>';
 
   const bowlerLabel = document.getElementById('bowlerLabel');
   const batterLabel = document.getElementById('batterLabel');
@@ -1507,6 +1513,16 @@ function showToast(kind, icon, title, sub) {
   }, 2600);
 }
 
+// ---------------- KEY FLASH FEEDBACK ----------------
+// Any run/extra/out/net/bowler/batter chip tap flashes briefly so a press always feels registered.
+function flashKey(btn) {
+  if (!btn) return;
+  btn.classList.remove('keyFlash');
+  void btn.offsetWidth; // restart the animation even on rapid repeat taps
+  btn.classList.add('keyFlash');
+  setTimeout(() => btn.classList.remove('keyFlash'), 320);
+}
+
 function currentOverRunsConceded() {
   return state.thisOverBalls.reduce((sum, b) => sum + (b.run || 0), 0);
 }
@@ -1519,22 +1535,25 @@ function currentOverWkts() {
 bowlerChipsEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-bowler]');
   if (!btn) return;
-  state.currentBowler = btn.dataset.bowler;
-  // Batters must always be from the team OPPOSITE the bowler — if the new bowler's team overlaps
-  // with the current striker/non-striker, swap in players from the correct (opposing) side.
+  const picked = btn.dataset.bowler;
+  state.currentBowler = picked;
+  // Fully manual now: if the current striker/non-striker no longer belong to the opposing
+  // team (e.g. the innings just changed), clear them instead of auto-picking — the admin taps
+  // both batters by hand every time.
   const opponents = opposingTeamPlayers(state.currentBowler);
   if (!opponents.includes(state.striker) || !opponents.includes(state.nonStriker)) {
-    state.striker = opponents[0] || state.striker;
-    state.nonStriker = opponents.find((p) => p !== state.striker) || opponents[0] || state.nonStriker;
+    state.striker = null;
+    state.nonStriker = null;
   }
   saveState();
   renderMatch();
+  flashKey(bowlerChipsEl.querySelector(`[data-bowler="${CSS.escape(picked)}"]`));
 });
 batterChipsEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-batter]');
   if (!btn) return;
   const name = btn.dataset.batter;
-  if (name === state.striker) return; // already on strike
+  if (name === state.striker) { flashKey(btn); return; } // already on strike
   if (name === state.nonStriker) {
     // swap roles
     const tmp = state.striker;
@@ -1546,6 +1565,7 @@ batterChipsEl.addEventListener('click', (e) => {
   }
   saveState();
   renderMatch();
+  flashKey(batterChipsEl.querySelector(`[data-batter="${CSS.escape(name)}"]`));
 });
 
 function swapStrike() {
@@ -1565,6 +1585,10 @@ function pushHistory() {
 }
 
 function recordBall(entry) {
+  if (!state.currentBowler || !state.striker || !state.nonStriker) {
+    showToast('out', '⚠️', 'Select bowler & both batters first', 'Tap them above before scoring this ball');
+    return;
+  }
   pushHistory();
   state.thisOverBalls.push(entry);
   if (entry.run) {
@@ -1592,13 +1616,10 @@ function recordBall(entry) {
       state.battingStats[state.striker].outs = (state.battingStats[state.striker].outs || 0) + 1;
       if (state.negOutSwapStrike) swapStrike();
     } else {
-      // No penalty configured — this behaves like a real fall of wicket: the batter who's out
-      // leaves the crease, non-striker takes strike, and the next unused player from the SAME
-      // (batting) team comes in as the new non-striker.
-      const opponents = opposingTeamPlayers(state.currentBowler);
-      const nextIn = opponents.find((p) => p !== state.striker && p !== state.nonStriker);
+      // No penalty configured — real fall of wicket: the batter who's out leaves the crease,
+      // non-striker takes strike. Who comes in next is picked by hand — tap a name below.
       state.striker = state.nonStriker;
-      state.nonStriker = nextIn || state.nonStriker;
+      state.nonStriker = null;
     }
   }
   if (entry.type !== 'extra') {
@@ -1622,44 +1643,35 @@ function finishOver() {
     return;
   }
   state.currentOverIdx += 1;
-  state.currentBowler = state.bowlerOrder[state.currentOverIdx];
-  if (state.retirementRule === 'pair2' || state.retirementRule === 'single1') {
-    // Retirement rule is on — every over (or every 2 overs) auto-rotates in the next
-    // batter(s), regardless of who was in before.
-    const pair = getBattingPairForOver(state.currentOverIdx);
-    state.striker = pair[0];
-    state.nonStriker = pair[1];
-  } else {
-    // Batters must always be from the team OPPOSITE the (new) bowler — if the new bowler's team
-    // overlaps with the current pair, bring in the correct opposing-team players instead.
-    const opponents = opposingTeamPlayers(state.currentBowler);
-    if (!opponents.includes(state.striker) || !opponents.includes(state.nonStriker)) {
-      state.striker = opponents[0] || state.striker;
-      state.nonStriker = opponents.find((p) => p !== state.striker) || opponents[0] || state.nonStriker;
-    }
-  }
+  // Fully manual selection — nothing is pre-picked. Admin taps the next bowler and both
+  // batters by hand for the new over.
+  state.currentBowler = null;
+  state.striker = null;
+  state.nonStriker = null;
   state.legalBallsThisOver = 0;
   state.thisOverBalls = [];
-  // Over is done and the next bowler + batting pair are already auto-picked above — no manual
-  // tapping needed to continue. Confirm it with an alert so it's obvious who's up next.
-  showToast('over', '🟢', `Over complete — next: ${state.currentBowler}`, `Batting: ${state.striker} 🟢 · ${state.nonStriker} 🔴`);
+  showToast('over', '🟢', `Over complete!`, `Select the next bowler & batters`);
 }
 
 document.querySelectorAll('.padGrid .padBtn[data-run]').forEach((btn) => {
   btn.addEventListener('click', () => {
+    flashKey(btn);
     const run = Number(btn.dataset.run);
     recordBall({ type: 'run', run });
   });
 });
 
-document.getElementById('outBtn').addEventListener('click', () => {
+document.getElementById('outBtn').addEventListener('click', (e) => {
+  flashKey(e.currentTarget);
   recordBall({ type: 'out', run: 0 });
 });
-document.getElementById('extraBtn').addEventListener('click', () => {
+document.getElementById('extraBtn').addEventListener('click', (e) => {
+  flashKey(e.currentTarget);
   recordBall({ type: 'extra', run: state.extraRuns });
 });
 document.querySelectorAll('.padBtn[data-net]').forEach((btn) => {
   btn.addEventListener('click', () => {
+    flashKey(btn);
     // A real single run taken, plus a bonus (1 or 2) for hitting the net/fence — counts on the
     // board as the full total, but the strike still swaps because the batters actually crossed
     // once for the real single run.
