@@ -428,33 +428,18 @@
   .padBtn.extra { grid-column: span 3; background: rgba(245,166,35,0.12); border-color: var(--amber); color: var(--amber); font-size: 13px; letter-spacing: 1px; }
   .padRow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 
-  .undoRow { text-align: center; margin-bottom: 10px; }
+  .undoRow { text-align: center; margin-bottom: 8px; }
   .undoRow button {
     background: var(--panel-2);
     border: 1.5px solid var(--line);
     color: var(--muted);
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 700;
-    padding: 8px 16px;
+    padding: 7px 16px;
     border-radius: 20px;
     width: 100%;
   }
   .undoRow button:active { transform: scale(0.97); }
-
-  /* ---- Fixed scoring dock: keeps the run pad + Undo reachable without scrolling ---- */
-  .scoringDock {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 50;
-    background: var(--panel);
-    border-top: 1px solid var(--line);
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -8px 24px rgba(20,60,40,0.14);
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-  }
-  .scoringDockInner { max-width: 480px; margin: 0 auto; }
 
   /* ---- Leaderboard ---- */
   table.stats { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -565,6 +550,30 @@
 
   .hidden { display: none !important; }
   .footNote { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 18px; line-height: 1.6; }
+
+  /* ---- Compact mode while a match is live: shrinks spacing so the scoreboard,
+         bowler/batter selection, keypad and Undo sit together with as little
+         scrolling as possible ---- */
+  body.onMatch .wrap { padding-top: 8px; }
+  body.onMatch .hdr { margin-bottom: 6px; }
+  body.onMatch .hdr h1 { font-size: 16px; margin-top: 1px; }
+  body.onMatch .hdr .eyebrow { font-size: 8.5px; letter-spacing: 2px; }
+  body.onMatch .teamsHeaderRow { margin-bottom: 6px; }
+  body.onMatch .scoreboard { padding: 10px 12px; margin-bottom: 7px; }
+  body.onMatch .sbScore { font-size: 32px; }
+  body.onMatch .sbMeta { margin-top: 7px; padding-top: 6px; }
+  body.onMatch #matchScreen .panel { padding: 10px; margin-bottom: 7px; }
+  body.onMatch #matchScreen .panel h2 { margin-bottom: 6px; }
+  body.onMatch .ballLog { margin: 5px 0 2px; min-height: 18px; }
+  body.onMatch .matchupBlock { margin-bottom: 6px; }
+  body.onMatch .matchupBlock label { margin-bottom: 4px; }
+  body.onMatch .tapChip { padding: 5px 10px; font-size: 12px; }
+  body.onMatch .padGrid { gap: 6px; margin-bottom: 6px; }
+  body.onMatch .padGrid .padBtn { padding: 9px 0; font-size: 16px; }
+  body.onMatch .padBtn.out { padding: 9px 0; font-size: 13px; margin-bottom: 0 !important; }
+  body.onMatch .padBtn.extra { padding: 9px 0; font-size: 12px; margin-bottom: 6px !important; }
+  body.onMatch .undoRow { margin-bottom: 6px; }
+  body.onMatch .undoRow button { padding: 6px 16px; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -725,35 +734,7 @@
         <label id="batterLabel">Batters — 🟢 striker · 🔴 non-striker · tap a name</label>
         <div class="tapGrid" id="batterChips"></div>
       </div>
-    </div>
 
-    <div class="panel">
-      <h2>Overs Bowled</h2>
-      <div id="overBadges"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Scoreboard So Far</h2>
-      <table class="stats">
-        <thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
-        <tbody id="battingStatsBody"></tbody>
-      </table>
-    </div>
-
-    <div class="panel">
-      <h2>Bowling Figures</h2>
-      <table class="stats">
-        <thead><tr><th>Bowler</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead>
-        <tbody id="bowlingStatsBody"></tbody>
-      </table>
-    </div>
-
-    <button class="btn-ghost" id="endMatchBtn" style="width:100%;">🏁 End Match Now</button>
-  </div>
-
-  <!-- ============= FIXED SCORING DOCK (always visible during a match — no scrolling needed) ============= -->
-  <div id="scoringDock" class="scoringDock hidden">
-    <div class="scoringDockInner">
       <div class="undoRow"><button id="undoBtn">↩ Undo last ball</button></div>
       <div class="padGrid">
         <button class="padBtn dotBtn" data-run="0">0</button>
@@ -771,6 +752,31 @@
       </div>
       <button class="padBtn out" id="outBtn" style="width:100%;">OUT</button>
     </div>
+
+    <div class="panel">
+      <h2 id="matchStatsHeading" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+        <span>Match Stats &amp; History</span>
+        <span id="matchStatsToggleIcon">▼</span>
+      </h2>
+      <div id="matchStatsBody" style="display:none;">
+        <div class="setupHint" style="margin-top:0;">Overs Bowled</div>
+        <div id="overBadges" style="margin-bottom:12px;"></div>
+
+        <div class="setupHint" style="margin-top:0;">Scoreboard So Far</div>
+        <table class="stats" style="margin-bottom:12px;">
+          <thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
+          <tbody id="battingStatsBody"></tbody>
+        </table>
+
+        <div class="setupHint" style="margin-top:0;">Bowling Figures</div>
+        <table class="stats">
+          <thead><tr><th>Bowler</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead>
+          <tbody id="bowlingStatsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <button class="btn-ghost" id="endMatchBtn" style="width:100%;">🏁 End Match Now</button>
   </div>
 
   <!-- ================= FINAL SCREEN ================= -->
@@ -1767,29 +1773,14 @@ async function exportRecordAsJPEG(rec, filenameHint) {
 
 // ---------------- ROUTER ----------------
 function render() {
+  document.body.classList.toggle('onMatch', state.screen === 'match');
   document.getElementById('setupScreen').classList.toggle('hidden', state.screen !== 'setup');
   document.getElementById('matchScreen').classList.toggle('hidden', state.screen !== 'match');
   document.getElementById('finalScreen').classList.toggle('hidden', state.screen !== 'final');
   if (state.screen === 'setup') renderSetup();
   if (state.screen === 'match') renderMatch();
   if (state.screen === 'final') renderFinal();
-  syncScoringDock();
 }
-
-// Keeps the fixed run-pad/Undo dock in sync with the current screen, and pads the
-// scrolling content so nothing hides underneath it.
-function syncScoringDock() {
-  const dock = document.getElementById('scoringDock');
-  const matchScreen = document.getElementById('matchScreen');
-  const onMatch = state.screen === 'match';
-  dock.classList.toggle('hidden', !onMatch);
-  if (onMatch) {
-    matchScreen.style.paddingBottom = dock.offsetHeight + 14 + 'px';
-  } else {
-    matchScreen.style.paddingBottom = '';
-  }
-}
-window.addEventListener('resize', syncScoringDock);
 
 let rosterExpanded = false;
 function applyRosterExpanded() {
@@ -1816,6 +1807,19 @@ document.getElementById('historyHeading').addEventListener('click', () => {
   applyHistoryExpanded();
 });
 applyHistoryExpanded();
+
+let matchStatsExpanded = false;
+function applyMatchStatsExpanded() {
+  const body = document.getElementById('matchStatsBody');
+  const icon = document.getElementById('matchStatsToggleIcon');
+  if (body) body.style.display = matchStatsExpanded ? '' : 'none';
+  if (icon) icon.textContent = matchStatsExpanded ? '▲' : '▼';
+}
+document.getElementById('matchStatsHeading').addEventListener('click', () => {
+  matchStatsExpanded = !matchStatsExpanded;
+  applyMatchStatsExpanded();
+});
+applyMatchStatsExpanded();
 
 applyRosterSortButtons();
 loadRoster();
