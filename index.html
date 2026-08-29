@@ -2776,6 +2776,19 @@ document.getElementById('saveEditAttnBtn').addEventListener('click', () => {
   const record = Object.keys(editAttnRecord).map((name) => ({ name, status: editAttnRecord[name] }));
   attendanceDocRef(dateStr).set({ date: dateStr, players: record, savedAt: Date.now(), correctedAt: Date.now(), deliberate: true })
     .then(() => {
+      // If today itself was just corrected, sync the live roster to match — otherwise the
+      // Home tab's chip/background and Team Maker keep using the old (now wrong) status.
+      if (dateStr === todayStr()) {
+        let changed = false;
+        players = players.map((p) => {
+          if (editAttnRecord[p.name] && p.status !== editAttnRecord[p.name]) {
+            changed = true;
+            return { ...p, status: editAttnRecord[p.name] };
+          }
+          return p;
+        });
+        if (changed) { render(); save(); }
+      }
       alert(`Attendance for ${dateStr} updated ✅`);
       editAttnPanel.style.display = 'none';
       loadAttendance(dateStr);
@@ -4077,6 +4090,12 @@ document.getElementById('accountsFileInput').addEventListener('change', (e) => {
 
 render();
 applyLoginGate();
+if (currentUser) {
+  // Record this too — not just a fresh password login. Otherwise "Recent Logins" only shows
+  // the last time someone typed their password, and misses every day they just reopen the app
+  // while already remembered as logged in (which is most days, for most people).
+  logLoginEvent(currentUser);
+}
 load();
 loadPasswords();
 loadAttendance(attnDateInput.value); // show today's attendance (if already saved) on open
