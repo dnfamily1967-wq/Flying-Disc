@@ -11,21 +11,24 @@
   :root {
     --pitch: #16a34a;
     --pitch-deep: #0d7a3a;
-    --ball: #d32f2f;
-    --amber: #f5a623;
-    --bg: #0b1220;
-    --panel: #121b2e;
-    --panel-2: #182541;
-    --line: #24304a;
-    --led: #7CFF9E;
-    --led-dim: #2f5a3d;
-    --ink: #EAF2EC;
-    --muted: #8B9BB4;
+    --ball: #e5342f;
+    --amber: #b45309;
+    --amber-bright: #f59e0b;
+    --amber-deep: #d97706;
+    --bg: #f3faf5;
+    --panel: #ffffff;
+    --panel-2: #eef6f1;
+    --line: #dbe8e0;
+    --led: #0a7a40;
+    --led-dim: #bfe8cf;
+    --ink: #17261d;
+    --muted: #5c6f64;
+    --out-red: #c62828;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     margin: 0;
-    background: radial-gradient(120% 100% at 50% 0%, #142238 0%, var(--bg) 55%);
+    background: radial-gradient(120% 100% at 50% 0%, #e7f6ff 0%, var(--bg) 55%);
     color: var(--ink);
     font-family: 'Rajdhani', sans-serif;
     min-height: 100vh;
@@ -37,7 +40,7 @@
   .hdr { text-align: center; margin-bottom: 12px; }
   .hdr .eyebrow {
     font-family: 'Share Tech Mono', monospace;
-    color: var(--pitch);
+    color: var(--pitch-deep);
     font-size: 10px;
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -57,6 +60,7 @@
     border-radius: 14px;
     padding: 13px;
     margin-bottom: 10px;
+    box-shadow: 0 2px 10px rgba(20,60,40,0.06);
   }
   .panel h2 {
     font-size: 11.5px;
@@ -98,7 +102,7 @@
   }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
   .btn-ghost {
-    background: transparent;
+    background: var(--panel-2);
     border: 1.5px solid var(--line);
     color: var(--muted);
     padding: 10px 14px;
@@ -209,13 +213,12 @@
     font-weight: 700;
     font-size: 15px;
     letter-spacing: 0.3px;
-    text-shadow: 0 0 8px rgba(124,255,158,0.2);
     text-align: left;
     flex: 1;
     padding: 8px 0;
   }
   .rosterRow.absent .rosterRowName {
-    color: #ff8a80;
+    color: var(--out-red);
     text-decoration: line-through;
     opacity: 0.8;
     text-shadow: none;
@@ -289,19 +292,19 @@
   }
   .setupHint { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 4px; }
 
-  /* ---- Scoreboard ---- */
+  /* ---- Scoreboard (bright pitch-green hero card) ---- */
   .scoreboard {
-    background: linear-gradient(180deg, #0e1a12 0%, #0a140d 100%);
-    border: 1px solid #1e3a26;
-    border-radius: 14px;
-    padding: 14px;
+    background: linear-gradient(135deg, var(--pitch) 0%, var(--pitch-deep) 100%);
+    border: none;
+    border-radius: 16px;
+    padding: 16px 14px;
     text-align: center;
     margin-bottom: 10px;
-    box-shadow: inset 0 0 30px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 22px rgba(13,122,58,0.28);
   }
   .sbOver {
     font-family: 'Share Tech Mono', monospace;
-    color: var(--amber);
+    color: #fff3cf;
     font-size: 10.5px;
     letter-spacing: 2.5px;
     text-transform: uppercase;
@@ -311,14 +314,14 @@
     font-family: 'Share Tech Mono', monospace;
     font-size: 42px;
     font-weight: 700;
-    color: var(--led);
-    text-shadow: 0 0 14px rgba(124,255,158,0.55);
+    color: #ffffff;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.18);
     line-height: 1;
   }
-  .sbScore .wkt { color: var(--ball); text-shadow: 0 0 14px rgba(211,47,47,0.55); }
+  .sbScore .wkt { color: #ffe0e0; }
   .sbSub {
     font-family: 'Share Tech Mono', monospace;
-    color: var(--led-dim);
+    color: rgba(255,255,255,0.78);
     font-size: 11px;
     margin-top: 4px;
   }
@@ -327,17 +330,16 @@
     justify-content: space-between;
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px dashed #1e3a26;
+    border-top: 1px dashed rgba(255,255,255,0.35);
     text-align: left;
   }
-  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
-  .sbMetaCol .val { font-size: 14px; font-weight: 700; margin-top: 1px; }
+  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: rgba(255,255,255,0.7); text-transform: uppercase; }
+  .sbMetaCol .val { font-size: 14px; font-weight: 700; margin-top: 1px; color: #fff; }
   .sbMetaCol .valSub {
     font-family: 'Share Tech Mono', monospace;
     font-size: 13px;
     font-weight: 700;
-    color: var(--led);
-    text-shadow: 0 0 8px rgba(124,255,158,0.4);
+    color: #eafff1;
     margin-top: 1px;
   }
   .sbMetaCol.right { text-align: right; }
@@ -356,7 +358,7 @@
   }
   .ballChip.four { background: rgba(245,166,35,0.18); border-color: var(--amber); color: var(--amber); }
   .ballChip.six { background: rgba(124,255,158,0.18); border-color: var(--led); color: var(--led); }
-  .ballChip.out { background: rgba(211,47,47,0.2); border-color: var(--ball); color: #ff8a80; }
+  .ballChip.out { background: rgba(211,47,47,0.2); border-color: var(--ball); color: var(--out-red); }
   .ballChip.extra { background: rgba(245,166,35,0.1); border-color: var(--amber); color: var(--amber); font-size: 9px; }
   .ballChip.dot { color: var(--muted); }
 
@@ -398,7 +400,7 @@
   .tapChip:active { transform: scale(0.95); }
   .tapChip.bowlerActive { background: rgba(245,166,35,0.16); border-color: var(--amber); color: var(--amber); }
   .tapChip.striker { background: rgba(124,255,158,0.18); border-color: var(--led); color: var(--led); }
-  .tapChip.nonstriker { background: rgba(211,47,47,0.18); border-color: var(--ball); color: #ff8a80; }
+  .tapChip.nonstriker { background: rgba(211,47,47,0.18); border-color: var(--ball); color: var(--out-red); }
   .tapChip .roleTag { font-size: 8.5px; letter-spacing: 0.5px; display: block; opacity: 0.85; margin-top: 1px; }
 
   /* ---- Scoring pad ---- */
@@ -426,8 +428,33 @@
   .padBtn.extra { grid-column: span 3; background: rgba(245,166,35,0.12); border-color: var(--amber); color: var(--amber); font-size: 13px; letter-spacing: 1px; }
   .padRow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 
-  .undoRow { text-align: center; margin-top: 4px; }
-  .undoRow button { background: none; color: var(--muted); font-size: 11.5px; padding: 5px 10px; text-decoration: underline; }
+  .undoRow { text-align: center; margin-bottom: 10px; }
+  .undoRow button {
+    background: var(--panel-2);
+    border: 1.5px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 20px;
+    width: 100%;
+  }
+  .undoRow button:active { transform: scale(0.97); }
+
+  /* ---- Fixed scoring dock: keeps the run pad + Undo reachable without scrolling ---- */
+  .scoringDock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -8px 24px rgba(20,60,40,0.14);
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .scoringDockInner { max-width: 480px; margin: 0 auto; }
 
   /* ---- Leaderboard ---- */
   table.stats { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -453,7 +480,7 @@
 
   .finalHero { text-align: center; padding: 10px 0 4px; }
   .finalHero .trophy { font-size: 44px; }
-  .finalHero .big { font-family: 'Share Tech Mono', monospace; font-size: 40px; color: var(--led); font-weight: 700; text-shadow: 0 0 16px rgba(124,255,158,0.5); margin: 4px 0; }
+  .finalHero .big { font-family: 'Share Tech Mono', monospace; font-size: 40px; color: var(--led); font-weight: 700; margin: 4px 0; }
   .finalHero .cap { color: var(--muted); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
 
   /* ---- Auto team logo badge (initials on a deterministic color) ---- */
@@ -513,12 +540,12 @@
     padding: 0;
     display: flex; align-items: center; justify-content: center;
   }
-  .historyActionBtn.del { border-color: var(--ball); color: #ff8a80; }
+  .historyActionBtn.del { border-color: var(--ball); color: var(--out-red); }
 
   /* ---- Offscreen render target used for JPEG export (kept out of the normal layout) ---- */
   #exportCard { position: fixed; left: -9999px; top: 0; width: 420px; display: none; }
   .exportCardInner {
-    background: #0b1220;
+    background: var(--panel);
     color: var(--ink);
     font-family: 'Rajdhani', sans-serif;
     padding: 22px 18px;
@@ -576,7 +603,7 @@
     <div class="panel">
       <h2>Split Into 2 Teams</h2>
       <div class="setupHint" style="margin-top:0; margin-bottom:10px;">Splits today's present players into two random, even-ish teams — give each a name, and tap ✕ on anyone who shouldn't be on that side. This is today's actual lineup — each player bowls one over and bats too.</div>
-      <button class="btn-primary" id="makeTwoTeamsBtn" style="background:linear-gradient(135deg, var(--amber), #c9820f); box-shadow:0 4px 14px rgba(245,166,35,0.3);">🎲 MAKE 2 TEAMS</button>
+      <button class="btn-primary" id="makeTwoTeamsBtn" style="background:linear-gradient(135deg, var(--amber-bright), var(--amber-deep)); box-shadow:0 4px 14px rgba(245,158,11,0.35);">🎲 MAKE 2 TEAMS</button>
       <div id="twoTeamsBlock" class="hidden" style="margin-top:14px;">
         <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-weight:700;">Or pick someone by hand</label>
         <div class="addRow" style="margin-bottom:12px;">
@@ -698,23 +725,6 @@
         <label id="batterLabel">Batters — 🟢 striker · 🔴 non-striker · tap a name</label>
         <div class="tapGrid" id="batterChips"></div>
       </div>
-
-      <div class="padGrid">
-        <button class="padBtn dotBtn" data-run="0">0</button>
-        <button class="padBtn" data-run="1">1</button>
-        <button class="padBtn" data-run="2">2</button>
-        <button class="padBtn" data-run="3">3</button>
-        <button class="padBtn run4" data-run="4">4</button>
-        <button class="padBtn run6" data-run="6">6</button>
-      </div>
-      <button class="padBtn extra" id="extraBtn" style="width:100%; margin-bottom:8px;">WIDE / NO BALL</button>
-      <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); margin-bottom:6px; font-weight:700;">🥅 Net Bonus (strike always swaps)</label>
-      <div class="padGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px;">
-        <button class="padBtn net" data-net="1">1+1</button>
-        <button class="padBtn net" data-net="2">1+2</button>
-      </div>
-      <button class="padBtn out" id="outBtn" style="width:100%; margin-bottom:10px;">OUT</button>
-      <div class="undoRow"><button id="undoBtn">↩ Undo last ball</button></div>
     </div>
 
     <div class="panel">
@@ -739,6 +749,28 @@
     </div>
 
     <button class="btn-ghost" id="endMatchBtn" style="width:100%;">🏁 End Match Now</button>
+  </div>
+
+  <!-- ============= FIXED SCORING DOCK (always visible during a match — no scrolling needed) ============= -->
+  <div id="scoringDock" class="scoringDock hidden">
+    <div class="scoringDockInner">
+      <div class="undoRow"><button id="undoBtn">↩ Undo last ball</button></div>
+      <div class="padGrid">
+        <button class="padBtn dotBtn" data-run="0">0</button>
+        <button class="padBtn" data-run="1">1</button>
+        <button class="padBtn" data-run="2">2</button>
+        <button class="padBtn" data-run="3">3</button>
+        <button class="padBtn run4" data-run="4">4</button>
+        <button class="padBtn run6" data-run="6">6</button>
+      </div>
+      <button class="padBtn extra" id="extraBtn" style="width:100%; margin-bottom:8px;">WIDE / NO BALL</button>
+      <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); margin-bottom:6px; font-weight:700;">🥅 Net Bonus (strike always swaps)</label>
+      <div class="padGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px;">
+        <button class="padBtn net" data-net="1">1+1</button>
+        <button class="padBtn net" data-net="2">1+2</button>
+      </div>
+      <button class="padBtn out" id="outBtn" style="width:100%;">OUT</button>
+    </div>
   </div>
 
   <!-- ================= FINAL SCREEN ================= -->
@@ -1717,7 +1749,7 @@ async function exportRecordAsJPEG(rec, filenameHint) {
   container.style.display = 'block';
   await new Promise((r) => setTimeout(r, 60)); // let fonts/layout settle before capture
   try {
-    const canvas = await html2canvas(container, { backgroundColor: '#0b1220', scale: 2 });
+    const canvas = await html2canvas(container, { backgroundColor: '#ffffff', scale: 2 });
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     const a = document.createElement('a');
     a.href = dataUrl;
@@ -1741,7 +1773,23 @@ function render() {
   if (state.screen === 'setup') renderSetup();
   if (state.screen === 'match') renderMatch();
   if (state.screen === 'final') renderFinal();
+  syncScoringDock();
 }
+
+// Keeps the fixed run-pad/Undo dock in sync with the current screen, and pads the
+// scrolling content so nothing hides underneath it.
+function syncScoringDock() {
+  const dock = document.getElementById('scoringDock');
+  const matchScreen = document.getElementById('matchScreen');
+  const onMatch = state.screen === 'match';
+  dock.classList.toggle('hidden', !onMatch);
+  if (onMatch) {
+    matchScreen.style.paddingBottom = dock.offsetHeight + 14 + 'px';
+  } else {
+    matchScreen.style.paddingBottom = '';
+  }
+}
+window.addEventListener('resize', syncScoringDock);
 
 let rosterExpanded = false;
 function applyRosterExpanded() {
