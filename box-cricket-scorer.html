@@ -24,6 +24,7 @@
     --ink: #17261d;
     --muted: #5c6f64;
     --out-red: #c62828;
+    --key-border: #9fb7a8;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -32,7 +33,7 @@
     color: var(--ink);
     font-family: 'Rajdhani', sans-serif;
     min-height: 100vh;
-    padding-bottom: 40px;
+    padding-bottom: calc(50px + env(safe-area-inset-bottom, 0px));
   }
   .wrap { max-width: 480px; margin: 0 auto; padding: 14px 12px 10px; }
 
@@ -389,13 +390,13 @@
   .tapGrid { display: flex; flex-wrap: wrap; gap: 6px; }
   .tapChip {
     background: var(--panel-2);
-    border: 1.5px solid var(--line);
-    color: var(--muted);
+    border: 2px solid var(--key-border);
+    color: var(--ink);
     border-radius: 16px;
     padding: 7px 12px;
     font-family: 'Rajdhani', sans-serif;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
   }
   .tapChip:active { transform: scale(0.95); }
   .tapChip, .padBtn, .btn-primary, .btn-ghost { min-height: 40px; }
@@ -413,18 +414,18 @@
   }
   .padBtn {
     background: var(--panel-2);
-    border: 1.5px solid var(--line);
+    border: 2px solid var(--key-border);
     color: var(--ink);
     border-radius: 11px;
     padding: 13px 0;
     font-family: 'Share Tech Mono', monospace;
     font-size: 19px;
-    font-weight: 700;
+    font-weight: 800;
   }
   .padBtn:active { transform: scale(0.94); }
-  .padBtn.run4 { border-color: var(--amber); color: var(--amber); }
-  .padBtn.run6 { border-color: var(--led); color: var(--led); background: rgba(124,255,158,0.08); }
-  .padBtn.net { border-color: var(--amber); color: var(--amber); background: rgba(245,166,35,0.08); font-size: 15px; }
+  .padBtn.run4 { color: var(--amber); }
+  .padBtn.run6 { color: var(--led); background: rgba(124,255,158,0.08); }
+  .padBtn.net { color: var(--amber); background: rgba(245,166,35,0.08); font-size: 15px; }
   .padBtn.out { grid-column: span 3; background: linear-gradient(135deg, var(--ball), #a01f1f); border-color: var(--ball); color: #fff; font-size: 14px; letter-spacing: 1px; padding: 12px 0; }
   .padBtn.extra { grid-column: span 3; background: rgba(245,166,35,0.12); border-color: var(--amber); color: var(--amber); font-size: 13px; letter-spacing: 1px; }
   .padRow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
