@@ -368,7 +368,7 @@
   .chip {
     border: 1.5px solid var(--line);
     background: #fff;
-    color: var(--muted);
+    color: var(--ink);
     font-size: 11.5px;
     font-weight: 700;
     padding: 6px 11px;
@@ -2570,19 +2570,35 @@ function load() {
     if (suppressNextSnapshot) { suppressNextSnapshot = false; return; }
     if (doc.exists && Array.isArray(doc.data().list)) {
       players = normalizePlayers(doc.data().list);
-      // A new day started since these present/absent/holiday marks were last saved — everyone
-      // goes back to "present" (normal) so admin marks fresh absentees for today, instead of
-      // yesterday's marks silently carrying over.
+      // A new day started since these present/absent/holiday marks were last saved — reset
+      // everyone to "present" EXCEPT anyone with an approved holiday already recorded for today
+      // (e.g. from Bulk Holiday, which writes future days' attendance in advance) — they stay
+      // marked "holiday" automatically instead of reverting, so an approved holiday shows
+      // correctly here every day up through however far it was approved for.
       const serverStatusDate = doc.data().statusDate || '';
       const today = todayStr();
       if (serverStatusDate !== today) {
-        players = players.map((p) => ({ ...p, status: 'present' }));
-        try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
-        render();
-        refreshBdayBanner();
-        suppressNextSnapshot = true;
-        playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e) => {
-          console.error('Day-rollover save failed', e);
+        attendanceDocRef(today).get().then((attnDoc) => {
+          const todaysRecord = (attnDoc.exists && Array.isArray(attnDoc.data().players)) ? attnDoc.data().players : [];
+          const holidayNames = new Set(todaysRecord.filter((r) => normalizeAttnStatus(r) === 'holiday').map((r) => r.name));
+          players = players.map((p) => ({ ...p, status: holidayNames.has(p.name) ? 'holiday' : 'present' }));
+          try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
+          render();
+          refreshBdayBanner();
+          suppressNextSnapshot = true;
+          playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e) => {
+            console.error('Day-rollover save failed', e);
+          });
+        }).catch((e) => {
+          console.error('Day-rollover holiday check failed — defaulting everyone to present', e);
+          players = players.map((p) => ({ ...p, status: 'present' }));
+          try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e2) {}
+          render();
+          refreshBdayBanner();
+          suppressNextSnapshot = true;
+          playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e2) => {
+            console.error('Day-rollover save failed', e2);
+          });
         });
         return;
       }
@@ -2939,6 +2955,16 @@ async function bulkSetHoliday(name, startStr, endStr) {
 
   bulkStatusEl.style.display = 'none';
   btn.disabled = false;
+  // If today itself is inside the approved range, reflect that on the live roster right away
+  // instead of waiting for tomorrow's day-rollover to pick it up.
+  if (dates.includes(todayStr())) {
+    const i = players.findIndex((p) => p.name === name);
+    if (i >= 0 && players[i].status !== 'holiday') {
+      players[i].status = 'holiday';
+      render();
+      save();
+    }
+  }
   alert(`${dates.length} day(s) of holiday saved for ${name} ✅`);
   loadAttendance(attnDateInput.value);
 }
