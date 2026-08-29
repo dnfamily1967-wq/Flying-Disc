@@ -2788,6 +2788,7 @@ document.getElementById('saveEditAttnBtn').addEventListener('click', () => {
 
 // ---- Monthly fine calculation: takes just one month's data and counts present/holiday/absent ----
 function computeMonthlyTotals(month, onDone, onErr) {
+  const today = todayStr();
   db.collection('disc_team')
     .where(firebase.firestore.FieldPath.documentId(), '>=', 'attendance_')
     .where(firebase.firestore.FieldPath.documentId(), '<', 'attendance_\uf8ff')
@@ -2798,6 +2799,9 @@ function computeMonthlyTotals(month, onDone, onErr) {
       snap.forEach((doc) => {
         const data = doc.data();
         if (!data.date || !data.date.startsWith(month)) return;
+        // Bulk Holiday can write a whole approved range in advance, including future days — those
+        // shouldn't count yet here; a day only counts once it's actually arrived.
+        if (data.date > today) return;
         if (!Array.isArray(data.players)) return;
         daysCounted++;
         const seenToday = new Set(); // guard: never count the same name twice within one day's record
