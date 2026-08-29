@@ -25,6 +25,7 @@
     --muted: #5c6f64;
     --out-red: #c62828;
     --key-border: #9fb7a8;
+    --bowl-blue: #2563eb;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -402,6 +403,9 @@
   .tapChip:active { transform: scale(0.95); }
   .tapChip, .padBtn, .btn-primary, .btn-ghost { min-height: 40px; }
   .tapChip.bowlerActive { background: rgba(245,166,35,0.16); border-color: var(--amber); color: var(--amber); }
+  /* Bowler chips get their own blue tint so they're visually distinct from the batter list at a glance */
+  #bowlerChips .tapChip { border-color: var(--bowl-blue); color: var(--bowl-blue); background: rgba(37,99,235,0.07); }
+  #bowlerChips .tapChip.bowlerActive { background: rgba(245,166,35,0.16); border-color: var(--amber); color: var(--amber); }
   .tapChip.striker { background: rgba(124,255,158,0.18); border-color: var(--led); color: var(--led); }
   .tapChip.nonstriker { background: rgba(211,47,47,0.18); border-color: var(--ball); color: var(--out-red); }
   .tapChip .roleTag { font-size: 8.5px; letter-spacing: 0.5px; display: block; opacity: 0.85; margin-top: 1px; }
@@ -440,11 +444,11 @@
 
   .undoRow { text-align: center; margin-bottom: 8px; }
   .undoRow button {
-    background: var(--panel-2);
-    border: 1.5px solid var(--line);
-    color: var(--muted);
+    background: rgba(198,40,40,0.08);
+    border: 1.5px solid var(--out-red);
+    color: var(--out-red);
     font-size: 12.5px;
-    font-weight: 700;
+    font-weight: 800;
     padding: 7px 16px;
     border-radius: 20px;
     width: 100%;
@@ -660,9 +664,8 @@
   body.onMatch #matchStatsHeading { font-size: 10px; }
   body.onMatch #matchScreen #matchStatsPanel { padding: 6px 8px; margin-bottom: 5px; }
   /* Net Bonus is used rarely — collapse it behind a small toggle by default to reclaim space */
-  body.onMatch #netBonusLabel { font-size: 8.5px; margin-bottom: 4px; cursor: pointer; }
+  body.onMatch #netBonusLabel { font-size: 8.5px; margin-bottom: 4px; }
   body.onMatch #netBonusGrid { margin-bottom: 5px !important; }
-  body.onMatch #netBonusGrid.collapsed { display: none; }
   .onMatchOnly { display: none; }
   body.onMatch .onMatchOnly { display: inline; }
   body.onMatch #extraBtn { margin-bottom: 5px !important; }
@@ -841,7 +844,7 @@
         <button class="padBtn run6" data-run="6">6</button>
       </div>
       <button class="padBtn extra" id="extraBtn" style="width:100%; margin-bottom:8px;">WIDE / NO BALL</button>
-      <label id="netBonusLabel" style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); margin-bottom:6px; font-weight:700;">🥅 Net Bonus (strike always swaps) <span id="netBonusToggleIcon" class="onMatchOnly"></span></label>
+      <label id="netBonusLabel" style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); margin-bottom:6px; font-weight:700;">🥅 Net Bonus (strike always swaps)</label>
       <div class="padGrid" id="netBonusGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px;">
         <button class="padBtn net" data-net="1">1+1</button>
         <button class="padBtn net" data-net="2">1+2</button>
@@ -1967,21 +1970,6 @@ document.getElementById('rosterHeading').addEventListener('click', () => {
   applyRosterExpanded();
 });
 applyRosterExpanded();
-
-// Net Bonus row starts collapsed in the compact match view to save vertical space — tap the
-// label to reveal the 1+1 / 1+2 buttons. (Harmless outside a match; the CSS only hides it then.)
-let netBonusExpanded = false;
-function applyNetBonusExpanded() {
-  const grid = document.getElementById('netBonusGrid');
-  const icon = document.getElementById('netBonusToggleIcon');
-  if (grid) grid.classList.toggle('collapsed', !netBonusExpanded);
-  if (icon) icon.textContent = netBonusExpanded ? '▲' : '▼';
-}
-document.getElementById('netBonusLabel').addEventListener('click', () => {
-  netBonusExpanded = !netBonusExpanded;
-  applyNetBonusExpanded();
-});
-applyNetBonusExpanded();
 
 let historyExpanded = false;
 function applyHistoryExpanded() {
