@@ -627,65 +627,33 @@
   /* ---- Compact mode while a match is live: shrinks spacing so the scoreboard,
          bowler/batter selection, keypad and Undo sit together with as little
          scrolling as possible ---- */
-  /* ---- Compact mode while a match is live: the whole scoring screen is locked to exactly
-         one viewport height (no page scroll, ever) using a flex column, with the score bar
-         fixed at top and the scoring controls filling the rest. Secondary sections (Match
-         Stats & History, End Match bar) are hidden here — a small floating button replaces
-         the End Match action so it's still one tap away. ---- */
-  html.onMatch, body.onMatch { height: 100dvh; overflow: hidden; }
-  body.onMatch .wrap { height: 100dvh; display: flex; flex-direction: column; padding: 6px 8px; overflow: hidden; }
+  body.onMatch .wrap { padding-top: 6px; }
   body.onMatch .hdr { display: none; }
-  body.onMatch #matchScreen { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-  body.onMatch #matchStatsPanel, body.onMatch #endMatchBtn { display: none; }
-  #endMatchFab {
-    display: none;
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 60;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    padding: 0;
-    font-size: 15px;
-    line-height: 1;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.18);
-  }
-  body.onMatch #endMatchFab { display: flex; align-items: center; justify-content: center; }
-  body.onMatch .scoreboard { flex: 0 0 auto; padding: 9px 11px; margin-bottom: 5px; border-radius: 12px; }
+  body.onMatch .scoreboard { padding: 8px 10px; margin-bottom: 5px; border-radius: 12px; }
   body.onMatch .scoreboard .teamsHeaderRowIn { margin-bottom: 3px; }
-  body.onMatch .sbOver { font-size: 10px; letter-spacing: 1.5px; margin-bottom: 1px; }
-  body.onMatch .sbScore { font-size: clamp(26px, 8vw, 34px); }
-  body.onMatch .sbSub { font-size: 10px; margin-top: 1px; }
-  body.onMatch .sbMeta { margin-top: 6px; padding-top: 6px; }
-  body.onMatch .sbMetaCol .lbl { font-size: 8.5px; }
-  body.onMatch .sbMetaCol .val { font-size: 13px; margin-top: 0; }
-  body.onMatch .sbMetaCol .valSub { font-size: 12px; }
-  body.onMatch #thisOverPanel {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    padding: 8px;
-    margin-bottom: 0;
-    overflow: hidden;
-  }
+  body.onMatch .sbOver { font-size: 9px; letter-spacing: 1.5px; margin-bottom: 1px; }
+  body.onMatch .sbScore { font-size: clamp(24px, 8vw, 30px); }
+  body.onMatch .sbSub { font-size: 9.5px; margin-top: 1px; }
+  body.onMatch .sbMeta { margin-top: 5px; padding-top: 5px; }
+  body.onMatch .sbMetaCol .lbl { font-size: 8px; }
+  body.onMatch .sbMetaCol .val { font-size: 12px; margin-top: 0; }
+  body.onMatch .sbMetaCol .valSub { font-size: 11px; }
+  body.onMatch #matchScreen .panel { padding: 8px; margin-bottom: 5px; }
   body.onMatch #thisOverHeading { display: none; }
-  body.onMatch .ballLog { margin: 0 0 3px; min-height: 0; flex: 0 0 auto; }
-  body.onMatch .matchupBlock { margin-bottom: 4px; flex: 0 0 auto; }
-  body.onMatch .matchupBlock label { margin-bottom: 3px; font-size: 9.5px; }
-  /* Name lists become a single horizontally-swipeable strip instead of wrapping several rows —
-     this is what actually buys back the vertical space needed to fit with zero page scroll. */
-  body.onMatch .tapGrid { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; padding-bottom: 3px; scrollbar-width: thin; }
-  body.onMatch .tapChip { padding: 5px 9px; font-size: 12px; min-height: 32px; flex: 0 0 auto; white-space: nowrap; }
-  body.onMatch .undoRow { margin-bottom: 5px; flex: 0 0 auto; }
-  body.onMatch .undoRow button { padding: 5px 14px; font-size: 11.5px; min-height: 30px; }
-  body.onMatch .padGrid { gap: 6px; margin-bottom: 5px; flex: 0 0 auto; }
-  body.onMatch .padGrid .padBtn { padding: 8px 0; font-size: 17px; min-height: 36px; }
-  body.onMatch .padBtn.out { padding: 9px 0; font-size: 14px; margin-bottom: 0 !important; flex: 0 0 auto; }
-  body.onMatch .padBtn.extra { padding: 8px 0; font-size: 12.5px; margin-bottom: 4px !important; flex: 0 0 auto; }
-  body.onMatch #netBonusToggle { flex: 0 0 auto; padding: 1px 0 4px !important; font-size: 9px !important; }
-  body.onMatch #netBonusGrid { margin-bottom: 4px !important; }
+  body.onMatch .ballLog { margin: 0 0 3px; min-height: 0; }
+  body.onMatch .matchupBlock { margin-bottom: 4px; }
+  body.onMatch .matchupBlock label { margin-bottom: 3px; font-size: 9px; }
+  body.onMatch .tapChip { padding: 4px 8px; font-size: 11px; min-height: 30px; }
+  body.onMatch .padGrid { gap: 5px; margin-bottom: 5px; }
+  body.onMatch .padGrid .padBtn { padding: 7px 0; font-size: 15px; min-height: 34px; }
+  body.onMatch .padBtn.out { padding: 8px 0; font-size: 13px; margin-bottom: 0 !important; }
+  body.onMatch .padBtn.extra { padding: 7px 0; font-size: 11.5px; margin-bottom: 5px !important; }
+  body.onMatch .undoRow { margin-bottom: 5px; }
+  body.onMatch .undoRow button { padding: 5px 14px; font-size: 11px; min-height: 30px; }
+  body.onMatch #endMatchBtn { padding: 8px; font-size: 12px; min-height: 34px; }
+  body.onMatch #netBonusLabel { font-size: 8.5px; margin-bottom: 4px; }
+  body.onMatch #netBonusGrid { margin-bottom: 5px !important; }
+  body.onMatch #extraBtn { margin-bottom: 5px !important; }
 </style>
 </head>
 <body>
@@ -818,7 +786,6 @@
   <!-- ================= MATCH SCREEN ================= -->
   <div id="matchScreen" class="hidden">
 
-    <button class="btn-ghost" id="endMatchFab" title="End Match Now">🏁</button>
     <div class="scoreboard">
       <div class="teamsHeaderRow teamsHeaderRowIn" id="matchTeamsHeaderRow"></div>
       <div class="sbOver" id="sbOverLabel">OVER 1 OF 8</div>
@@ -861,8 +828,8 @@
         <button class="padBtn run6" data-run="6">6</button>
       </div>
       <button class="padBtn extra" id="extraBtn" style="width:100%; margin-bottom:8px;">WIDE / NO BALL</button>
-      <button type="button" id="netBonusToggle" style="display:flex; align-items:center; justify-content:space-between; width:100%; background:none; border:none; padding:2px 0 6px; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); font-weight:700;">🥅 Net Bonus (strike always swaps) <span id="netBonusToggleIcon">▼</span></button>
-      <div class="padGrid" id="netBonusGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px; display:none;">
+      <label id="netBonusLabel" style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); margin-bottom:6px; font-weight:700;">🥅 Net Bonus (strike always swaps)</label>
+      <div class="padGrid" id="netBonusGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px;">
         <button class="padBtn net" data-net="1">1+1</button>
         <button class="padBtn net" data-net="2">1+2</button>
       </div>
@@ -1729,9 +1696,6 @@ document.getElementById('endMatchBtn').addEventListener('click', () => {
   }
   goToFinal();
 });
-document.getElementById('endMatchFab').addEventListener('click', () => {
-  document.getElementById('endMatchBtn').click();
-});
 
 // ---------------- FINAL SCREEN ----------------
 function currentMatchRecord() {
@@ -1918,7 +1882,6 @@ async function exportRecordAsJPEG(rec, filenameHint) {
 // ---------------- ROUTER ----------------
 function render() {
   document.body.classList.toggle('onMatch', state.screen === 'match');
-  document.documentElement.classList.toggle('onMatch', state.screen === 'match');
   document.getElementById('setupScreen').classList.toggle('hidden', state.screen !== 'setup');
   document.getElementById('matchScreen').classList.toggle('hidden', state.screen !== 'match');
   document.getElementById('finalScreen').classList.toggle('hidden', state.screen !== 'final');
@@ -1939,19 +1902,6 @@ document.getElementById('rosterHeading').addEventListener('click', () => {
   applyRosterExpanded();
 });
 applyRosterExpanded();
-
-let netBonusExpanded = false;
-function applyNetBonusExpanded() {
-  const grid = document.getElementById('netBonusGrid');
-  const icon = document.getElementById('netBonusToggleIcon');
-  if (grid) grid.style.display = netBonusExpanded ? '' : 'none';
-  if (icon) icon.textContent = netBonusExpanded ? '▲' : '▼';
-}
-document.getElementById('netBonusToggle').addEventListener('click', () => {
-  netBonusExpanded = !netBonusExpanded;
-  applyNetBonusExpanded();
-});
-applyNetBonusExpanded();
 
 let historyExpanded = false;
 function applyHistoryExpanded() {
