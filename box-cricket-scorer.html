@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Box Cricket Scorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --pitch: #16a34a;
+    --pitch-deep: #0d7a3a;
+    --ball: #d32f2f;
+    --amber: #f5a623;
+    --bg: #0b1220;
+    --panel: #121b2e;
+    --panel-2: #182541;
+    --line: #24304a;
+    --led: #7CFF9E;
+    --led-dim: #2f5a3d;
+    --ink: #EAF2EC;
+    --muted: #8B9BB4;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    background: radial-gradient(120% 100% at 50% 0%, #142238 0%, var(--bg) 55%);
+    color: var(--ink);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 14px 12px 10px; }
+
+  /* ---- Header ---- */
+  .hdr { text-align: center; margin-bottom: 12px; }
+  .hdr .eyebrow {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--pitch);
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .hdr h1 {
+    font-size: 21px;
+    font-weight: 700;
+    margin: 3px 0 0;
+    letter-spacing: 0.5px;
+  }
+  .hdr h1 span { color: var(--ball); }
+
+  /* ---- Card ---- */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 13px;
+    margin-bottom: 10px;
+  }
+  .panel h2 {
+    font-size: 11.5px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 9px;
+    font-weight: 700;
+  }
+
+  /* ---- Setup screen ---- */
+  .addRow { display: flex; gap: 8px; margin-bottom: 10px; }
+  input[type="text"], input[type="number"], select {
+    flex: 1;
+    background: var(--panel-2);
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 12px 14px;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--pitch); }
+  button {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 15px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--pitch) 0%, var(--pitch-deep) 100%);
+    color: #fff;
+    padding: 13px 18px;
+    width: 100%;
+    box-shadow: 0 4px 14px rgba(22,163,74,0.35);
+  }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+  .btn-ghost {
+    background: transparent;
+    border: 1.5px solid var(--line);
+    color: var(--muted);
+    padding: 10px 14px;
+  }
+  .btn-ghost:hover { color: var(--ink); border-color: var(--muted); }
+
+  .playerChips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+  .teamBox {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--amber);
+    border-radius: 12px;
+    padding: 14px 12px 12px;
+    margin-bottom: 10px;
+  }
+  .teamBox.team1 { border-top-color: var(--led); }
+  .teamBox.team2 { border-top-color: var(--amber); }
+  .teamBox.team1 .teamNameInput { border-color: var(--led); color: var(--led); }
+  .teamNameInput {
+    width: 100%;
+    background: var(--bg);
+    border: 1.5px solid var(--amber);
+    border-radius: 10px;
+    color: var(--amber);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.5px;
+    padding: 11px 14px;
+    margin-bottom: 12px;
+  }
+  .teamNameInput::placeholder { color: rgba(245,166,35,0.5); }
+  .teamPlayerList { display: flex; flex-direction: column; gap: 2px; }
+  .teamPlayerRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .teamPlayerRow:last-child { border-bottom: none; }
+  .teamPlayerNum { color: var(--muted); font-size: 13px; font-weight: 700; width: 18px; flex-shrink: 0; }
+  .teamPlayerName { flex: 1; font-weight: 700; font-size: 14.5px; color: var(--ink); }
+  .teamBox.team1 .teamPlayerName { color: var(--led); }
+  .teamBox.team2 .teamPlayerName { color: var(--amber); }
+  .teamPlayerSkill { color: var(--muted); font-family: 'Share Tech Mono', monospace; font-size: 12px; flex-shrink: 0; }
+  .teamPlayerDel {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--ball);
+    color: #fff;
+    border: none;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .teamNameInput:focus { outline: none; border-color: var(--led); color: var(--led); }
+  .playerChip {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 8px 10px 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .sortRow2 { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .sortLabel2 { font-size: 10.5px; letter-spacing: 1.5px; color: var(--muted); font-weight: 700; }
+  .sortBtn2 {
+    background: var(--panel-2);
+    border: 1.5px solid var(--line);
+    color: var(--muted);
+    border-radius: 16px;
+    padding: 6px 12px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+  .sortBtn2.active { border-color: var(--amber); color: var(--amber); background: rgba(245,166,35,0.1); }
+  .rosterList { display: flex; flex-direction: column; gap: 6px; }
+  .rosterRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: rgba(22,163,74,0.1);
+    border: 1.5px solid var(--pitch);
+    border-radius: 12px;
+    padding: 6px 6px 6px 14px;
+  }
+  .rosterRow.absent {
+    background: rgba(211,47,47,0.08);
+    border-color: var(--ball);
+  }
+  .rosterRowName {
+    background: none;
+    border: none;
+    color: var(--led);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    text-shadow: 0 0 8px rgba(124,255,158,0.2);
+    text-align: left;
+    flex: 1;
+    padding: 8px 0;
+  }
+  .rosterRow.absent .rosterRowName {
+    color: #ff8a80;
+    text-decoration: line-through;
+    opacity: 0.8;
+    text-shadow: none;
+  }
+  .rosterRowRight { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .rosterRatingLocked {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--panel-2);
+    border: 1.5px solid var(--amber);
+    color: var(--amber);
+    border-radius: 9px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .rosterRatingEditBtn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 15px;
+    padding: 4px;
+    width: auto;
+  }
+  .rosterRatingInput {
+    width: 40px;
+    flex-shrink: 0;
+    text-align: center;
+    background: var(--panel-2);
+    border: 1.5px solid var(--amber);
+    color: var(--amber);
+    border-radius: 9px;
+    padding: 8px 2px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    -moz-appearance: textfield;
+  }
+  .rosterRatingInput::-webkit-outer-spin-button,
+  .rosterRatingInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .rosterDelBtn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--ball);
+    color: #fff;
+    border: none;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .playerChip button {
+    background: none;
+    color: var(--ball);
+    font-size: 16px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    line-height: 1;
+  }
+  .setupHint { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 4px; }
+
+  /* ---- Scoreboard ---- */
+  .scoreboard {
+    background: linear-gradient(180deg, #0e1a12 0%, #0a140d 100%);
+    border: 1px solid #1e3a26;
+    border-radius: 14px;
+    padding: 14px;
+    text-align: center;
+    margin-bottom: 10px;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.4);
+  }
+  .sbOver {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--amber);
+    font-size: 10.5px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .sbScore {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--led);
+    text-shadow: 0 0 14px rgba(124,255,158,0.55);
+    line-height: 1;
+  }
+  .sbScore .wkt { color: var(--ball); text-shadow: 0 0 14px rgba(211,47,47,0.55); }
+  .sbSub {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--led-dim);
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .sbMeta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed #1e3a26;
+    text-align: left;
+  }
+  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+  .sbMetaCol .val { font-size: 14px; font-weight: 700; margin-top: 1px; }
+  .sbMetaCol .valSub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--led);
+    text-shadow: 0 0 8px rgba(124,255,158,0.4);
+    margin-top: 1px;
+  }
+  .sbMetaCol.right { text-align: right; }
+
+  .ballLog { display: flex; flex-wrap: wrap; gap: 5px; margin: 9px 0 3px; min-height: 24px; }
+  .ballChip {
+    width: 25px; height: 25px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-weight: 700;
+    font-size: 10.5px;
+    background: var(--panel-2);
+    border: 1.5px solid var(--line);
+    flex-shrink: 0;
+  }
+  .ballChip.four { background: rgba(245,166,35,0.18); border-color: var(--amber); color: var(--amber); }
+  .ballChip.six { background: rgba(124,255,158,0.18); border-color: var(--led); color: var(--led); }
+  .ballChip.out { background: rgba(211,47,47,0.2); border-color: var(--ball); color: #ff8a80; }
+  .ballChip.extra { background: rgba(245,166,35,0.1); border-color: var(--amber); color: var(--amber); font-size: 9px; }
+  .ballChip.dot { color: var(--muted); }
+
+  /* ---- Setup screen's out-penalty / wide-ball settings row ---- */
+  .matchupRow { display: flex; gap: 10px; margin-bottom: 4px; }
+  .matchupCol { flex: 1; }
+  .matchupCol label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  /* ---- Bowler/Batter: tap chips instead of dropdowns — one tap sets who's up ---- */
+  .matchupBlock { margin-bottom: 10px; }
+  .matchupBlock label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+  .tapGrid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tapChip {
+    background: var(--panel-2);
+    border: 1.5px solid var(--line);
+    color: var(--muted);
+    border-radius: 16px;
+    padding: 7px 12px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .tapChip:active { transform: scale(0.95); }
+  .tapChip.bowlerActive { background: rgba(245,166,35,0.16); border-color: var(--amber); color: var(--amber); }
+  .tapChip.striker { background: rgba(124,255,158,0.18); border-color: var(--led); color: var(--led); }
+  .tapChip.nonstriker { background: rgba(211,47,47,0.18); border-color: var(--ball); color: #ff8a80; }
+  .tapChip .roleTag { font-size: 8.5px; letter-spacing: 0.5px; display: block; opacity: 0.85; margin-top: 1px; }
+
+  /* ---- Scoring pad ---- */
+  .padGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .padBtn {
+    background: var(--panel-2);
+    border: 1.5px solid var(--line);
+    color: var(--ink);
+    border-radius: 11px;
+    padding: 13px 0;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 19px;
+    font-weight: 700;
+  }
+  .padBtn:active { transform: scale(0.94); }
+  .padBtn.run4 { border-color: var(--amber); color: var(--amber); }
+  .padBtn.run6 { border-color: var(--led); color: var(--led); background: rgba(124,255,158,0.08); }
+  .padBtn.net { border-color: var(--amber); color: var(--amber); background: rgba(245,166,35,0.08); font-size: 15px; }
+  .padBtn.out { grid-column: span 3; background: linear-gradient(135deg, var(--ball), #a01f1f); border-color: var(--ball); color: #fff; font-size: 14px; letter-spacing: 1px; padding: 12px 0; }
+  .padBtn.extra { grid-column: span 3; background: rgba(245,166,35,0.12); border-color: var(--amber); color: var(--amber); font-size: 13px; letter-spacing: 1px; }
+  .padRow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+
+  .undoRow { text-align: center; margin-top: 4px; }
+  .undoRow button { background: none; color: var(--muted); font-size: 11.5px; padding: 5px 10px; text-decoration: underline; }
+
+  /* ---- Leaderboard ---- */
+  table.stats { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.stats th, table.stats td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+  table.stats th { color: var(--muted); font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; }
+  table.stats td.num { text-align: right; font-family: 'Share Tech Mono', monospace; font-weight: 700; }
+  table.stats tr:last-child td { border-bottom: none; }
+  .rowName { font-weight: 700; }
+  .rowSub { color: var(--muted); font-size: 11px; }
+
+  .overBadge {
+    display: inline-block;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 3px 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+  .overBadge.done { color: var(--led); border-color: var(--led-dim); }
+
+  .finalHero { text-align: center; padding: 10px 0 4px; }
+  .finalHero .trophy { font-size: 44px; }
+  .finalHero .big { font-family: 'Share Tech Mono', monospace; font-size: 40px; color: var(--led); font-weight: 700; text-shadow: 0 0 16px rgba(124,255,158,0.5); margin: 4px 0; }
+  .finalHero .cap { color: var(--muted); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+
+  /* ---- Auto team logo badge (initials on a deterministic color) ---- */
+  .teamLogoBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 800;
+    font-family: 'Rajdhani', sans-serif;
+    flex-shrink: 0;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  }
+  .teamNameRow { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .teamNameRow .teamNameInput { margin-bottom: 0; flex: 1; }
+
+  /* ---- Teams-vs header (match + final screens) ---- */
+  .teamsHeaderRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .teamsHeaderSide { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13.5px; opacity: 0.55; }
+  .teamsHeaderSide.active { opacity: 1; }
+  .teamsHeaderVs { color: var(--muted); font-size: 10.5px; letter-spacing: 1.5px; font-weight: 700; }
+
+  /* ---- Match History ---- */
+  .historyRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .historyRowMain { flex: 1; min-width: 0; }
+  .historyRowTeams { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; flex-wrap: wrap; }
+  .historyRowScore { font-family: 'Share Tech Mono', monospace; color: var(--led); font-weight: 700; font-size: 15px; margin-top: 3px; }
+  .historyRowOvers { color: var(--muted); font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; }
+  .historyRowDate { color: var(--muted); font-size: 10.5px; margin-top: 2px; letter-spacing: 0.3px; }
+  .historyRowActions { display: flex; gap: 6px; flex-shrink: 0; }
+  .historyActionBtn {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1.5px solid var(--line);
+    color: var(--ink);
+    font-size: 14px;
+    padding: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .historyActionBtn.del { border-color: var(--ball); color: #ff8a80; }
+
+  /* ---- Offscreen render target used for JPEG export (kept out of the normal layout) ---- */
+  #exportCard { position: fixed; left: -9999px; top: 0; width: 420px; display: none; }
+  .exportCardInner {
+    background: #0b1220;
+    color: var(--ink);
+    font-family: 'Rajdhani', sans-serif;
+    padding: 22px 18px;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+  }
+  .exportCardInner .exTitle { text-align: center; font-family: 'Share Tech Mono', monospace; color: var(--pitch); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 10px; }
+  .exportCardInner .exTeams { display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 700; font-size: 15px; margin-bottom: 4px; flex-wrap: wrap; }
+  .exportCardInner .exDate { text-align: center; color: var(--muted); font-size: 11px; margin-bottom: 12px; }
+  .exportCardInner .exScore { text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 40px; font-weight: 700; color: var(--led); margin-bottom: 2px; }
+  .exportCardInner .exOvers { text-align: center; color: var(--muted); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 16px; }
+  .exportCardInner h3 { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--amber); margin: 14px 0 6px; }
+  .exportCardInner table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .exportCardInner th, .exportCardInner td { text-align: left; padding: 5px 4px; border-bottom: 1px solid var(--line); }
+  .exportCardInner td.num, .exportCardInner th.num { text-align: right; font-family: 'Share Tech Mono', monospace; }
+  .exportCardInner .exFoot { text-align: center; color: var(--muted); font-size: 10px; margin-top: 14px; letter-spacing: 1px; }
+
+  .hidden { display: none !important; }
+  .footNote { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 18px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr">
+    <div class="eyebrow">🏏 Live Scorer</div>
+    <h1>BOX <span>CRICKET</span></h1>
+  </div>
+
+  <!-- Offscreen JPEG-export render target -->
+  <div id="exportCard"></div>
+
+  <!-- ================= SETUP SCREEN ================= -->
+  <div id="setupScreen">
+    <div class="panel">
+      <h2 id="rosterHeading" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+        <span>Team Roster <span id="rosterCountTag" style="color:var(--muted); font-weight:600;"></span></span>
+        <span id="rosterToggleIcon">▼</span>
+      </h2>
+      <div id="rosterBody" style="display:none;">
+        <div class="setupHint" style="margin-top:0; margin-bottom:10px;">Tap a name to mark them absent for today, set their skill level (1-9) in the small box, or ✕ to remove for good. Then use Random Team or 2 Teams below.</div>
+        <div class="sortRow2">
+          <span class="sortLabel2">SORT:</span>
+          <button type="button" class="sortBtn2" id="rosterSortNameBtn" data-mode="name">NAME <span id="rosterSortNameArrow">↑</span></button>
+          <button type="button" class="sortBtn2" id="rosterSortSkillBtn" data-mode="skill">SKILL <span id="rosterSortSkillArrow">↕</span></button>
+        </div>
+        <div class="rosterList" id="rosterChips"></div>
+        <div class="addRow" style="margin-top:10px;">
+          <input type="text" id="rosterNameInput" placeholder="Add a roster name" maxlength="20">
+          <button class="btn-primary" style="width:auto; padding:12px 20px;" id="addRosterBtn">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Split Into 2 Teams</h2>
+      <div class="setupHint" style="margin-top:0; margin-bottom:10px;">Splits today's present players into two random, even-ish teams — give each a name, and tap ✕ on anyone who shouldn't be on that side. This is today's actual lineup — each player bowls one over and bats too.</div>
+      <button class="btn-primary" id="makeTwoTeamsBtn" style="background:linear-gradient(135deg, var(--amber), #c9820f); box-shadow:0 4px 14px rgba(245,166,35,0.3);">🎲 MAKE 2 TEAMS</button>
+      <div id="twoTeamsBlock" class="hidden" style="margin-top:14px;">
+        <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-weight:700;">Or pick someone by hand</label>
+        <div class="addRow" style="margin-bottom:12px;">
+          <select id="unassignedSelect"></select>
+        </div>
+        <div class="padRow2" style="margin-bottom:12px;">
+          <button class="btn-ghost" id="addToTeam1Btn">→ <span id="addToTeam1Label">Team A</span></button>
+          <button class="btn-ghost" id="addToTeam2Btn">→ <span id="addToTeam2Label">Team B</span></button>
+        </div>
+        <div class="teamBox team1">
+          <div class="teamNameRow">
+            <span class="teamLogoBadge" id="team1LogoBadge" style="width:34px;height:34px;font-size:14px;"></span>
+            <input type="text" class="teamNameInput" id="team1NameInput" placeholder="Team A" maxlength="18">
+          </div>
+          <div class="teamPlayerList" id="team1Chips"></div>
+        </div>
+        <div class="teamBox team2">
+          <div class="teamNameRow">
+            <span class="teamLogoBadge" id="team2LogoBadge" style="width:34px;height:34px;font-size:14px;"></span>
+            <input type="text" class="teamNameInput" id="team2NameInput" placeholder="Team B" maxlength="18">
+          </div>
+          <div class="teamPlayerList" id="team2Chips"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Match Settings</h2>
+      <div class="matchupRow" style="margin-bottom:12px;">
+        <div class="matchupCol">
+          <label>Overs</label>
+          <input type="number" id="oversInput" min="1" placeholder="Overs">
+        </div>
+      </div>
+      <div class="matchupRow">
+        <div class="matchupCol">
+          <label>Out Penalty</label>
+          <select id="outPenaltyInput">
+            <option value="-3" selected>-3 runs</option>
+            <option value="-2">-2 runs</option>
+            <option value="-1">-1 run</option>
+            <option value="0">0 (no penalty)</option>
+          </select>
+        </div>
+        <div class="matchupCol">
+          <label>Wide/No-ball</label>
+          <select id="extraRunsInput">
+            <option value="1" selected>+1 run</option>
+            <option value="2">+2 runs</option>
+          </select>
+        </div>
+      </div>
+      <div class="matchupRow" style="margin-top:12px;">
+        <div class="matchupCol">
+          <label>On Negative Out</label>
+          <select id="negOutSwapInput">
+            <option value="1" selected>Strike swaps</option>
+            <option value="0">Striker stays</option>
+          </select>
+        </div>
+        <div class="matchupCol">
+          <label>Retirement Rule</label>
+          <select id="retirementRuleInput">
+            <option value="none" selected>None</option>
+            <option value="pair2">Pair — every 2 overs</option>
+            <option value="single1">Single — every over</option>
+          </select>
+        </div>
+      </div>
+      <div class="setupHint" id="retirementHint" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="panel">
+      <h2 id="historyHeading" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+        <span>Match History <span id="historyCountTag" style="color:var(--muted); font-weight:600;"></span></span>
+        <span id="historyToggleIcon">▼</span>
+      </h2>
+      <div id="historyBody" style="display:none;">
+        <div id="historyList"></div>
+        <button class="btn-ghost" id="clearHistoryBtn" style="width:100%; color:var(--ball); border-color:var(--ball); margin-top:4px;">🗑 Clear All History</button>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="startMatchBtn" disabled>Start Match →</button>
+    <div class="footNote">Overs = number of players. Everyone bowls one over.<br>Runs: 1 · 2 · 3 · 4 · 6 · dot ball · OUT · WIDE/NO</div>
+  </div>
+
+  <!-- ================= MATCH SCREEN ================= -->
+  <div id="matchScreen" class="hidden">
+
+    <div class="teamsHeaderRow" id="matchTeamsHeaderRow"></div>
+    <div class="scoreboard">
+      <div class="sbOver" id="sbOverLabel">OVER 1 OF 8</div>
+      <div class="sbScore"><span id="sbRuns">0</span>/<span class="wkt" id="sbWkts">0</span></div>
+      <div class="sbSub" id="sbOverProgress">0.0 OVERS</div>
+      <div class="sbMeta">
+        <div class="sbMetaCol">
+          <div class="lbl">Bowling</div>
+          <div class="val" id="sbBowlerName">—</div>
+          <div class="valSub" id="sbBowlerFigures">0 runs</div>
+        </div>
+        <div class="sbMetaCol right">
+          <div class="lbl">On Strike 🟢</div>
+          <div class="val" id="sbBatterName">—</div>
+          <div class="valSub batterRuns" id="sbBatterRuns">0 runs</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>This Over</h2>
+      <div class="ballLog" id="ballLog"></div>
+
+      <div class="matchupBlock">
+        <label id="bowlerLabel">Bowler — tap to set</label>
+        <div class="tapGrid" id="bowlerChips"></div>
+      </div>
+      <div class="matchupBlock">
+        <label id="batterLabel">Batters — 🟢 striker · 🔴 non-striker · tap a name</label>
+        <div class="tapGrid" id="batterChips"></div>
+      </div>
+
+      <div class="padGrid">
+        <button class="padBtn dotBtn" data-run="0">0</button>
+        <button class="padBtn" data-run="1">1</button>
+        <button class="padBtn" data-run="2">2</button>
+        <button class="padBtn" data-run="3">3</button>
+        <button class="padBtn run4" data-run="4">4</button>
+        <button class="padBtn run6" data-run="6">6</button>
+      </div>
+      <button class="padBtn extra" id="extraBtn" style="width:100%; margin-bottom:8px;">WIDE / NO BALL</button>
+      <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); margin-bottom:6px; font-weight:700;">🥅 Net Bonus (strike always swaps)</label>
+      <div class="padGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px;">
+        <button class="padBtn net" data-net="1">1+1</button>
+        <button class="padBtn net" data-net="2">1+2</button>
+      </div>
+      <button class="padBtn out" id="outBtn" style="width:100%; margin-bottom:10px;">OUT</button>
+      <div class="undoRow"><button id="undoBtn">↩ Undo last ball</button></div>
+    </div>
+
+    <div class="panel">
+      <h2>Overs Bowled</h2>
+      <div id="overBadges"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Scoreboard So Far</h2>
+      <table class="stats">
+        <thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
+        <tbody id="battingStatsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Bowling Figures</h2>
+      <table class="stats">
+        <thead><tr><th>Bowler</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead>
+        <tbody id="bowlingStatsBody"></tbody>
+      </table>
+    </div>
+
+    <button class="btn-ghost" id="endMatchBtn" style="width:100%;">🏁 End Match Now</button>
+  </div>
+
+  <!-- ================= FINAL SCREEN ================= -->
+  <div id="finalScreen" class="hidden">
+    <div class="panel">
+      <div class="finalHero">
+        <div class="trophy">🏆</div>
+        <div class="teamsHeaderRow" id="finalTeamsHeaderRow" style="margin-bottom:2px;"></div>
+        <div class="cap">Final Score</div>
+        <div class="big" id="finalScore">0/0</div>
+        <div class="cap" id="finalOvers">0.0 overs</div>
+      </div>
+    </div>
+
+    <button class="btn-ghost" id="exportJpegBtn" style="width:100%; margin-bottom:10px;">⬇️ Export Scorecard as JPEG</button>
+
+    <div class="panel">
+      <h2>🏏 Top Scorer</h2>
+      <div id="topScorerBlock"></div>
+    </div>
+
+    <div class="panel">
+      <h2>🎯 Best Bowler</h2>
+      <div id="topBowlerBlock"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Full Batting Card</h2>
+      <table class="stats">
+        <thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
+        <tbody id="finalBattingBody"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Full Bowling Card</h2>
+      <table class="stats">
+        <thead><tr><th>Bowler</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead>
+        <tbody id="finalBowlingBody"></tbody>
+      </table>
+    </div>
+
+    <button class="btn-primary" id="newMatchBtn">🔄 Start New Match</button>
+  </div>
+
+</div>
+
+<script>
+const STORAGE_KEY = 'box-cricket-match-v1';
+const ROSTER_KEY = 'box-cricket-roster-v1';
+const MATCH_HISTORY_KEY = 'box-cricket-history-v1';
+const DEFAULT_ROSTER = ['DEVENDRA','DINESH','DIPPU','KAMLESH','MAHAVIR','NAVIN','PAWAN','PRAMOD','RAJENDRA','RAJESH','SANJAY','SHANKAR','SUBHASH','SURESH','VIBHAW','VISHAL','VISHNU'];
+
+let state = null;
+let roster = null; // { names: [...], absent: [...] } — persists across matches, separate from the live match state
+/*
+state = {
+  screen: 'setup' | 'match' | 'final',
+  players: ['NAME', ...],
+  overs: 8,
+  outPenalty: -3,
+  extraRuns: 1,
+  negOutSwapStrike: true,     // when outPenalty < 0: does strike swap to the non-striker on OUT?
+  retirementRule: 'none',     // 'none' | 'pair2' (pair retires every 2 overs) | 'single1' (1 new batter every over)
+  currentOverIdx: 0,          // 0-based index into players[] for whose turn to bowl
+  bowlerOrder: [...players],  // fixed bowling order, one per over
+  currentBowler: 'NAME',
+  striker: 'NAME',            // on strike — runs are credited to this player
+  nonStriker: 'NAME',
+  legalBallsThisOver: 0,      // 0-6
+  thisOverBalls: [ {type:'run'|'out'|'extra', run, label} ],
+  totalRuns: 0,
+  totalWkts: 0,
+  battingStats: { name: { runs } },
+  bowlingStats: { name: { runsConceded, wkts } },
+  history: []  // stack of {snapshot before each ball} for undo
+}
+*/
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      state = JSON.parse(raw);
+      // Migrate older saved matches that predate these two settings.
+      if (state.retirementRule === undefined) state.retirementRule = 'none';
+      if (state.negOutSwapStrike === undefined) state.negOutSwapStrike = true;
+      return;
+    }
+  } catch (e) {}
+  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true };
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function loadRoster() {
+  try {
+    const raw = localStorage.getItem(ROSTER_KEY);
+    if (raw) {
+      roster = JSON.parse(raw);
+      if (!roster.ratings) roster.ratings = {}; // migrate older saved rosters that had no skill ratings
+      roster.names.forEach((n) => { if (!roster.ratings[n]) roster.ratings[n] = 5; });
+      return;
+    }
+  } catch (e) {}
+  roster = { names: DEFAULT_ROSTER.slice(), absent: [], ratings: {} };
+  DEFAULT_ROSTER.forEach((n) => { roster.ratings[n] = 5; });
+}
+
+function saveRoster() {
+  try { localStorage.setItem(ROSTER_KEY, JSON.stringify(roster)); } catch (e) {}
+}
+
+function shuffleArr(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ---------------- SETUP SCREEN ----------------
+const startMatchBtn = document.getElementById('startMatchBtn');
+const outPenaltyInput = document.getElementById('outPenaltyInput');
+const extraRunsInput = document.getElementById('extraRunsInput');
+const negOutSwapInput = document.getElementById('negOutSwapInput');
+const retirementRuleInput = document.getElementById('retirementRuleInput');
+const retirementHintEl = document.getElementById('retirementHint');
+const oversInput = document.getElementById('oversInput');
+const rosterChipsEl = document.getElementById('rosterChips');
+const rosterNameInput = document.getElementById('rosterNameInput');
+const addRosterBtn = document.getElementById('addRosterBtn');
+
+let editingRatingName = null; // which roster row's skill number is unlocked for editing right now (null = none)
+let rosterSortMode = 'name'; // 'name' | 'skill'
+let rosterSortDir = { name: 'asc', skill: null }; // skill starts at null = unsorted, first click picks a direction
+
+function sortedRosterNames() {
+  const list = roster.names.slice();
+  if (rosterSortMode === 'skill' && rosterSortDir.skill) {
+    const dir = rosterSortDir.skill === 'asc' ? 1 : -1;
+    list.sort((a, b) => dir * ((roster.ratings[a] || 5) - (roster.ratings[b] || 5)));
+  } else {
+    const dir = rosterSortDir.name === 'asc' ? 1 : -1;
+    list.sort((a, b) => dir * a.localeCompare(b));
+  }
+  return list;
+}
+
+function applyRosterSortButtons() {
+  const nameBtn = document.getElementById('rosterSortNameBtn');
+  const skillBtn = document.getElementById('rosterSortSkillBtn');
+  const nameArrow = document.getElementById('rosterSortNameArrow');
+  const skillArrow = document.getElementById('rosterSortSkillArrow');
+  nameBtn.classList.toggle('active', rosterSortMode === 'name');
+  skillBtn.classList.toggle('active', rosterSortMode === 'skill');
+  nameArrow.textContent = rosterSortMode === 'name' ? (rosterSortDir.name === 'asc' ? '↑' : '↓') : '↕';
+  skillArrow.textContent = rosterSortMode === 'skill' && rosterSortDir.skill ? (rosterSortDir.skill === 'asc' ? '↑' : '↓') : '↕';
+}
+document.getElementById('rosterSortNameBtn').addEventListener('click', () => {
+  if (rosterSortMode === 'name') rosterSortDir.name = rosterSortDir.name === 'asc' ? 'desc' : 'asc';
+  rosterSortMode = 'name';
+  applyRosterSortButtons();
+  renderRoster();
+});
+document.getElementById('rosterSortSkillBtn').addEventListener('click', () => {
+  if (rosterSortMode === 'skill') rosterSortDir.skill = rosterSortDir.skill === 'asc' ? 'desc' : 'asc';
+  else rosterSortDir.skill = 'desc'; // first tap shows the strongest players at the top
+  rosterSortMode = 'skill';
+  applyRosterSortButtons();
+  renderRoster();
+});
+
+function renderRoster() {
+  const countTag = document.getElementById('rosterCountTag');
+  if (countTag) {
+    const presentCount = roster.names.filter((n) => !roster.absent.includes(n)).length;
+    countTag.textContent = `(${presentCount}/${roster.names.length} present)`;
+  }
+  rosterChipsEl.innerHTML = sortedRosterNames().map((name) => {
+    const isAbsent = roster.absent.includes(name);
+    const rating = roster.ratings[name] || 5;
+    const ratingHtml = editingRatingName === name
+      ? `<input type="number" class="rosterRatingInput" inputmode="numeric" pattern="[0-9]*" min="1" max="9" value="${rating}" data-rating-name="${name}" autofocus>`
+      : `<span class="rosterRatingLocked" data-rating-name="${name}">${rating}</span><button type="button" class="rosterRatingEditBtn" data-edit-rating="${name}" title="Edit skill level">✏️</button>`;
+    return `<div class="rosterRow ${isAbsent ? 'absent' : ''}">
+      <button type="button" class="rosterRowName" data-roster-name="${name}">${name}</button>
+      <div class="rosterRowRight">
+        ${ratingHtml}
+        <button type="button" class="rosterDelBtn" data-del-name="${name}" title="Remove from roster permanently">&times;</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+rosterChipsEl.addEventListener('click', (e) => {
+  const delBtn = e.target.closest('[data-del-name]');
+  if (delBtn) {
+    const name = delBtn.dataset.delName;
+    if (!confirm(`Remove ${name} from the roster for good? (You can always add them back later.)`)) return;
+    roster.names = roster.names.filter((n) => n !== name);
+    roster.absent = roster.absent.filter((n) => n !== name);
+    delete roster.ratings[name];
+    saveRoster();
+    renderRoster();
+    return;
+  }
+  const editBtn = e.target.closest('[data-edit-rating]');
+  if (editBtn) {
+    editingRatingName = editBtn.dataset.editRating;
+    renderRoster();
+    return;
+  }
+  const btn = e.target.closest('[data-roster-name]');
+  if (!btn) return;
+  const name = btn.dataset.rosterName;
+  const idx = roster.absent.indexOf(name);
+  if (idx >= 0) roster.absent.splice(idx, 1);
+  else roster.absent.push(name);
+  saveRoster();
+  renderRoster();
+});
+function commitRatingEdit(input) {
+  let val = parseInt(input.value, 10);
+  if (isNaN(val) || val < 1) val = 1;
+  if (val > 9) val = 9;
+  roster.ratings[input.dataset.ratingName] = val;
+  editingRatingName = null;
+  saveRoster();
+  renderRoster();
+}
+rosterChipsEl.addEventListener('change', (e) => {
+  const input = e.target.closest('input[data-rating-name]');
+  if (!input) return;
+  commitRatingEdit(input);
+});
+// blur doesn't bubble, so this needs the capture phase — re-locks the row if admin taps away
+// without changing the number (change wouldn't fire in that case).
+rosterChipsEl.addEventListener('blur', (e) => {
+  const input = e.target.closest && e.target.closest('input[data-rating-name]');
+  if (!input) return;
+  if (editingRatingName !== null) commitRatingEdit(input);
+}, true);
+addRosterBtn.addEventListener('click', () => {
+  const name = rosterNameInput.value.trim().toUpperCase();
+  if (!name || roster.names.includes(name)) { rosterNameInput.value = ''; return; }
+  roster.names.push(name);
+  roster.ratings[name] = 5;
+  rosterNameInput.value = '';
+  saveRoster();
+  renderRoster();
+});
+rosterNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addRosterBtn.click(); });
+
+// ---------------- TEAM LOGOS (auto-generated: initials on a deterministic color) ----------------
+function teamInitials(name) {
+  const words = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '??';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+function teamColor(name) {
+  let hash = 0;
+  const str = name || '';
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+  const hue = hash % 360;
+  return `hsl(${hue}, 62%, 42%)`;
+}
+function teamLogoHTML(name, size) {
+  size = size || 28;
+  return `<span class="teamLogoBadge" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.4)}px;background:${teamColor(name)};">${teamInitials(name)}</span>`;
+}
+
+// ---------------- 2 TEAMS ----------------
+const TEAMS_KEY = 'box-cricket-teams-v1';
+let teamsState = null; // { name1, name2, team1: [...], team2: [...] }
+function loadTeams() {
+  try {
+    const raw = localStorage.getItem(TEAMS_KEY);
+    if (raw) { teamsState = JSON.parse(raw); return; }
+  } catch (e) {}
+  teamsState = { name1: 'Team A', name2: 'Team B', team1: [], team2: [] };
+}
+function saveTeams() {
+  try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teamsState)); } catch (e) {}
+}
+
+const twoTeamsBlock = document.getElementById('twoTeamsBlock');
+const team1NameInput = document.getElementById('team1NameInput');
+const team2NameInput = document.getElementById('team2NameInput');
+const team1ChipsEl = document.getElementById('team1Chips');
+const team2ChipsEl = document.getElementById('team2Chips');
+const team1LogoBadge = document.getElementById('team1LogoBadge');
+const team2LogoBadge = document.getElementById('team2LogoBadge');
+
+function updateTeamLogoBadge(badgeEl, name) {
+  if (!badgeEl) return;
+  badgeEl.textContent = teamInitials(name);
+  badgeEl.style.background = teamColor(name);
+}
+team1NameInput.addEventListener('input', () => updateTeamLogoBadge(team1LogoBadge, team1NameInput.value));
+team2NameInput.addEventListener('input', () => updateTeamLogoBadge(team2LogoBadge, team2NameInput.value));
+
+document.getElementById('makeTwoTeamsBtn').addEventListener('click', () => {
+  const present = roster.names.filter((n) => !roster.absent.includes(n));
+  if (present.length < 2) { alert('Need at least 2 present players in the roster to split into teams.'); return; }
+  const { team1, team2 } = balanceTeamsBySkill(present);
+  teamsState = {
+    name1: (teamsState && teamsState.name1) || 'Team A',
+    name2: (teamsState && teamsState.name2) || 'Team B',
+    team1, team2
+  };
+  saveTeams();
+  renderSetup();
+});
+
+// Same idea as the Flying Disc app's team maker: sort everyone present by skill level (high to
+// low, shuffling players who tie so it's not always the same pairing), then hand each player one
+// at a time to whichever team currently has the lower total skill — keeps both sides as close to
+// even as possible instead of a coin-flip random split.
+function balanceTeamsBySkill(names) {
+  const withRating = shuffleArr(names).map((name) => ({ name, rating: roster.ratings[name] || 5 }));
+  withRating.sort((a, b) => b.rating - a.rating);
+  const team1 = [], team2 = [];
+  let sum1 = 0, sum2 = 0;
+  withRating.forEach((p) => {
+    if (sum1 <= sum2) { team1.push(p.name); sum1 += p.rating; }
+    else { team2.push(p.name); sum2 += p.rating; }
+  });
+  return { team1, team2 };
+}
+
+function renderTeams() {
+  twoTeamsBlock.classList.remove('hidden');
+  team1NameInput.value = teamsState.name1;
+  team2NameInput.value = teamsState.name2;
+  updateTeamLogoBadge(team1LogoBadge, teamsState.name1);
+  updateTeamLogoBadge(team2LogoBadge, teamsState.name2);
+  team1ChipsEl.innerHTML = teamsState.team1.map((name, i) => `
+    <div class="teamPlayerRow">
+      <span class="teamPlayerNum">${i + 1}.</span>
+      <span class="teamPlayerName">${name}</span>
+      <span class="teamPlayerSkill">(${roster.ratings[name] || 5})</span>
+      <button type="button" data-team="1" data-i="${i}" class="teamPlayerDel">&times;</button>
+    </div>`
+  ).join('') || '<span style="color:var(--muted); font-size:13px;">No one on this team</span>';
+  team2ChipsEl.innerHTML = teamsState.team2.map((name, i) => `
+    <div class="teamPlayerRow">
+      <span class="teamPlayerNum">${i + 1}.</span>
+      <span class="teamPlayerName">${name}</span>
+      <span class="teamPlayerSkill">(${roster.ratings[name] || 5})</span>
+      <button type="button" data-team="2" data-i="${i}" class="teamPlayerDel">&times;</button>
+    </div>`
+  ).join('') || '<span style="color:var(--muted); font-size:13px;">No one on this team</span>';
+
+  document.getElementById('addToTeam1Label').textContent = teamsState.name1;
+  document.getElementById('addToTeam2Label').textContent = teamsState.name2;
+  const present = roster.names.filter((n) => !roster.absent.includes(n));
+  const assigned = new Set([...teamsState.team1, ...teamsState.team2]);
+  const unassigned = present.filter((n) => !assigned.has(n));
+  const sel = document.getElementById('unassignedSelect');
+  sel.innerHTML = unassigned.length
+    ? unassigned.map((n) => `<option value="${n}">${n}</option>`).join('')
+    : '<option value="">Everyone present is already on a team</option>';
+}
+
+document.getElementById('addToTeam1Btn').addEventListener('click', () => {
+  const name = document.getElementById('unassignedSelect').value;
+  if (!name || teamsState.team1.includes(name)) return;
+  teamsState.team2 = teamsState.team2.filter((n) => n !== name);
+  teamsState.team1.push(name);
+  saveTeams();
+  renderSetup();
+});
+document.getElementById('addToTeam2Btn').addEventListener('click', () => {
+  const name = document.getElementById('unassignedSelect').value;
+  if (!name || teamsState.team2.includes(name)) return;
+  teamsState.team1 = teamsState.team1.filter((n) => n !== name);
+  teamsState.team2.push(name);
+  saveTeams();
+  renderSetup();
+});
+
+team1NameInput.addEventListener('change', () => { if (teamsState) { teamsState.name1 = team1NameInput.value.trim() || 'Team A'; saveTeams(); } });
+team2NameInput.addEventListener('change', () => { if (teamsState) { teamsState.name2 = team2NameInput.value.trim() || 'Team B'; saveTeams(); } });
+
+function removeFromTeam(teamNum, idx) {
+  if (!teamsState) return;
+  const key = teamNum === '1' ? 'team1' : 'team2';
+  teamsState[key].splice(idx, 1);
+  saveTeams();
+  renderSetup();
+}
+team1ChipsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-team]');
+  if (btn) removeFromTeam(btn.dataset.team, Number(btn.dataset.i));
+});
+team2ChipsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-team]');
+  if (btn) removeFromTeam(btn.dataset.team, Number(btn.dataset.i));
+});
+
+function combinedTeamPlayers() {
+  const combined = [];
+  const max = Math.max(teamsState.team1.length, teamsState.team2.length);
+  for (let i = 0; i < max; i++) {
+    if (teamsState.team1[i]) combined.push(teamsState.team1[i]);
+    if (teamsState.team2[i]) combined.push(teamsState.team2[i]);
+  }
+  return combined;
+}
+
+const RETIREMENT_HINTS = {
+  none: 'Batters stay in until out (or the match ends) — no automatic swaps.',
+  pair2: 'The current pair retires together every 2 overs and the next fresh pair comes in.',
+  single1: 'One fresh batter rotates onto strike every single over.'
+};
+
+function renderSetup() {
+  const combined = combinedTeamPlayers();
+  startMatchBtn.disabled = combined.length < 2;
+  outPenaltyInput.value = String(state.outPenalty);
+  extraRunsInput.value = String(state.extraRuns);
+  negOutSwapInput.value = state.negOutSwapStrike ? '1' : '0';
+  retirementRuleInput.value = state.retirementRule || 'none';
+  retirementHintEl.textContent = RETIREMENT_HINTS[state.retirementRule || 'none'];
+  oversInput.value = String(state.overs || combined.length || '');
+  oversInput.max = String(Math.max(combined.length, 1));
+  renderRoster();
+  renderTeams();
+  renderHistory();
+}
+
+outPenaltyInput.addEventListener('change', () => { state.outPenalty = Number(outPenaltyInput.value); saveState(); });
+extraRunsInput.addEventListener('change', () => { state.extraRuns = Number(extraRunsInput.value); saveState(); });
+negOutSwapInput.addEventListener('change', () => { state.negOutSwapStrike = negOutSwapInput.value === '1'; saveState(); });
+retirementRuleInput.addEventListener('change', () => {
+  state.retirementRule = retirementRuleInput.value;
+  saveState();
+  renderSetup();
+});
+oversInput.addEventListener('change', () => {
+  let val = parseInt(oversInput.value, 10);
+  const maxOvers = Math.max(combinedTeamPlayers().length, 1);
+  if (isNaN(val) || val < 1) val = 1;
+  if (val > maxOvers) val = maxOvers;
+  state.overs = val;
+  saveState();
+  renderSetup();
+});
+
+startMatchBtn.addEventListener('click', () => {
+  const combined = combinedTeamPlayers();
+  if (combined.length < 2) { alert('Need at least 2 players across both teams to start.'); return; }
+  state.players = combined;
+  state.team1Name = teamsState.name1;
+  state.team2Name = teamsState.name2;
+  state.team1Players = teamsState.team1.slice();
+  state.team2Players = teamsState.team2.slice();
+  state.screen = 'match';
+  state.overs = Math.min(Math.max(state.overs || state.players.length, 1), state.players.length);
+  // Bowling order is grouped by team, not mixed — every one of Team A's players bowls (with Team
+  // B batting throughout) before Team B gets a turn to bowl (with Team A batting) — like two
+  // proper innings, instead of the team on strike flipping every single over.
+  state.bowlerOrder = [...state.team1Players, ...state.team2Players];
+  state.currentOverIdx = 0;
+  state.currentBowler = state.bowlerOrder[0];
+  // Default pair suggestion: the first two players from the OPPOSING team to whoever's bowling —
+  // bowling and batting always come from different sides, like a real match.
+  const pair = suggestBatterPair(0);
+  state.striker = pair[0];
+  state.nonStriker = pair[1];
+  state.legalBallsThisOver = 0;
+  state.thisOverBalls = [];
+  state.totalRuns = 0;
+  state.totalWkts = 0;
+  state.battingStats = {};
+  state.bowlingStats = {};
+  state.oversLog = []; // finished overs: [{bowler, runsConceded, wkts}]
+  state.history = [];
+  state.players.forEach((p) => { state.battingStats[p] = { runs: 0 }; state.bowlingStats[p] = { runsConceded: 0, wkts: 0 }; });
+  saveState();
+  render();
+});
+
+// Which team (team1/team2) a player belongs to, based on the squads captured at Start Match.
+function teamKeyOf(name) {
+  if (state.team1Players && state.team1Players.includes(name)) return 'team1';
+  if (state.team2Players && state.team2Players.includes(name)) return 'team2';
+  return null;
+}
+function opposingTeamPlayers(name) {
+  const key = teamKeyOf(name);
+  if (key === 'team1') return state.team2Players || [];
+  if (key === 'team2') return state.team1Players || [];
+  return state.players; // no team info (e.g. old saved match) — fall back to everyone
+}
+// Which team is currently bowling — the bowling order is grouped by team (all of Team A's overs,
+// then all of Team B's), so this is just based on how far along the over count is.
+function currentBowlingTeamPlayers() {
+  if (!state.team1Players || !state.team2Players) return state.players; // old saved match, no team info
+  const innings1Len = state.team1Players.length;
+  return state.currentOverIdx < innings1Len ? state.team1Players : state.team2Players;
+}
+
+function suggestBatterPair(overIdx) {
+  const bowler = state.bowlerOrder[overIdx];
+  const candidates = opposingTeamPlayers(bowler).filter((p) => p !== bowler);
+  if (!candidates.length) return [state.players[0], state.players[0]];
+  const a = candidates[overIdx % candidates.length];
+  const b = candidates[(overIdx + 1) % candidates.length];
+  return [a, b === a ? (candidates[0] === a ? candidates[1] || a : candidates[0]) : b];
+}
+
+// How many overs into the CURRENT innings we are (each innings restarts the count at 0),
+// since retirement is about a pair/player's time at THIS crease, not the whole match.
+function localInningsOverIdx(overIdx) {
+  const innings1Len = (state.team1Players && state.team1Players.length) || 0;
+  return overIdx < innings1Len ? overIdx : overIdx - innings1Len;
+}
+
+// Auto-picks the batting pair for a retirement-rule match: 'single1' brings in one fresh
+// batter every over (the pair slides by 1 each time), 'pair2' keeps the same pair for 2
+// overs then swaps in a completely fresh, non-overlapping pair (advances by 2 at a time).
+function getBattingPairForOver(overIdx) {
+  const bowler = state.bowlerOrder[overIdx];
+  const candidates = opposingTeamPlayers(bowler).filter((p) => p !== bowler);
+  if (!candidates.length) return [state.players[0], state.players[0]];
+  const local = localInningsOverIdx(overIdx);
+  const step = state.retirementRule === 'pair2' ? 2 : 1;
+  const idx = Math.floor(local / step) * step;
+  const a = candidates[idx % candidates.length];
+  let b = candidates[(idx + 1) % candidates.length];
+  if (b === a) b = candidates[0] === a ? (candidates[1] || a) : candidates[0];
+  return [a, b];
+}
+
+// ---------------- MATCH SCREEN ----------------
+const bowlerChipsEl = document.getElementById('bowlerChips');
+const batterChipsEl = document.getElementById('batterChips');
+const ballLogEl = document.getElementById('ballLog');
+const overBadgesEl = document.getElementById('overBadges');
+const battingStatsBody = document.getElementById('battingStatsBody');
+const bowlingStatsBody = document.getElementById('bowlingStatsBody');
+
+function totalOvers() { return state.overs || state.players.length; }
+
+function renderTeamsHeaderRow(containerId, bowlingIsTeam1) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const name1 = state.team1Name || 'Team A';
+  const name2 = state.team2Name || 'Team B';
+  const side1Active = bowlingIsTeam1 === undefined ? true : !bowlingIsTeam1; // team1 bats when team2 is bowling
+  const side2Active = bowlingIsTeam1 === undefined ? true : bowlingIsTeam1;
+  el.innerHTML = `
+    <span class="teamsHeaderSide ${side1Active ? 'active' : ''}">${teamLogoHTML(name1)} ${name1}</span>
+    <span class="teamsHeaderVs">VS</span>
+    <span class="teamsHeaderSide ${side2Active ? 'active' : ''}">${teamLogoHTML(name2)} ${name2}</span>
+  `;
+}
+
+function renderMatch() {
+  const oIdx = state.currentOverIdx;
+  const teamsHeaderInnings1Len = (state.team1Players && state.team1Players.length) || 0;
+  renderTeamsHeaderRow('matchTeamsHeaderRow', oIdx < teamsHeaderInnings1Len);
+  document.getElementById('sbOverLabel').textContent = `OVER ${oIdx + 1} OF ${totalOvers()}`;
+  document.getElementById('sbRuns').textContent = state.totalRuns;
+  document.getElementById('sbWkts').textContent = state.totalWkts;
+  const oversDisplay = (oIdx) + '.' + state.legalBallsThisOver;
+  document.getElementById('sbOverProgress').textContent = `${oversDisplay} OVERS BOWLED`;
+  document.getElementById('sbBowlerName').textContent = state.currentBowler;
+  document.getElementById('sbBatterName').textContent = state.striker;
+  document.getElementById('sbBowlerFigures').textContent = `${currentOverRunsConceded()} runs · ${currentOverWkts()} wkt`;
+  const batterRuns = (state.battingStats[state.striker] && state.battingStats[state.striker].runs) || 0;
+  document.getElementById('sbBatterRuns').textContent = `${batterRuns} run${batterRuns === 1 ? '' : 's'}`;
+
+  // Bowler chips: only the CURRENT innings' bowling team, and only players who haven't bowled
+  // yet (plus the current bowler) — tap to switch. Which team is "up to bowl" is worked out from
+  // where we are in the (team-grouped) bowling order, not the whole combined roster.
+  const currentInningsTeam = currentBowlingTeamPlayers();
+  const bowledAlready = new Set(state.oversLog.map((o) => o.bowler));
+  const bowlerOptions = currentInningsTeam.filter((p) => !bowledAlready.has(p) || p === state.currentBowler);
+  bowlerChipsEl.innerHTML = bowlerOptions.map((p) =>
+    `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''}" data-bowler="${p}">${p}</button>`
+  ).join('');
+
+  // Batter chips: only the OPPOSING team to whoever's bowling — tap a name to bring them on strike
+  const batterOptions = opposingTeamPlayers(state.currentBowler);
+  batterChipsEl.innerHTML = batterOptions.map((p) => {
+    const role = p === state.striker ? 'striker' : (p === state.nonStriker ? 'nonstriker' : '');
+    const tag = p === state.striker ? '<span class="roleTag">🟢 STRIKER</span>' : (p === state.nonStriker ? '<span class="roleTag">🔴 NON-STRIKER</span>' : '');
+    return `<button type="button" class="tapChip ${role}" data-batter="${p}">${p}${tag}</button>`;
+  }).join('');
+
+  const bowlerLabel = document.getElementById('bowlerLabel');
+  const batterLabel = document.getElementById('batterLabel');
+  if (bowlerLabel) bowlerLabel.textContent = `Bowler (${teamKeyOf(state.currentBowler) === 'team2' ? state.team2Name : state.team1Name}) — tap to set`;
+  if (batterLabel) batterLabel.textContent = `Batters (${teamKeyOf(state.currentBowler) === 'team2' ? state.team1Name : state.team2Name}) — 🟢 striker · 🔴 non-striker · tap a name`;
+
+  ballLogEl.innerHTML = state.thisOverBalls.map((b) => {
+    if (b.type === 'out') return `<div class="ballChip out">OUT</div>`;
+    if (b.type === 'extra') return `<div class="ballChip extra">+${b.run}</div>`;
+    if (b.label === 'net') return `<div class="ballChip extra" title="1 run + net bonus = ${b.run}">1+${b.run - 1}</div>`;
+    if (b.run === 0) return `<div class="ballChip dot">•</div>`;
+    if (b.run === 4) return `<div class="ballChip four">4</div>`;
+    if (b.run === 6) return `<div class="ballChip six">6</div>`;
+    return `<div class="ballChip">${b.run}</div>`;
+  }).join('') || '<span style="color:var(--muted); font-size:12px;">No balls bowled yet this over</span>';
+
+  const innings1Len = (state.team1Players && state.team1Players.length) || 0;
+  const inn1Label = innings1Len ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Innings 1 — ${state.team1Name || 'Team A'} bowling</div>` : '';
+  overBadgesEl.innerHTML = inn1Label + state.bowlerOrder.map((p, i) => {
+    const done = state.oversLog.find((o) => o.bowler === p);
+    const cur = i === oIdx;
+    const divider = (i === innings1Len && i > 0)
+      ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin:8px 0 4px;">Innings 2 — ${state.team2Name || 'Team B'} bowling</div>`
+      : '';
+    return `${divider}<span class="overBadge ${done ? 'done' : ''}" style="${cur ? 'border-color:var(--amber);' : ''}">${p}${done ? ' ✓' : cur ? ' •' : ''}</span>`;
+  }).join('');
+
+  const battingRows = Object.keys(state.battingStats)
+    .map((name) => ({ name, runs: state.battingStats[name].runs }))
+    .filter((r) => r.runs !== 0 || state.battingStats[r.name].faced)
+    .sort((a, b) => b.runs - a.runs);
+  battingStatsBody.innerHTML = battingRows.length
+    ? battingRows.map((r) => `<tr><td class="rowName">${r.name}</td><td class="num">${r.runs}</td></tr>`).join('')
+    : `<tr><td colspan="2" style="color:var(--muted);">No runs on the board yet</td></tr>`;
+
+  const bowlingRows = state.oversLog.map((o) => ({ name: o.bowler, runs: o.runsConceded, wkts: o.wkts }))
+    .concat(state.currentBowler && !state.oversLog.find((o) => o.bowler === state.currentBowler)
+      ? [{ name: state.currentBowler, runs: currentOverRunsConceded(), wkts: currentOverWkts() }]
+      : []);
+  bowlingStatsBody.innerHTML = bowlingRows.length
+    ? bowlingRows.map((r) => `<tr><td class="rowName">${r.name}</td><td class="num">${r.runs}</td><td class="num">${r.wkts}</td></tr>`).join('')
+    : `<tr><td colspan="3" style="color:var(--muted);">No overs bowled yet</td></tr>`;
+}
+
+function currentOverRunsConceded() {
+  return state.thisOverBalls.reduce((sum, b) => sum + (b.run || 0), 0);
+}
+function currentOverWkts() {
+  return state.thisOverBalls.filter((b) => b.type === 'out').length;
+}
+
+// Tap a name to bring them on strike (🟢). The player who was previously on strike drops back to
+// non-striker (🔴) automatically — tapping the current non-striker just swaps the two around.
+bowlerChipsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-bowler]');
+  if (!btn) return;
+  state.currentBowler = btn.dataset.bowler;
+  // Batters must always be from the team OPPOSITE the bowler — if the new bowler's team overlaps
+  // with the current striker/non-striker, swap in players from the correct (opposing) side.
+  const opponents = opposingTeamPlayers(state.currentBowler);
+  if (!opponents.includes(state.striker) || !opponents.includes(state.nonStriker)) {
+    state.striker = opponents[0] || state.striker;
+    state.nonStriker = opponents.find((p) => p !== state.striker) || opponents[0] || state.nonStriker;
+  }
+  saveState();
+  renderMatch();
+});
+batterChipsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-batter]');
+  if (!btn) return;
+  const name = btn.dataset.batter;
+  if (name === state.striker) return; // already on strike
+  if (name === state.nonStriker) {
+    // swap roles
+    const tmp = state.striker;
+    state.striker = state.nonStriker;
+    state.nonStriker = tmp;
+  } else {
+    state.nonStriker = state.striker;
+    state.striker = name;
+  }
+  saveState();
+  renderMatch();
+});
+
+function swapStrike() {
+  const tmp = state.striker;
+  state.striker = state.nonStriker;
+  state.nonStriker = tmp;
+}
+
+function pushHistory() {
+  state.history.push(JSON.parse(JSON.stringify({
+    currentOverIdx: state.currentOverIdx, currentBowler: state.currentBowler, striker: state.striker, nonStriker: state.nonStriker,
+    legalBallsThisOver: state.legalBallsThisOver, thisOverBalls: state.thisOverBalls,
+    totalRuns: state.totalRuns, totalWkts: state.totalWkts,
+    battingStats: state.battingStats, bowlingStats: state.bowlingStats, oversLog: state.oversLog
+  })));
+  if (state.history.length > 60) state.history.shift();
+}
+
+function recordBall(entry) {
+  pushHistory();
+  state.thisOverBalls.push(entry);
+  if (entry.run) {
+    state.totalRuns += entry.run;
+    if (entry.type !== 'extra') {
+      state.battingStats[state.striker].runs += entry.run;
+      state.battingStats[state.striker].faced = true;
+      // Odd runs mean the batters cross — strike automatically swaps, just like real cricket.
+      // A forced swap (the "1 run + net bonus" button) also swaps even though the total is 2,
+      // since the actual run taken was 1 — the extra run is just a bonus, not a second run.
+      if (entry.type === 'run' && (entry.run % 2 === 1 || entry.forceSwap)) swapStrike();
+    }
+  }
+  if (entry.type === 'out') {
+    state.totalRuns += state.outPenalty;
+    state.totalWkts += 1;
+    state.battingStats[state.striker].faced = true;
+    if (state.outPenalty < 0) {
+      // A negative out-penalty is set — the house rule here is the batter just loses runs on
+      // getting out, not their wicket: they stay in for their full over. Whether the strike also
+      // swaps to the non-striker is a fixed match setting, decided once at setup rather than
+      // asked fresh every time.
+      state.battingStats[state.striker].outs = (state.battingStats[state.striker].outs || 0) + 1;
+      if (state.negOutSwapStrike) swapStrike();
+    } else {
+      // No penalty configured — this behaves like a real fall of wicket: the batter who's out
+      // leaves the crease, non-striker takes strike, and the next unused player from the SAME
+      // (batting) team comes in as the new non-striker.
+      const opponents = opposingTeamPlayers(state.currentBowler);
+      const nextIn = opponents.find((p) => p !== state.striker && p !== state.nonStriker);
+      state.striker = state.nonStriker;
+      state.nonStriker = nextIn || state.nonStriker;
+    }
+  }
+  if (entry.type !== 'extra') {
+    state.legalBallsThisOver += 1;
+  }
+  if (state.legalBallsThisOver >= 6) {
+    finishOver();
+  }
+  saveState();
+  renderMatch();
+}
+
+function finishOver() {
+  state.oversLog.push({
+    bowler: state.currentBowler,
+    runsConceded: currentOverRunsConceded(),
+    wkts: currentOverWkts()
+  });
+  if (state.oversLog.length >= totalOvers()) {
+    goToFinal();
+    return;
+  }
+  state.currentOverIdx += 1;
+  state.currentBowler = state.bowlerOrder[state.currentOverIdx];
+  if (state.retirementRule === 'pair2' || state.retirementRule === 'single1') {
+    // Retirement rule is on — every over (or every 2 overs) auto-rotates in the next
+    // batter(s), regardless of who was in before.
+    const pair = getBattingPairForOver(state.currentOverIdx);
+    state.striker = pair[0];
+    state.nonStriker = pair[1];
+  } else {
+    // Batters must always be from the team OPPOSITE the (new) bowler — if the new bowler's team
+    // overlaps with the current pair, bring in the correct opposing-team players instead.
+    const opponents = opposingTeamPlayers(state.currentBowler);
+    if (!opponents.includes(state.striker) || !opponents.includes(state.nonStriker)) {
+      state.striker = opponents[0] || state.striker;
+      state.nonStriker = opponents.find((p) => p !== state.striker) || opponents[0] || state.nonStriker;
+    }
+  }
+  state.legalBallsThisOver = 0;
+  state.thisOverBalls = [];
+}
+
+document.querySelectorAll('.padGrid .padBtn[data-run]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const run = Number(btn.dataset.run);
+    recordBall({ type: 'run', run });
+  });
+});
+
+document.getElementById('outBtn').addEventListener('click', () => {
+  recordBall({ type: 'out', run: 0 });
+});
+document.getElementById('extraBtn').addEventListener('click', () => {
+  recordBall({ type: 'extra', run: state.extraRuns });
+});
+document.querySelectorAll('.padBtn[data-net]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    // A real single run taken, plus a bonus (1 or 2) for hitting the net/fence — counts on the
+    // board as the full total, but the strike still swaps because the batters actually crossed
+    // once for the real single run.
+    const bonus = Number(btn.dataset.net);
+    recordBall({ type: 'run', run: 1 + bonus, forceSwap: true, label: 'net' });
+  });
+});
+
+document.getElementById('undoBtn').addEventListener('click', () => {
+  if (!state.history.length) return;
+  const prev = state.history.pop();
+  Object.assign(state, prev);
+  saveState();
+  renderMatch();
+});
+
+document.getElementById('endMatchBtn').addEventListener('click', () => {
+  if (!confirm('End the match now? Whatever has been scored so far will be the final result.')) return;
+  // Count the current partial over into the bowling card too, if it has any balls.
+  if (state.thisOverBalls.length && !state.oversLog.find((o) => o.bowler === state.currentBowler)) {
+    state.oversLog.push({ bowler: state.currentBowler, runsConceded: currentOverRunsConceded(), wkts: currentOverWkts() });
+  }
+  goToFinal();
+});
+
+// ---------------- FINAL SCREEN ----------------
+function currentMatchRecord() {
+  return {
+    date: new Date().toISOString(),
+    team1Name: state.team1Name || 'Team A',
+    team2Name: state.team2Name || 'Team B',
+    totalRuns: state.totalRuns,
+    totalWkts: state.totalWkts,
+    oversBowled: state.oversLog.length,
+    totalOvers: totalOvers(),
+    battingStats: state.battingStats,
+    bowlingStats: state.bowlingStats
+  };
+}
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(MATCH_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+function saveHistoryList(list) {
+  try { localStorage.setItem(MATCH_HISTORY_KEY, JSON.stringify(list)); } catch (e) {}
+}
+function saveMatchToHistory() {
+  const record = currentMatchRecord();
+  record.id = 'm' + Date.now();
+  record.battingStats = JSON.parse(JSON.stringify(record.battingStats));
+  record.bowlingStats = JSON.parse(JSON.stringify(record.bowlingStats));
+  const list = loadHistory();
+  list.unshift(record);
+  if (list.length > 50) list.length = 50; // keep the history from growing forever
+  saveHistoryList(list);
+}
+
+function goToFinal() {
+  state.screen = 'final';
+  if (!state.savedToHistory) {
+    saveMatchToHistory();
+    state.savedToHistory = true;
+  }
+  saveState();
+  render();
+}
+
+function renderFinal() {
+  const oversBowled = state.oversLog.length;
+  renderTeamsHeaderRow('finalTeamsHeaderRow');
+  document.getElementById('finalScore').textContent = `${state.totalRuns}/${state.totalWkts}`;
+  document.getElementById('finalOvers').textContent = `${oversBowled} overs`;
+
+  const battingRows = Object.keys(state.battingStats).map((name) => ({ name, runs: state.battingStats[name].runs })).sort((a, b) => b.runs - a.runs);
+  const bowlingRows = state.oversLog.map((o) => ({ name: o.bowler, runs: o.runsConceded, wkts: o.wkts })).sort((a, b) => b.wkts - a.wkts || a.runs - b.runs);
+
+  document.getElementById('finalBattingBody').innerHTML = battingRows.map((r) => `<tr><td class="rowName">${r.name}</td><td class="num">${r.runs}</td></tr>`).join('');
+  document.getElementById('finalBowlingBody').innerHTML = bowlingRows.map((r) => `<tr><td class="rowName">${r.name}</td><td class="num">${r.runs}</td><td class="num">${r.wkts}</td></tr>`).join('');
+
+  const topScorer = battingRows[0];
+  document.getElementById('topScorerBlock').innerHTML = topScorer
+    ? `<div class="rowName" style="font-size:18px;">${topScorer.name}</div><div class="rowSub">${topScorer.runs} runs</div>`
+    : `<div class="rowSub">No runs scored</div>`;
+
+  const topBowler = bowlingRows[0];
+  document.getElementById('topBowlerBlock').innerHTML = topBowler
+    ? `<div class="rowName" style="font-size:18px;">${topBowler.name}</div><div class="rowSub">${topBowler.wkts} wicket(s), ${topBowler.runs} runs conceded</div>`
+    : `<div class="rowSub">No overs bowled</div>`;
+}
+
+document.getElementById('exportJpegBtn').addEventListener('click', () => {
+  exportRecordAsJPEG(currentMatchRecord(), 'match');
+});
+
+
+document.getElementById('newMatchBtn').addEventListener('click', () => {
+  if (!confirm('Start a brand new match? This clears the current scoreboard and the old team split (roster names and skill levels stay saved).')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(TEAMS_KEY); // the old 2-team split shouldn't carry over into a new match
+  loadState();
+  loadTeams();
+  render();
+});
+
+// ---------------- MATCH HISTORY UI ----------------
+function historyRowHTML(rec) {
+  const dateStr = rec.date ? new Date(rec.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  return `
+    <div class="historyRow">
+      <div class="historyRowMain">
+        <div class="historyRowTeams">${teamLogoHTML(rec.team1Name, 20)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600;">vs</span> ${teamLogoHTML(rec.team2Name, 20)} ${rec.team2Name}</div>
+        <div class="historyRowScore">${rec.totalRuns}/${rec.totalWkts} <span class="historyRowOvers">(${rec.oversBowled}/${rec.totalOvers} ov)</span></div>
+        <div class="historyRowDate">${dateStr}</div>
+      </div>
+      <div class="historyRowActions">
+        <button type="button" class="historyActionBtn" data-export="${rec.id}" title="Export as JPEG">⬇️</button>
+        <button type="button" class="historyActionBtn del" data-delete="${rec.id}" title="Delete">🗑</button>
+      </div>
+    </div>`;
+}
+function renderHistory() {
+  const list = loadHistory();
+  const countTag = document.getElementById('historyCountTag');
+  if (countTag) countTag.textContent = list.length ? `(${list.length})` : '';
+  const el = document.getElementById('historyList');
+  if (!el) return;
+  el.innerHTML = list.length
+    ? list.map(historyRowHTML).join('')
+    : '<div class="setupHint" style="margin:0;">No saved matches yet — finish a match to see it here.</div>';
+}
+document.getElementById('historyList').addEventListener('click', (e) => {
+  const delBtn = e.target.closest('[data-delete]');
+  const expBtn = e.target.closest('[data-export]');
+  if (delBtn) {
+    if (!confirm('Delete this saved match record? This cannot be undone.')) return;
+    saveHistoryList(loadHistory().filter((r) => r.id !== delBtn.dataset.delete));
+    renderHistory();
+    return;
+  }
+  if (expBtn) {
+    const rec = loadHistory().find((r) => r.id === expBtn.dataset.export);
+    if (rec) exportRecordAsJPEG(rec, rec.id);
+  }
+});
+document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+  if (!loadHistory().length) return;
+  if (!confirm('Clear ALL saved match history? This cannot be undone.')) return;
+  saveHistoryList([]);
+  renderHistory();
+});
+
+// ---------------- JPEG EXPORT ----------------
+function buildExportHTML(rec) {
+  const battingRows = Object.keys(rec.battingStats || {})
+    .map((name) => ({ name, runs: (rec.battingStats[name] && rec.battingStats[name].runs) || 0 }))
+    .sort((a, b) => b.runs - a.runs);
+  const bowlingRows = Object.keys(rec.bowlingStats || {})
+    .map((name) => ({ name, runs: (rec.bowlingStats[name] && rec.bowlingStats[name].runsConceded) || 0, wkts: (rec.bowlingStats[name] && rec.bowlingStats[name].wkts) || 0 }))
+    .filter((r) => r.wkts > 0 || r.runs > 0)
+    .sort((a, b) => b.wkts - a.wkts || a.runs - b.runs);
+  const dateStr = rec.date ? new Date(rec.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  return `
+    <div class="exportCardInner">
+      <div class="exTitle">🏏 Box Cricket — Match Scorecard</div>
+      <div class="exTeams">${teamLogoHTML(rec.team1Name, 26)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600; font-size:12px;">vs</span> ${teamLogoHTML(rec.team2Name, 26)} ${rec.team2Name}</div>
+      <div class="exDate">${dateStr}</div>
+      <div class="exScore">${rec.totalRuns}/${rec.totalWkts}</div>
+      <div class="exOvers">${rec.oversBowled} / ${rec.totalOvers} overs</div>
+      <h3>Batting</h3>
+      <table><thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
+      <tbody>${battingRows.map((r) => `<tr><td>${r.name}</td><td class="num">${r.runs}</td></tr>`).join('')}</tbody></table>
+      <h3>Bowling</h3>
+      <table><thead><tr><th>Bowler</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead>
+      <tbody>${bowlingRows.map((r) => `<tr><td>${r.name}</td><td class="num">${r.runs}</td><td class="num">${r.wkts}</td></tr>`).join('')}</tbody></table>
+      <div class="exFoot">GENERATED BY BOX CRICKET SCORER</div>
+    </div>`;
+}
+async function exportRecordAsJPEG(rec, filenameHint) {
+  const container = document.getElementById('exportCard');
+  if (!container) return;
+  if (typeof html2canvas === 'undefined') {
+    alert('Export needs an internet connection the first time (to load the export tool). Please check your connection and try again.');
+    return;
+  }
+  container.innerHTML = buildExportHTML(rec);
+  container.style.display = 'block';
+  await new Promise((r) => setTimeout(r, 60)); // let fonts/layout settle before capture
+  try {
+    const canvas = await html2canvas(container, { backgroundColor: '#0b1220', scale: 2 });
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `box-cricket-${(filenameHint || 'match').toString().replace(/[^a-z0-9-]/gi, '')}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (e) {
+    alert('Sorry, the JPEG export failed. Please try again.');
+  } finally {
+    container.style.display = 'none';
+    container.innerHTML = '';
+  }
+}
+
+// ---------------- ROUTER ----------------
+function render() {
+  document.getElementById('setupScreen').classList.toggle('hidden', state.screen !== 'setup');
+  document.getElementById('matchScreen').classList.toggle('hidden', state.screen !== 'match');
+  document.getElementById('finalScreen').classList.toggle('hidden', state.screen !== 'final');
+  if (state.screen === 'setup') renderSetup();
+  if (state.screen === 'match') renderMatch();
+  if (state.screen === 'final') renderFinal();
+}
+
+let rosterExpanded = false;
+function applyRosterExpanded() {
+  const body = document.getElementById('rosterBody');
+  const icon = document.getElementById('rosterToggleIcon');
+  if (body) body.style.display = rosterExpanded ? '' : 'none';
+  if (icon) icon.textContent = rosterExpanded ? '▲' : '▼';
+}
+document.getElementById('rosterHeading').addEventListener('click', () => {
+  rosterExpanded = !rosterExpanded;
+  applyRosterExpanded();
+});
+applyRosterExpanded();
+
+let historyExpanded = false;
+function applyHistoryExpanded() {
+  const body = document.getElementById('historyBody');
+  const icon = document.getElementById('historyToggleIcon');
+  if (body) body.style.display = historyExpanded ? '' : 'none';
+  if (icon) icon.textContent = historyExpanded ? '▲' : '▼';
+}
+document.getElementById('historyHeading').addEventListener('click', () => {
+  historyExpanded = !historyExpanded;
+  applyHistoryExpanded();
+});
+applyHistoryExpanded();
+
+applyRosterSortButtons();
+loadRoster();
+loadTeams();
+loadState();
+render();
+</script>
+</body>
+</html>
