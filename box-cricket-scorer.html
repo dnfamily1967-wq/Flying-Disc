@@ -1383,6 +1383,20 @@ function currentBowlingTeamPlayers() {
   const innings1Len = state.team1Players.length;
   return state.currentOverIdx < innings1Len ? state.team1Players : state.team2Players;
 }
+// The team currently BATTING — always the other side from whoever's bowling this innings.
+// This depends only on which over we're in, not on whether a specific bowler has been tapped
+// yet, so the batter list can show straight away without waiting for a bowler pick first.
+function currentBattingTeamPlayers() {
+  if (!state.team1Players || !state.team2Players) return state.players;
+  const innings1Len = state.team1Players.length;
+  return state.currentOverIdx < innings1Len ? state.team2Players : state.team1Players;
+}
+
+// True while Team 1 is the side currently bowling (i.e. we're still in the first innings).
+function currentOverIdxIsTeam1() {
+  if (!state.team1Players || !state.team2Players) return true;
+  return state.currentOverIdx < state.team1Players.length;
+}
 
 function suggestBatterPair(overIdx) {
   const bowler = state.bowlerOrder[overIdx];
@@ -1465,19 +1479,21 @@ function renderMatch() {
     `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''}" data-bowler="${p}">${p}</button>`
   ).join('');
 
-  // Batter chips: only the OPPOSING team to whoever's bowling — tap a name to bring them on strike.
-  // Nothing shows until a bowler is picked, since we don't know which team should be batting yet.
-  const batterOptions = state.currentBowler ? opposingTeamPlayers(state.currentBowler) : [];
+  // Batter chips: the team currently BATTING this innings — always shown, whether or not a
+  // bowler has been tapped yet, so the scorer can pick bowler and batters in any order.
+  const batterOptions = currentBattingTeamPlayers();
   batterChipsEl.innerHTML = batterOptions.length ? batterOptions.map((p) => {
     const role = p === state.striker ? 'striker' : (p === state.nonStriker ? 'nonstriker' : '');
     const tag = p === state.striker ? '<span class="roleTag">🟢 STRIKER</span>' : (p === state.nonStriker ? '<span class="roleTag">🔴 NON-STRIKER</span>' : '');
     return `<button type="button" class="tapChip ${role}" data-batter="${p}">${p}${tag}</button>`;
-  }).join('') : '<span style="color:var(--muted); font-size:12px;">Select the bowler first</span>';
+  }).join('') : '<span style="color:var(--muted); font-size:12px;">No batters available</span>';
 
   const bowlerLabel = document.getElementById('bowlerLabel');
   const batterLabel = document.getElementById('batterLabel');
-  if (bowlerLabel) bowlerLabel.textContent = `Bowler (${teamKeyOf(state.currentBowler) === 'team2' ? state.team2Name : state.team1Name}) — tap to set`;
-  if (batterLabel) batterLabel.textContent = `Batters (${teamKeyOf(state.currentBowler) === 'team2' ? state.team1Name : state.team2Name}) — 🟢 striker · 🔴 non-striker · tap a name`;
+  const bowlingTeamName = currentOverIdxIsTeam1() ? (state.team1Name || 'Team A') : (state.team2Name || 'Team B');
+  const battingTeamName = currentOverIdxIsTeam1() ? (state.team2Name || 'Team B') : (state.team1Name || 'Team A');
+  if (bowlerLabel) bowlerLabel.textContent = `Bowler (${bowlingTeamName}) — tap to set`;
+  if (batterLabel) batterLabel.textContent = `Batters (${battingTeamName}) — 🟢 striker · 🔴 non-striker · tap a name`;
 
   ballLogEl.innerHTML = state.thisOverBalls.map((b) => {
     if (b.type === 'out') return `<div class="ballChip out">OUT</div>`;
@@ -1556,14 +1572,8 @@ bowlerChipsEl.addEventListener('click', (e) => {
   if (!btn) return;
   const picked = btn.dataset.bowler;
   state.currentBowler = picked;
-  // Fully manual now: if the current striker/non-striker no longer belong to the opposing
-  // team (e.g. the innings just changed), clear them instead of auto-picking — the admin taps
-  // both batters by hand every time.
-  const opponents = opposingTeamPlayers(state.currentBowler);
-  if (!opponents.includes(state.striker) || !opponents.includes(state.nonStriker)) {
-    state.striker = null;
-    state.nonStriker = null;
-  }
+  // Batting team is fixed by which innings we're in, not by who's bowling, so the batter list
+  // doesn't need to change here — striker/non-striker stay exactly as the scorer set them.
   saveState();
   renderMatch();
   flashKey(bowlerChipsEl.querySelector(`[data-bowler="${CSS.escape(picked)}"]`));
