@@ -645,8 +645,8 @@
   body.onMatch .matchupBlock label { margin-bottom: 3px; font-size: 9px; }
   /* Bowler/batter name chips: one horizontally-swipeable row instead of wrapping several rows —
      this alone saves the most vertical space when there are many players. */
-  body.onMatch .tapGrid { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; padding-bottom: 3px; }
-  body.onMatch .tapChip { padding: 4px 8px; font-size: 11px; min-height: 30px; flex: 0 0 auto; white-space: nowrap; }
+  body.onMatch .tapGrid { flex-wrap: wrap; }
+  body.onMatch .tapChip { padding: 4px 8px; font-size: 11px; min-height: 30px; }
   body.onMatch .padGrid { gap: 5px; margin-bottom: 5px; }
   body.onMatch .padGrid .padBtn { padding: 7px 0; font-size: 15px; min-height: 34px; }
   body.onMatch .padBtn.out { padding: 8px 0; font-size: 13px; margin-bottom: 0 !important; }
