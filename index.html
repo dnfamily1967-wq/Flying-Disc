@@ -2457,7 +2457,9 @@ function todayStr() {
 // flow instead, so it can't get silently overwritten by ordinary roster use for the rest of the day.
 let todayAttendanceSaved = false;
 db.collection('disc_team').doc(`attendance_${todayStr()}`).onSnapshot((doc) => {
-  todayAttendanceSaved = doc.exists;
+  // Only a deliberate save (the "Save today's attendance" button, or a reviewed correction) locks
+  // the day — a same-day Bulk Holiday write must never lock everyone else out by itself.
+  todayAttendanceSaved = doc.exists && doc.data().deliberate === true;
   const btn = document.getElementById('saveAttnBtn');
   const note = document.getElementById('attnLockedNote');
   if (btn) btn.style.display = todayAttendanceSaved ? 'none' : '';
@@ -2492,7 +2494,8 @@ function saveAttendanceSnapshot() {
   attendanceDocRef(dateStr).set({
     date: dateStr,
     players: record,
-    savedAt: Date.now()
+    savedAt: Date.now(),
+    deliberate: true // a full, on-purpose save via "Save today's attendance" — this is what locks the day
   }).then(() => {
     console.log('Attendance saved for', dateStr);
   }).catch((e) => {
@@ -2771,7 +2774,7 @@ document.getElementById('saveEditAttnBtn').addEventListener('click', () => {
   const dateStr = attnDateInput.value;
   if (!dateStr || !editAttnRecord) return;
   const record = Object.keys(editAttnRecord).map((name) => ({ name, status: editAttnRecord[name] }));
-  attendanceDocRef(dateStr).set({ date: dateStr, players: record, savedAt: Date.now(), correctedAt: Date.now() })
+  attendanceDocRef(dateStr).set({ date: dateStr, players: record, savedAt: Date.now(), correctedAt: Date.now(), deliberate: true })
     .then(() => {
       alert(`Attendance for ${dateStr} updated ✅`);
       editAttnPanel.style.display = 'none';
@@ -2936,8 +2939,10 @@ async function bulkSetHoliday(name, startStr, endStr) {
       const ref = attendanceDocRef(dateStr);
       const doc = await ref.get();
       let record;
+      let deliberate = false; // preserve an existing deliberate save; never let Bulk Holiday itself lock the day
       if (doc.exists && Array.isArray(doc.data().players)) {
         record = doc.data().players.map(p => ({ name: p.name, status: normalizeAttnStatus(p) }));
+        deliberate = !!doc.data().deliberate;
         const i = record.findIndex(p => p.name === name);
         if (i >= 0) record[i].status = 'holiday';
         else record.push({ name, status: 'holiday' });
@@ -2947,7 +2952,7 @@ async function bulkSetHoliday(name, startStr, endStr) {
         // counts on days (including future ones) that were never actually played.
         record = [{ name, status: 'holiday' }];
       }
-      await ref.set({ date: dateStr, players: record, savedAt: Date.now() });
+      await ref.set({ date: dateStr, players: record, savedAt: Date.now(), deliberate });
     } catch (e) {
       console.error('Bulk holiday failed for', dateStr, e);
       bulkStatusEl.style.display = 'none';
