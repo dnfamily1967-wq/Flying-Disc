@@ -2301,6 +2301,30 @@ function logLoginEvent(name) {
     alert('Could not record this login in the log: ' + err.message);
   });
 }
+// Quiet version for the background heartbeat below — a missed heartbeat write shouldn't ever
+// interrupt the person with an alert, it just tries again next time.
+function logHeartbeat(name) {
+  loginLogDocRef.set({
+    entries: firebase.firestore.FieldValue.arrayUnion({ name, ts: Date.now() })
+  }, { merge: true }).catch((err) => console.error('Login heartbeat failed', err));
+}
+// "Recent Logins" should reflect the last time someone was actually active in the app, not just
+// the moment they opened it — so while the tab is open and visible, keep nudging their entry
+// forward every few minutes, and once more right when they come back after being away/backgrounded.
+const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000;
+let lastHeartbeatAt = 0;
+function maybeSendHeartbeat() {
+  if (!currentUser) return;
+  if (document.visibilityState !== 'visible') return;
+  const now = Date.now();
+  if (now - lastHeartbeatAt < HEARTBEAT_INTERVAL_MS) return;
+  lastHeartbeatAt = now;
+  logHeartbeat(currentUser);
+}
+setInterval(maybeSendHeartbeat, HEARTBEAT_INTERVAL_MS);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') maybeSendHeartbeat();
+});
 function renderLoginLog(entries) {
   if (!isAdmin) { loginLogCard.style.display = 'none'; return; }
   if (!entries || !entries.length) { loginLogCard.style.display = 'none'; return; }
