@@ -2302,7 +2302,7 @@ function logLoginEvent(name) {
   });
 }
 function renderLoginLog(entries) {
-  if (!currentUser) { loginLogCard.style.display = 'none'; return; }
+  if (!isAdmin) { loginLogCard.style.display = 'none'; return; }
   if (!entries || !entries.length) { loginLogCard.style.display = 'none'; return; }
   // Sort newest-first explicitly (arrayUnion appends, it doesn't guarantee order), then keep
   // only the first occurrence of each name for their latest login.
