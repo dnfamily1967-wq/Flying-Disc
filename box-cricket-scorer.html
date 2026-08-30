@@ -701,25 +701,55 @@
   .historyActionBtn.del { border-color: var(--ball); color: #ff8a80; }
 
   /* ---- Offscreen render target used for JPEG export (kept out of the normal layout) ---- */
-  #exportCard { position: fixed; left: -9999px; top: 0; width: 420px; display: none; }
+  #exportCard { position: fixed; left: -9999px; top: 0; width: 640px; display: none; }
   .exportCardInner {
-    background: #0b1220;
-    color: var(--ink);
+    background: linear-gradient(160deg, #BEE3F8 0%, #8ECBEF 45%, #5FAEE0 100%);
+    color: #0F2A44;
     font-family: 'Rajdhani', sans-serif;
-    padding: 22px 18px;
-    border-radius: 16px;
-    border: 1px solid var(--line);
+    padding: 26px 22px;
+    border-radius: 20px;
+    border: 3px solid #0F2A44;
   }
-  .exportCardInner .exTitle { text-align: center; font-family: 'Share Tech Mono', monospace; color: var(--pitch); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 10px; }
-  .exportCardInner .exTeams { display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 800; font-size: 15px; margin-bottom: 4px; flex-wrap: wrap; }
-  .exportCardInner .exDate { text-align: center; color: var(--muted); font-size: 11px; margin-bottom: 12px; }
-  .exportCardInner .exScore { text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 40px; font-weight: 800; color: var(--led); margin-bottom: 2px; }
-  .exportCardInner .exOvers { text-align: center; color: var(--muted); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 16px; }
-  .exportCardInner h3 { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--amber); margin: 14px 0 6px; }
-  .exportCardInner table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  .exportCardInner th, .exportCardInner td { text-align: left; padding: 5px 4px; border-bottom: 1px solid var(--line); }
-  .exportCardInner td.num, .exportCardInner th.num { text-align: right; font-family: 'Share Tech Mono', monospace; }
-  .exportCardInner .exFoot { text-align: center; color: var(--muted); font-size: 10px; margin-top: 14px; letter-spacing: 1px; }
+  .exportCardInner .exTitle { text-align: center; font-family: 'Share Tech Mono', monospace; color: #0F2A44; font-size: 13px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px; }
+  .exportCardInner .exDate { text-align: center; color: #2C4A66; font-size: 11.5px; font-weight: 700; margin-bottom: 12px; }
+  .exportCardInner .exResultBanner {
+    text-align: center;
+    background: #FDD65B;
+    border: 2.5px solid #0F2A44;
+    border-radius: 30px;
+    padding: 8px 14px;
+    font-weight: 800;
+    font-size: 15px;
+    color: #3A2A04;
+    margin: 0 auto 18px;
+    max-width: 90%;
+  }
+  .exportCardInner .exTeamsRow { display: flex; gap: 14px; align-items: stretch; }
+  .exportCardInner .exTeamCol {
+    flex: 1 1 0;
+    min-width: 0;
+    background: rgba(255,255,255,0.75);
+    border: 2.5px solid #0F2A44;
+    border-radius: 16px;
+    padding: 14px 12px;
+  }
+  .exportCardInner .exTeamCol.left { border-color: #123E7A; }
+  .exportCardInner .exTeamCol.right { border-color: #7A1361; }
+  .exportCardInner .exTeamHead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .exportCardInner .exTeamHeadText { min-width: 0; }
+  .exportCardInner .exTeamName { font-weight: 800; font-size: 16px; color: #0F2A44; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .exportCardInner .exTeamSub { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #4A6C8A; }
+  .exportCardInner .exTeamScore { font-family: 'Share Tech Mono', monospace; font-size: 34px; font-weight: 800; color: #0F2A44; margin-bottom: 10px; }
+  .exportCardInner .exTeamCol.left .exTeamScore { color: #123E7A; }
+  .exportCardInner .exTeamCol.right .exTeamScore { color: #7A1361; }
+  .exportCardInner .exTeamScore .exWkt { color: #a01f1f; font-size: 22px; }
+  .exportCardInner .exSectionLabel { font-size: 10.5px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #4A6C8A; margin: 10px 0 4px; border-top: 1px dashed rgba(15,42,68,0.3); padding-top: 8px; }
+  .exportCardInner .exTeamCol table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .exportCardInner .exTeamCol th, .exportCardInner .exTeamCol td { text-align: left; padding: 3px 2px; border-bottom: 1px solid rgba(15,42,68,0.15); font-weight: 700; color: #0F2A44; }
+  .exportCardInner .exTeamCol td.num { text-align: right; font-family: 'Share Tech Mono', monospace; }
+  .exportCardInner .exTeamCol .exEmpty { color: #7A93A8; font-weight: 600; font-style: italic; }
+  .exportCardInner .exOvers { text-align: center; color: #2C4A66; font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin: 16px 0 2px; }
+  .exportCardInner .exFoot { text-align: center; color: #4A6C8A; font-size: 10px; font-weight: 700; margin-top: 8px; letter-spacing: 1px; }
 
   .hidden { display: none !important; }
   .footNote { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 18px; line-height: 1.6; }
@@ -2093,6 +2123,8 @@ function currentMatchRecord() {
     date: new Date().toISOString(),
     team1Name: state.team1Name || 'Team A',
     team2Name: state.team2Name || 'Team B',
+    team1Players: state.team1Players || [],
+    team2Players: state.team2Players || [],
     totalRuns: state.totalRuns,
     totalWkts: state.totalWkts,
     firstInningsRuns: state.firstInningsRuns !== undefined ? state.firstInningsRuns : 0,
@@ -2251,27 +2283,51 @@ document.getElementById('clearHistoryBtn').addEventListener('click', () => {
 
 // ---------------- JPEG EXPORT ----------------
 function buildExportHTML(rec) {
-  const battingRows = Object.keys(rec.battingStats || {})
-    .map((name) => ({ name, runs: (rec.battingStats[name] && rec.battingStats[name].runs) || 0 }))
+  const team1Players = rec.team1Players || [];
+  const team2Players = rec.team2Players || [];
+  const battingRowsForTeam = (players) => players
+    .map((name) => ({ name, runs: (rec.battingStats && rec.battingStats[name] && rec.battingStats[name].runs) || 0 }))
     .sort((a, b) => b.runs - a.runs);
-  const bowlingRows = Object.keys(rec.bowlingStats || {})
-    .map((name) => ({ name, runs: (rec.bowlingStats[name] && rec.bowlingStats[name].runsConceded) || 0, wkts: (rec.bowlingStats[name] && rec.bowlingStats[name].wkts) || 0 }))
+  const bowlingRowsForTeam = (players) => players
+    .map((name) => ({ name, runs: (rec.bowlingStats && rec.bowlingStats[name] && rec.bowlingStats[name].runsConceded) || 0, wkts: (rec.bowlingStats && rec.bowlingStats[name] && rec.bowlingStats[name].wkts) || 0 }))
     .filter((r) => r.wkts > 0 || r.runs > 0)
     .sort((a, b) => b.wkts - a.wkts || a.runs - b.runs);
+
   const dateStr = rec.date ? new Date(rec.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+
+  // Team B always bats first (innings 1), Team A chases (innings 2) — see finishOver().
+  const bRuns = rec.firstInningsRuns || 0, bWkts = rec.firstInningsWkts || 0;
+  const aRuns = rec.totalRuns || 0, aWkts = rec.totalWkts || 0;
+  let resultText;
+  if (aRuns > bRuns) {
+    const wktsRemaining = Math.max(team1Players.length - aWkts, 0);
+    resultText = `🏆 ${rec.team1Name} won by ${wktsRemaining} wicket${wktsRemaining === 1 ? '' : 's'}`;
+  } else if (bRuns > aRuns) {
+    resultText = `🏆 ${rec.team2Name} won by ${bRuns - aRuns} run${(bRuns - aRuns) === 1 ? '' : 's'}`;
+  } else {
+    resultText = '🤝 Match tied';
+  }
+
+  const teamBlock = (name, logoSeed, runs, wkts, sub, battingPlayers, bowlingPlayers, side) => `
+    <div class="exTeamCol ${side}">
+      <div class="exTeamHead">${teamLogoHTML(logoSeed, 34)}<div class="exTeamHeadText"><div class="exTeamName">${name}</div><div class="exTeamSub">${sub}</div></div></div>
+      <div class="exTeamScore">${runs}<span class="exWkt">/${wkts}</span></div>
+      <div class="exSectionLabel">Batting</div>
+      <table><tbody>${battingRowsForTeam(battingPlayers).map((r) => `<tr><td>${r.name}</td><td class="num">${r.runs}</td></tr>`).join('') || '<tr><td colspan="2" class="exEmpty">No batters</td></tr>'}</tbody></table>
+      <div class="exSectionLabel">Bowling</div>
+      <table><tbody>${bowlingRowsForTeam(bowlingPlayers).map((r) => `<tr><td>${r.name}</td><td class="num">${r.runs}-${r.wkts}</td></tr>`).join('') || '<tr><td colspan="2" class="exEmpty">No overs bowled</td></tr>'}</tbody></table>
+    </div>`;
+
   return `
     <div class="exportCardInner">
-      <div class="exTitle">🏏 Box Cricket — Match Scorecard</div>
-      <div class="exTeams">${teamLogoHTML(rec.team1Name, 26)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600; font-size:12px;">vs</span> ${teamLogoHTML(rec.team2Name, 26)} ${rec.team2Name}</div>
+      <div class="exTitle">🏏 BOX CRICKET — MATCH SCORECARD</div>
       <div class="exDate">${dateStr}</div>
-      <div class="exScore">${rec.team2Name} ${rec.firstInningsRuns || 0}/${rec.firstInningsWkts || 0} &nbsp;·&nbsp; ${rec.team1Name} ${rec.totalRuns}/${rec.totalWkts}</div>
-      <div class="exOvers">${rec.oversBowled} / ${rec.totalOvers} overs</div>
-      <h3>Batting</h3>
-      <table><thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
-      <tbody>${battingRows.map((r) => `<tr><td>${r.name}</td><td class="num">${r.runs}</td></tr>`).join('')}</tbody></table>
-      <h3>Bowling</h3>
-      <table><thead><tr><th>Bowler</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead>
-      <tbody>${bowlingRows.map((r) => `<tr><td>${r.name}</td><td class="num">${r.runs}</td><td class="num">${r.wkts}</td></tr>`).join('')}</tbody></table>
+      <div class="exResultBanner">${resultText}</div>
+      <div class="exTeamsRow">
+        ${teamBlock(rec.team2Name, rec.team2Name, bRuns, bWkts, '1st Innings', team2Players, team1Players, 'left')}
+        ${teamBlock(rec.team1Name, rec.team1Name, aRuns, aWkts, '2nd Innings (chase)', team1Players, team2Players, 'right')}
+      </div>
+      <div class="exOvers">${rec.oversBowled} / ${rec.totalOvers} overs bowled</div>
       <div class="exFoot">GENERATED BY BOX CRICKET SCORER</div>
     </div>`;
 }
@@ -2286,7 +2342,7 @@ async function exportRecordAsJPEG(rec, filenameHint) {
   container.style.display = 'block';
   await new Promise((r) => setTimeout(r, 60)); // let fonts/layout settle before capture
   try {
-    const canvas = await html2canvas(container, { backgroundColor: '#0b1220', scale: 2 });
+    const canvas = await html2canvas(container, { backgroundColor: '#8ECBEF', scale: 2 });
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     const a = document.createElement('a');
     a.href = dataUrl;
