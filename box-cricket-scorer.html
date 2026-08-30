@@ -353,106 +353,145 @@
   }
   .setupHint { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 4px; }
 
-  /* ---- Scoreboard: soft watercolor-yellow gradient with bold dark text for a warm, attractive
-         look with strong readability. ---- */
+  /* ---- Scoreboard: multi-color carnival gradient with colorful accents — playful and
+         attractive, while keeping bold dark text for strong readability. ---- */
   .scoreboard {
-    background: linear-gradient(160deg, #FFE9A8 0%, #FDD65B 55%, #F5B93D 100%);
+    background: linear-gradient(135deg, #FFD166 0%, #FDA84B 35%, #F97B57 65%, #E85D8A 100%);
     border: none;
-    border-radius: 16px;
+    border-radius: 18px;
     padding: 16px 14px;
     text-align: center;
     margin-bottom: 10px;
-    box-shadow: 0 8px 22px rgba(180,130,10,0.25), inset 0 1px 0 rgba(255,255,255,0.5);
+    box-shadow: 0 10px 24px rgba(200,80,110,0.28), inset 0 1px 0 rgba(255,255,255,0.45);
+    position: relative;
+    overflow: hidden;
   }
-  .scoreboard .teamsHeaderRowIn { margin-bottom: 6px; }
-  .scoreboard .teamsHeaderSide { color: rgba(58,42,4,0.55); }
-  .scoreboard .teamsHeaderSide.active { color: #3A2A04; }
-  .scoreboard .teamsHeaderVs { color: rgba(58,42,4,0.5); }
+  .scoreboard::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.14);
+  }
+  .scoreboard::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: -20px;
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+  }
+  .scoreboard .teamsHeaderRowIn { margin-bottom: 6px; position: relative; z-index: 1; }
+  .scoreboard .teamsHeaderSide { color: rgba(58,20,10,0.55); }
+  .scoreboard .teamsHeaderSide.active { color: #3A0F04; }
+  .scoreboard .teamsHeaderVs { color: rgba(58,20,10,0.5); }
   .sbOver {
+    display: inline-block;
+    position: relative;
+    z-index: 1;
     font-family: 'Share Tech Mono', monospace;
-    color: #8a5306;
-    font-size: 10.5px;
-    letter-spacing: 2.5px;
+    color: #fff;
+    background: #2b2b8f;
+    border: 2px solid #1a1a1a;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 10px;
+    letter-spacing: 2px;
     text-transform: uppercase;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     font-weight: 800;
   }
   .sbScore {
     font-family: 'Share Tech Mono', monospace;
     font-size: 42px;
     font-weight: 800;
-    color: #3A2A04;
+    color: #3A0F04;
     text-shadow: 0 1px 0 rgba(255,255,255,0.35);
     line-height: 1;
   }
-  .sbScore .wkt { color: #a01f1f; }
+  .sbScore .wkt { color: #7a1030; }
   /* ---- Two-column score split: Team A on the left, Team B on the right, each in the same
          space the single combined score used to take — bigger and bolder, not smaller. ---- */
-  .sbScoreSplit { display: flex; align-items: stretch; margin: 2px 0; }
+  .sbScoreSplit { display: flex; align-items: stretch; margin: 2px 0; position: relative; z-index: 1; }
   .sbScoreCol { flex: 1 1 0; min-width: 0; }
-  .sbScoreDivider { width: 1px; background: rgba(58,42,4,0.25); margin: 4px 10px; }
+  .sbScoreDivider { width: 1px; background: rgba(58,20,10,0.25); margin: 4px 10px; }
   .sbScoreColName {
-    font-size: 12px;
+    display: inline-block;
+    font-size: 11px;
     font-weight: 800;
     letter-spacing: 1px;
     text-transform: uppercase;
-    color: rgba(58,42,4,0.7);
-    margin-bottom: 2px;
+    color: rgba(58,20,10,0.65);
+    margin-bottom: 3px;
+    padding: 2px 8px;
+    border-radius: 10px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
   }
-  .sbScoreCol.isBatting .sbScoreColName { color: #3A2A04; }
-  #sbScoreColA .sbScoreColName.isBattingName, #sbScoreColA.isBatting .sbScoreColName { color: #123E7A; }
-  #sbScoreColB.isBatting .sbScoreColName { color: #7A1361; }
+  #sbScoreColA.isBatting .sbScoreColName { background: #123E7A; color: #fff; border: 2px solid #1a1a1a; }
+  #sbScoreColB.isBatting .sbScoreColName { background: #7A1361; color: #fff; border: 2px solid #1a1a1a; }
+  #sbScoreColA:not(.isBatting) .sbScoreColName, #sbScoreColB:not(.isBatting) .sbScoreColName { border: 2px solid rgba(26,26,26,0.4); }
   .sbScoreBig {
     font-family: 'Share Tech Mono', monospace;
     font-size: clamp(28px, 10vw, 44px);
     font-weight: 800;
-    color: #3A2A04;
-    text-shadow: 0 2px 3px rgba(58,42,4,0.18);
+    color: #3A0F04;
+    text-shadow: 0 2px 3px rgba(58,20,10,0.18);
     line-height: 1;
     letter-spacing: 0.5px;
   }
   #sbScoreColA .sbScoreBig { color: #123E7A; text-shadow: 0 2px 4px rgba(18,62,122,0.25); }
   #sbScoreColB .sbScoreBig { color: #7A1361; text-shadow: 0 2px 4px rgba(122,19,97,0.25); }
-  .sbScoreBig .wkt { color: #a01f1f; }
+  .sbScoreBig .wkt { color: #7a1030; }
   .sbScoreCol:not(.isBatting) .sbScoreBig { opacity: 0.5; filter: saturate(0.6); }
   .sbScoreCol.isBatting .sbScoreBig { text-shadow: 0 2px 6px rgba(0,0,0,0.2); }
   .sbScoreColSub {
     font-family: 'Share Tech Mono', monospace;
     font-size: 11px;
     font-weight: 800;
-    color: rgba(58,42,4,0.65);
+    color: rgba(58,20,10,0.6);
     margin-top: 2px;
     letter-spacing: 0.5px;
   }
-  .sbScoreCol.isBatting .sbScoreColSub { color: #3A2A04; }
+  .sbScoreCol.isBatting .sbScoreColSub { color: #3A0F04; }
   .sbSub {
     font-family: 'Share Tech Mono', monospace;
-    color: rgba(58,42,4,0.75);
+    color: rgba(58,20,10,0.75);
     font-size: 11px;
     margin-top: 4px;
     font-weight: 800;
   }
   .sbMeta {
     display: flex;
-    justify-content: space-between;
+    gap: 8px;
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px dashed rgba(58,42,4,0.28);
+    border-top: 1px dashed rgba(58,20,10,0.3);
     text-align: left;
+    position: relative;
+    z-index: 1;
   }
-  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: rgba(58,42,4,0.65); text-transform: uppercase; font-weight: 800; }
-  .sbMetaCol .val { font-size: 14px; font-weight: 800; margin-top: 1px; color: #3A2A04; }
+  .sbMetaCol {
+    flex: 1 1 0;
+    min-width: 0;
+    background: rgba(30,90,168,0.16);
+    border: 2px solid #1a1a1a;
+    border-radius: 10px;
+    padding: 6px 10px;
+  }
+  .sbMetaCol.right { background: rgba(24,155,82,0.16); text-align: right; }
+  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: rgba(58,20,10,0.7); text-transform: uppercase; font-weight: 800; }
+  .sbMetaCol .val { font-size: 14px; font-weight: 800; margin-top: 1px; color: #3A0F04; }
   .sbMetaCol .valSub {
     font-family: 'Share Tech Mono', monospace;
     font-size: 13px;
     font-weight: 800;
-    color: #8a5306;
+    color: #8a3906;
     margin-top: 1px;
   }
-  .sbMetaCol.right { text-align: right; }
 
   .ballLog { display: flex; flex-wrap: wrap; gap: 5px; margin: 9px 0 3px; min-height: 24px; }
   .ballChip {
@@ -1891,9 +1930,15 @@ function finishOver() {
     }
     // else: second over of this pair's 2-over stint — striker/non-striker carry on unchanged.
   } else {
+    // Only clear the pair if the innings itself just switched (the current striker no longer
+    // belongs to the batting team). A null non-striker on its own does NOT mean that — it just
+    // means a wicket fell and a fresh batter is still waiting to be picked; the striker who's
+    // still out there batting must not be cleared just because of that.
     const stillBatting = currentBattingTeamPlayers();
-    if (!stillBatting.includes(state.striker) || !stillBatting.includes(state.nonStriker)) {
+    if (state.striker && !stillBatting.includes(state.striker)) {
       state.striker = null;
+      state.nonStriker = null;
+    } else if (state.nonStriker && !stillBatting.includes(state.nonStriker)) {
       state.nonStriker = null;
     }
   }
