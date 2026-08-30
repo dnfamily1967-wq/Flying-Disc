@@ -53,9 +53,9 @@
   body.onMatch .scoreboard { padding: 10px 12px; margin-bottom: 5px; border-radius: 14px; }
   body.onMatch .scoreboard .teamsHeaderRowIn { margin-bottom: 3px; }
   body.onMatch .sbOver { font-size: 9.5px; margin-bottom: 2px; }
-  body.onMatch .sbScoreBig { font-size: clamp(22px, 8vw, 30px); }
-  body.onMatch .sbScoreColName { font-size: 10px; }
-  body.onMatch .sbScoreColSub { font-size: 9px; }
+  body.onMatch .sbScoreBig { font-size: clamp(24px, 8.5vw, 32px); }
+  body.onMatch .sbScoreColName { font-size: 10.5px; }
+  body.onMatch .sbScoreColSub { font-size: 9.5px; }
   body.onMatch .sbSub { font-size: 10px; margin-top: 2px; }
   body.onMatch .sbMeta { margin-top: 7px; padding-top: 7px; }
   body.onMatch #matchScaleWrap .panel { padding: 10px 8px; margin-bottom: 5px; }
@@ -392,7 +392,7 @@
   .sbScoreCol { flex: 1 1 0; min-width: 0; }
   .sbScoreDivider { width: 1px; background: rgba(58,42,4,0.25); margin: 4px 10px; }
   .sbScoreColName {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -403,23 +403,31 @@
     text-overflow: ellipsis;
   }
   .sbScoreCol.isBatting .sbScoreColName { color: #3A2A04; }
+  #sbScoreColA .sbScoreColName.isBattingName, #sbScoreColA.isBatting .sbScoreColName { color: #123E7A; }
+  #sbScoreColB.isBatting .sbScoreColName { color: #7A1361; }
   .sbScoreBig {
     font-family: 'Share Tech Mono', monospace;
-    font-size: clamp(26px, 9vw, 40px);
+    font-size: clamp(28px, 10vw, 44px);
     font-weight: 800;
     color: #3A2A04;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+    text-shadow: 0 2px 3px rgba(58,42,4,0.18);
     line-height: 1;
+    letter-spacing: 0.5px;
   }
+  #sbScoreColA .sbScoreBig { color: #123E7A; text-shadow: 0 2px 4px rgba(18,62,122,0.25); }
+  #sbScoreColB .sbScoreBig { color: #7A1361; text-shadow: 0 2px 4px rgba(122,19,97,0.25); }
   .sbScoreBig .wkt { color: #a01f1f; }
-  .sbScoreCol:not(.isBatting) .sbScoreBig { opacity: 0.55; }
+  .sbScoreCol:not(.isBatting) .sbScoreBig { opacity: 0.5; filter: saturate(0.6); }
+  .sbScoreCol.isBatting .sbScoreBig { text-shadow: 0 2px 6px rgba(0,0,0,0.2); }
   .sbScoreColSub {
     font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 800;
     color: rgba(58,42,4,0.65);
     margin-top: 2px;
+    letter-spacing: 0.5px;
   }
+  .sbScoreCol.isBatting .sbScoreColSub { color: #3A2A04; }
   .sbSub {
     font-family: 'Share Tech Mono', monospace;
     color: rgba(58,42,4,0.75);
