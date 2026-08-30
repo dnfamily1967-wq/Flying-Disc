@@ -289,20 +289,20 @@
   }
   .setupHint { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 4px; }
 
-  /* ---- Scoreboard: attractive bright cricket-pitch green with bold dark text for strong,
-         easy readability (instead of the low-contrast dark/glow look) ---- */
+  /* ---- Scoreboard: same dark-green gradient + bold white text combination used across the
+         Flying Disc Morning Walkers app, for a consistent look and strong readability. ---- */
   .scoreboard {
-    background: linear-gradient(160deg, #4ade80 0%, #22c55e 45%, #15803d 100%);
+    background: radial-gradient(120% 140% at 15% 0%, #2E6B45 0%, #1F4B33 55%, #123424 100%);
     border: none;
     border-radius: 16px;
     padding: 16px 14px;
     text-align: center;
     margin-bottom: 10px;
-    box-shadow: 0 8px 22px rgba(13,92,44,0.35), inset 0 1px 0 rgba(255,255,255,0.35);
+    box-shadow: 0 8px 22px rgba(18,52,36,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
   }
   .sbOver {
     font-family: 'Share Tech Mono', monospace;
-    color: rgba(7,36,19,0.78);
+    color: #E0A62B;
     font-size: 10.5px;
     letter-spacing: 2.5px;
     text-transform: uppercase;
@@ -313,14 +313,14 @@
     font-family: 'Share Tech Mono', monospace;
     font-size: 42px;
     font-weight: 800;
-    color: #08281a;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+    color: #FFFFFF;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.35);
     line-height: 1;
   }
-  .sbScore .wkt { color: #7a1f1f; }
+  .sbScore .wkt { color: #FF9A5A; }
   .sbSub {
     font-family: 'Share Tech Mono', monospace;
-    color: rgba(7,36,19,0.72);
+    color: rgba(255,255,255,0.78);
     font-size: 11px;
     margin-top: 4px;
     font-weight: 700;
@@ -330,16 +330,16 @@
     justify-content: space-between;
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px dashed rgba(7,36,19,0.3);
+    border-top: 1px dashed rgba(255,255,255,0.22);
     text-align: left;
   }
-  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: rgba(7,36,19,0.65); text-transform: uppercase; font-weight: 700; }
-  .sbMetaCol .val { font-size: 14px; font-weight: 800; margin-top: 1px; color: #08281a; }
+  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: rgba(255,255,255,0.65); text-transform: uppercase; font-weight: 700; }
+  .sbMetaCol .val { font-size: 14px; font-weight: 800; margin-top: 1px; color: #FFFFFF; }
   .sbMetaCol .valSub {
     font-family: 'Share Tech Mono', monospace;
     font-size: 13px;
     font-weight: 800;
-    color: #08281a;
+    color: #E0A62B;
     margin-top: 1px;
   }
   .sbMetaCol.right { text-align: right; }
@@ -827,10 +827,19 @@ function loadState() {
       // Migrate older saved matches that predate these two settings.
       if (state.retirementRule === undefined) state.retirementRule = 'none';
       if (state.negOutSwapStrike === undefined) state.negOutSwapStrike = true;
+      // Migrate matches saved before manual bowler/batter selection was added — those had a
+      // bowler + pair auto-picked by the app. Clear that one-time so nothing is pre-selected
+      // that the team didn't actually tap themselves; future saves are left alone.
+      if (!state.manualPickMigrated) {
+        state.currentBowler = null;
+        state.striker = null;
+        state.nonStriker = null;
+        state.manualPickMigrated = true;
+      }
       return;
     }
   } catch (e) {}
-  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true };
+  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true, manualPickMigrated: true };
 }
 
 function saveState() {
@@ -1208,12 +1217,12 @@ startMatchBtn.addEventListener('click', () => {
   // proper innings, instead of the team on strike flipping every single over.
   state.bowlerOrder = [...state.team1Players, ...state.team2Players];
   state.currentOverIdx = 0;
-  state.currentBowler = state.bowlerOrder[0];
-  // Default pair suggestion: the first two players from the OPPOSING team to whoever's bowling —
-  // bowling and batting always come from different sides, like a real match.
-  const pair = suggestBatterPair(0);
-  state.striker = pair[0];
-  state.nonStriker = pair[1];
+  // Nothing is pre-picked — the team taps their own bowler and both batters by hand before
+  // scoring starts, every over.
+  state.currentBowler = null;
+  state.striker = null;
+  state.nonStriker = null;
+  state.manualPickMigrated = true;
   state.legalBallsThisOver = 0;
   state.thisOverBalls = [];
   state.totalRuns = 0;
@@ -1245,6 +1254,19 @@ function currentBowlingTeamPlayers() {
   if (!state.team1Players || !state.team2Players) return state.players; // old saved match, no team info
   const innings1Len = state.team1Players.length;
   return state.currentOverIdx < innings1Len ? state.team1Players : state.team2Players;
+}
+// The team currently BATTING — always the other side from whoever's bowling this innings. This
+// depends only on which over we're in, not on whether a specific bowler has been tapped yet, so
+// the batter list can show straight away without waiting for a bowler pick first.
+function currentBattingTeamPlayers() {
+  if (!state.team1Players || !state.team2Players) return state.players;
+  const innings1Len = state.team1Players.length;
+  return state.currentOverIdx < innings1Len ? state.team2Players : state.team1Players;
+}
+// True while Team 1 is the side currently bowling (i.e. we're still in the first innings).
+function currentOverIdxIsTeam1() {
+  if (!state.team1Players || !state.team2Players) return true;
+  return state.currentOverIdx < state.team1Players.length;
 }
 
 function suggestBatterPair(overIdx) {
@@ -1312,10 +1334,10 @@ function renderMatch() {
   document.getElementById('sbWkts').textContent = state.totalWkts;
   const oversDisplay = (oIdx) + '.' + state.legalBallsThisOver;
   document.getElementById('sbOverProgress').textContent = `${oversDisplay} OVERS BOWLED`;
-  document.getElementById('sbBowlerName').textContent = state.currentBowler;
-  document.getElementById('sbBatterName').textContent = state.striker;
+  document.getElementById('sbBowlerName').textContent = state.currentBowler || '—';
+  document.getElementById('sbBatterName').textContent = state.striker || '—';
   document.getElementById('sbBowlerFigures').textContent = `${currentOverRunsConceded()} runs · ${currentOverWkts()} wkt`;
-  const batterRuns = (state.battingStats[state.striker] && state.battingStats[state.striker].runs) || 0;
+  const batterRuns = (state.striker && state.battingStats[state.striker] && state.battingStats[state.striker].runs) || 0;
   document.getElementById('sbBatterRuns').textContent = `${batterRuns} run${batterRuns === 1 ? '' : 's'}`;
 
   // Bowler chips: only the CURRENT innings' bowling team, and only players who haven't bowled
@@ -1328,18 +1350,21 @@ function renderMatch() {
     `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''}" data-bowler="${p}">${p}</button>`
   ).join('');
 
-  // Batter chips: only the OPPOSING team to whoever's bowling — tap a name to bring them on strike
-  const batterOptions = opposingTeamPlayers(state.currentBowler);
-  batterChipsEl.innerHTML = batterOptions.map((p) => {
+  // Batter chips: the team currently BATTING this innings — always shown, whether or not a
+  // bowler has been tapped yet, so the scorer can pick bowler and batters in any order.
+  const batterOptions = currentBattingTeamPlayers();
+  batterChipsEl.innerHTML = batterOptions.length ? batterOptions.map((p) => {
     const role = p === state.striker ? 'striker' : (p === state.nonStriker ? 'nonstriker' : '');
     const tag = p === state.striker ? '<span class="roleTag">🟢 STRIKER</span>' : (p === state.nonStriker ? '<span class="roleTag">🔴 NON-STRIKER</span>' : '');
     return `<button type="button" class="tapChip ${role}" data-batter="${p}">${p}${tag}</button>`;
-  }).join('');
+  }).join('') : '<span style="color:var(--muted); font-size:12px;">No batters available</span>';
 
   const bowlerLabel = document.getElementById('bowlerLabel');
   const batterLabel = document.getElementById('batterLabel');
-  if (bowlerLabel) bowlerLabel.textContent = `Bowler (${teamKeyOf(state.currentBowler) === 'team2' ? state.team2Name : state.team1Name}) — tap to set`;
-  if (batterLabel) batterLabel.textContent = `Batters (${teamKeyOf(state.currentBowler) === 'team2' ? state.team1Name : state.team2Name}) — 🟢 striker · 🔴 non-striker · tap a name`;
+  const bowlingTeamName = currentOverIdxIsTeam1() ? (state.team1Name || 'Team A') : (state.team2Name || 'Team B');
+  const battingTeamName = currentOverIdxIsTeam1() ? (state.team2Name || 'Team B') : (state.team1Name || 'Team A');
+  if (bowlerLabel) bowlerLabel.textContent = `Bowler (${bowlingTeamName}) — tap to set`;
+  if (batterLabel) batterLabel.textContent = `Batters (${battingTeamName}) — 🟢 striker · 🔴 non-striker · tap a name`;
 
   ballLogEl.innerHTML = state.thisOverBalls.map((b) => {
     if (b.type === 'out') return `<div class="ballChip out">OUT</div>`;
@@ -1392,13 +1417,8 @@ bowlerChipsEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-bowler]');
   if (!btn) return;
   state.currentBowler = btn.dataset.bowler;
-  // Batters must always be from the team OPPOSITE the bowler — if the new bowler's team overlaps
-  // with the current striker/non-striker, swap in players from the correct (opposing) side.
-  const opponents = opposingTeamPlayers(state.currentBowler);
-  if (!opponents.includes(state.striker) || !opponents.includes(state.nonStriker)) {
-    state.striker = opponents[0] || state.striker;
-    state.nonStriker = opponents.find((p) => p !== state.striker) || opponents[0] || state.nonStriker;
-  }
+  // Batting team is fixed by which innings we're in, not by who's bowling, so the batter list
+  // doesn't need to change here — striker/non-striker stay exactly as the scorer set them.
   saveState();
   renderMatch();
 });
@@ -1437,6 +1457,10 @@ function pushHistory() {
 }
 
 function recordBall(entry) {
+  if (!state.currentBowler || !state.striker || !state.nonStriker) {
+    alert('Please select the bowler and both batters first.');
+    return;
+  }
   pushHistory();
   state.thisOverBalls.push(entry);
   if (entry.run) {
@@ -1462,13 +1486,10 @@ function recordBall(entry) {
       state.battingStats[state.striker].outs = (state.battingStats[state.striker].outs || 0) + 1;
       if (state.negOutSwapStrike) swapStrike();
     } else {
-      // No penalty configured — this behaves like a real fall of wicket: the batter who's out
-      // leaves the crease, non-striker takes strike, and the next unused player from the SAME
-      // (batting) team comes in as the new non-striker.
-      const opponents = opposingTeamPlayers(state.currentBowler);
-      const nextIn = opponents.find((p) => p !== state.striker && p !== state.nonStriker);
+      // No penalty configured — real fall of wicket: the batter who's out leaves the crease,
+      // non-striker takes strike. Who comes in next is picked by hand — tap a name below.
       state.striker = state.nonStriker;
-      state.nonStriker = nextIn || state.nonStriker;
+      state.nonStriker = null;
     }
   }
   if (entry.type !== 'extra') {
@@ -1492,22 +1513,11 @@ function finishOver() {
     return;
   }
   state.currentOverIdx += 1;
-  state.currentBowler = state.bowlerOrder[state.currentOverIdx];
-  if (state.retirementRule === 'pair2' || state.retirementRule === 'single1') {
-    // Retirement rule is on — every over (or every 2 overs) auto-rotates in the next
-    // batter(s), regardless of who was in before.
-    const pair = getBattingPairForOver(state.currentOverIdx);
-    state.striker = pair[0];
-    state.nonStriker = pair[1];
-  } else {
-    // Batters must always be from the team OPPOSITE the (new) bowler — if the new bowler's team
-    // overlaps with the current pair, bring in the correct opposing-team players instead.
-    const opponents = opposingTeamPlayers(state.currentBowler);
-    if (!opponents.includes(state.striker) || !opponents.includes(state.nonStriker)) {
-      state.striker = opponents[0] || state.striker;
-      state.nonStriker = opponents.find((p) => p !== state.striker) || opponents[0] || state.nonStriker;
-    }
-  }
+  // Fully manual — nothing pre-picked for the new over. The team taps their next bowler and
+  // both batters by hand.
+  state.currentBowler = null;
+  state.striker = null;
+  state.nonStriker = null;
   state.legalBallsThisOver = 0;
   state.thisOverBalls = [];
 }
