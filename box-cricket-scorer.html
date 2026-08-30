@@ -11,31 +11,25 @@
   :root {
     --pitch: #16a34a;
     --pitch-deep: #0d7a3a;
-    --ball: #e5342f;
-    --amber: #b45309;
-    --amber-bright: #f59e0b;
-    --amber-deep: #d97706;
-    --bg: #f3faf5;
-    --panel: #ffffff;
-    --panel-2: #eef6f1;
-    --line: #dbe8e0;
-    --led: #0a7a40;
-    --led-dim: #bfe8cf;
-    --ink: #17261d;
-    --muted: #5c6f64;
-    --out-red: #c62828;
-    --key-border: #9fb7a8;
-    --bowl-blue: #2563eb;
+    --ball: #d32f2f;
+    --amber: #f5a623;
+    --bg: #0b1220;
+    --panel: #121b2e;
+    --panel-2: #182541;
+    --line: #24304a;
+    --led: #7CFF9E;
+    --led-dim: #2f5a3d;
+    --ink: #EAF2EC;
+    --muted: #8B9BB4;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     margin: 0;
-    background: radial-gradient(120% 100% at 50% 0%, #e7f6ff 0%, var(--bg) 55%);
+    background: radial-gradient(120% 100% at 50% 0%, #142238 0%, var(--bg) 55%);
     color: var(--ink);
     font-family: 'Rajdhani', sans-serif;
     min-height: 100vh;
-    padding-bottom: calc(50px + env(safe-area-inset-bottom, 0px));
-    overflow-x: hidden;
+    padding-bottom: 40px;
   }
   .wrap { max-width: 480px; margin: 0 auto; padding: 14px 12px 10px; }
 
@@ -43,7 +37,7 @@
   .hdr { text-align: center; margin-bottom: 12px; }
   .hdr .eyebrow {
     font-family: 'Share Tech Mono', monospace;
-    color: var(--pitch-deep);
+    color: var(--pitch);
     font-size: 10px;
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -63,7 +57,6 @@
     border-radius: 14px;
     padding: 13px;
     margin-bottom: 10px;
-    box-shadow: 0 2px 10px rgba(20,60,40,0.06);
   }
   .panel h2 {
     font-size: 11.5px;
@@ -105,7 +98,7 @@
   }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
   .btn-ghost {
-    background: var(--panel-2);
+    background: transparent;
     border: 1.5px solid var(--line);
     color: var(--muted);
     padding: 10px 14px;
@@ -216,12 +209,13 @@
     font-weight: 700;
     font-size: 15px;
     letter-spacing: 0.3px;
+    text-shadow: 0 0 8px rgba(124,255,158,0.2);
     text-align: left;
     flex: 1;
     padding: 8px 0;
   }
   .rosterRow.absent .rosterRowName {
-    color: var(--out-red);
+    color: #ff8a80;
     text-decoration: line-through;
     opacity: 0.8;
     text-shadow: none;
@@ -295,54 +289,57 @@
   }
   .setupHint { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 4px; }
 
-  /* ---- Scoreboard (bright pitch-green hero card) ---- */
+  /* ---- Scoreboard: attractive bright cricket-pitch green with bold dark text for strong,
+         easy readability (instead of the low-contrast dark/glow look) ---- */
   .scoreboard {
-    background: linear-gradient(135deg, var(--pitch) 0%, var(--pitch-deep) 100%);
+    background: linear-gradient(160deg, #4ade80 0%, #22c55e 45%, #15803d 100%);
     border: none;
     border-radius: 16px;
     padding: 16px 14px;
     text-align: center;
     margin-bottom: 10px;
-    box-shadow: 0 8px 22px rgba(13,122,58,0.28);
+    box-shadow: 0 8px 22px rgba(13,92,44,0.35), inset 0 1px 0 rgba(255,255,255,0.35);
   }
   .sbOver {
     font-family: 'Share Tech Mono', monospace;
-    color: #fff3cf;
+    color: rgba(7,36,19,0.78);
     font-size: 10.5px;
     letter-spacing: 2.5px;
     text-transform: uppercase;
     margin-bottom: 4px;
+    font-weight: 700;
   }
   .sbScore {
     font-family: 'Share Tech Mono', monospace;
     font-size: 42px;
-    font-weight: 700;
-    color: #ffffff;
-    text-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    font-weight: 800;
+    color: #08281a;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
     line-height: 1;
   }
-  .sbScore .wkt { color: #ffe0e0; }
+  .sbScore .wkt { color: #7a1f1f; }
   .sbSub {
     font-family: 'Share Tech Mono', monospace;
-    color: rgba(255,255,255,0.78);
+    color: rgba(7,36,19,0.72);
     font-size: 11px;
     margin-top: 4px;
+    font-weight: 700;
   }
   .sbMeta {
     display: flex;
     justify-content: space-between;
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px dashed rgba(255,255,255,0.35);
+    border-top: 1px dashed rgba(7,36,19,0.3);
     text-align: left;
   }
-  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: rgba(255,255,255,0.7); text-transform: uppercase; }
-  .sbMetaCol .val { font-size: 14px; font-weight: 700; margin-top: 1px; color: #fff; }
+  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: rgba(7,36,19,0.65); text-transform: uppercase; font-weight: 700; }
+  .sbMetaCol .val { font-size: 14px; font-weight: 800; margin-top: 1px; color: #08281a; }
   .sbMetaCol .valSub {
     font-family: 'Share Tech Mono', monospace;
     font-size: 13px;
-    font-weight: 700;
-    color: #eafff1;
+    font-weight: 800;
+    color: #08281a;
     margin-top: 1px;
   }
   .sbMetaCol.right { text-align: right; }
@@ -361,7 +358,7 @@
   }
   .ballChip.four { background: rgba(245,166,35,0.18); border-color: var(--amber); color: var(--amber); }
   .ballChip.six { background: rgba(124,255,158,0.18); border-color: var(--led); color: var(--led); }
-  .ballChip.out { background: rgba(211,47,47,0.2); border-color: var(--ball); color: var(--out-red); }
+  .ballChip.out { background: rgba(211,47,47,0.2); border-color: var(--ball); color: #ff8a80; }
   .ballChip.extra { background: rgba(245,166,35,0.1); border-color: var(--amber); color: var(--amber); font-size: 9px; }
   .ballChip.dot { color: var(--muted); }
 
@@ -392,22 +389,18 @@
   .tapGrid { display: flex; flex-wrap: wrap; gap: 6px; }
   .tapChip {
     background: var(--panel-2);
-    border: 2px solid var(--key-border);
-    color: var(--ink);
+    border: 1.5px solid var(--line);
+    color: var(--muted);
     border-radius: 16px;
     padding: 7px 12px;
     font-family: 'Rajdhani', sans-serif;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 700;
   }
   .tapChip:active { transform: scale(0.95); }
-  .tapChip, .padBtn, .btn-primary, .btn-ghost { min-height: 40px; }
   .tapChip.bowlerActive { background: rgba(245,166,35,0.16); border-color: var(--amber); color: var(--amber); }
-  /* Bowler chips get their own blue tint so they're visually distinct from the batter list at a glance */
-  #bowlerChips .tapChip { border-color: var(--bowl-blue); color: var(--bowl-blue); background: rgba(37,99,235,0.07); }
-  #bowlerChips .tapChip.bowlerActive { background: rgba(245,166,35,0.16); border-color: var(--amber); color: var(--amber); }
   .tapChip.striker { background: rgba(124,255,158,0.18); border-color: var(--led); color: var(--led); }
-  .tapChip.nonstriker { background: rgba(211,47,47,0.18); border-color: var(--ball); color: var(--out-red); }
+  .tapChip.nonstriker { background: rgba(211,47,47,0.18); border-color: var(--ball); color: #ff8a80; }
   .tapChip .roleTag { font-size: 8.5px; letter-spacing: 0.5px; display: block; opacity: 0.85; margin-top: 1px; }
 
   /* ---- Scoring pad ---- */
@@ -419,41 +412,24 @@
   }
   .padBtn {
     background: var(--panel-2);
-    border: 2px solid var(--key-border);
+    border: 1.5px solid var(--line);
     color: var(--ink);
     border-radius: 11px;
     padding: 13px 0;
     font-family: 'Share Tech Mono', monospace;
     font-size: 19px;
-    font-weight: 800;
+    font-weight: 700;
   }
   .padBtn:active { transform: scale(0.94); }
-  @keyframes keyFlash {
-    0% { filter: brightness(1); transform: scale(0.92); }
-    35% { filter: brightness(1.8) saturate(1.3); box-shadow: 0 0 0 3px rgba(255,255,255,0.5) inset; }
-    100% { filter: brightness(1); transform: scale(1); }
-  }
-  .padBtn.keyFlash { animation: keyFlash 0.32s ease-out; }
-  .tapChip.keyFlash { animation: keyFlash 0.32s ease-out; }
-  .padBtn.run4 { color: var(--amber); }
-  .padBtn.run6 { color: var(--led); background: rgba(124,255,158,0.08); }
-  .padBtn.net { color: var(--amber); background: rgba(245,166,35,0.08); font-size: 15px; }
+  .padBtn.run4 { border-color: var(--amber); color: var(--amber); }
+  .padBtn.run6 { border-color: var(--led); color: var(--led); background: rgba(124,255,158,0.08); }
+  .padBtn.net { border-color: var(--amber); color: var(--amber); background: rgba(245,166,35,0.08); font-size: 15px; }
   .padBtn.out { grid-column: span 3; background: linear-gradient(135deg, var(--ball), #a01f1f); border-color: var(--ball); color: #fff; font-size: 14px; letter-spacing: 1px; padding: 12px 0; }
   .padBtn.extra { grid-column: span 3; background: rgba(245,166,35,0.12); border-color: var(--amber); color: var(--amber); font-size: 13px; letter-spacing: 1px; }
   .padRow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 
-  .undoRow { text-align: center; margin-bottom: 8px; }
-  .undoRow button {
-    background: rgba(198,40,40,0.08);
-    border: 1.5px solid var(--out-red);
-    color: var(--out-red);
-    font-size: 12.5px;
-    font-weight: 800;
-    padding: 7px 16px;
-    border-radius: 20px;
-    width: 100%;
-  }
-  .undoRow button:active { transform: scale(0.97); }
+  .undoRow { text-align: center; margin-top: 4px; }
+  .undoRow button { background: none; color: var(--muted); font-size: 11.5px; padding: 5px 10px; text-decoration: underline; }
 
   /* ---- Leaderboard ---- */
   table.stats { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -479,7 +455,7 @@
 
   .finalHero { text-align: center; padding: 10px 0 4px; }
   .finalHero .trophy { font-size: 44px; }
-  .finalHero .big { font-family: 'Share Tech Mono', monospace; font-size: 40px; color: var(--led); font-weight: 700; margin: 4px 0; }
+  .finalHero .big { font-family: 'Share Tech Mono', monospace; font-size: 40px; color: var(--led); font-weight: 700; text-shadow: 0 0 16px rgba(124,255,158,0.5); margin: 4px 0; }
   .finalHero .cap { color: var(--muted); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
 
   /* ---- Auto team logo badge (initials on a deterministic color) ---- */
@@ -510,11 +486,6 @@
   .teamsHeaderSide { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13.5px; opacity: 0.55; }
   .teamsHeaderSide.active { opacity: 1; }
   .teamsHeaderVs { color: var(--muted); font-size: 10.5px; letter-spacing: 1.5px; font-weight: 700; }
-  /* When the team row sits inside the green scoreboard box, use light text instead of dark ink */
-  .scoreboard .teamsHeaderRowIn { margin-bottom: 6px; }
-  .scoreboard .teamsHeaderSide { color: rgba(255,255,255,0.62); font-size: 11.5px; }
-  .scoreboard .teamsHeaderSide.active { color: #fff; }
-  .scoreboard .teamsHeaderVs { color: rgba(255,255,255,0.5); }
 
   /* ---- Match History ---- */
   .historyRow {
@@ -544,12 +515,12 @@
     padding: 0;
     display: flex; align-items: center; justify-content: center;
   }
-  .historyActionBtn.del { border-color: var(--ball); color: var(--out-red); }
+  .historyActionBtn.del { border-color: var(--ball); color: #ff8a80; }
 
   /* ---- Offscreen render target used for JPEG export (kept out of the normal layout) ---- */
   #exportCard { position: fixed; left: -9999px; top: 0; width: 420px; display: none; }
   .exportCardInner {
-    background: var(--panel);
+    background: #0b1220;
     color: var(--ink);
     font-family: 'Rajdhani', sans-serif;
     padding: 22px 18px;
@@ -568,107 +539,7 @@
   .exportCardInner .exFoot { text-align: center; color: var(--muted); font-size: 10px; margin-top: 14px; letter-spacing: 1px; }
 
   .hidden { display: none !important; }
-  #matchScaleWrap { transform-origin: top center; }
   .footNote { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 18px; line-height: 1.6; }
-
-  /* ---- Toast alerts (over complete / out) ---- */
-  #toastWrap {
-    position: fixed;
-    top: 14px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 999;
-    width: calc(100% - 28px);
-    max-width: 452px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    pointer-events: none;
-  }
-  .toast {
-    pointer-events: auto;
-    border-radius: 12px;
-    padding: 12px 16px;
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: 800;
-    font-size: 15px;
-    color: #fff;
-    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    animation: toastIn 0.25s ease-out;
-  }
-  .toast .toastIcon { font-size: 20px; flex-shrink: 0; }
-  .toast .toastSub { display: block; font-weight: 600; font-size: 12.5px; opacity: 0.9; margin-top: 1px; }
-  .toast.toast-out { background: linear-gradient(135deg, #c62828, #8e1c1c); }
-  .toast.toast-over { background: linear-gradient(135deg, var(--amber-deep), #92400e); }
-  .toast.toast-fadeOut { animation: toastOut 0.35s ease-in forwards; }
-  @keyframes toastIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
-
-  /* ---- Corporate polish: sticky live score while scoring, bolder key numbers ---- */
-  body.onMatch .scoreboard {
-    position: sticky;
-    top: 6px;
-    z-index: 50;
-  }
-  .sbScore { letter-spacing: 0.5px; }
-  .panel h2, .matchupBlock label, .lbl, .sortLabel2 { font-weight: 800; }
-  .rowName, .teamPlayerName, .historyRowTeams { font-weight: 800; }
-
-  /* ---- Responsive scaling: fluid type sizes so it fits small phones cleanly ---- */
-  .hdr h1 { font-size: clamp(17px, 5vw, 21px); }
-  .sbScore { font-size: clamp(30px, 9vw, 42px); }
-  body.onMatch .sbScore { font-size: clamp(26px, 8vw, 32px); }
-  .panel h2 { font-size: clamp(10.5px, 3vw, 11.5px); }
-  .tapChip { font-size: clamp(12px, 3.4vw, 13px); padding: 7px 10px; }
-  .padBtn { font-size: clamp(15px, 4.5vw, 17px); }
-  @media (max-width: 360px) {
-    .wrap { padding: 10px 8px 10px; }
-    .padGrid { gap: 6px; }
-    .tapGrid { gap: 5px; }
-  }
-
-  /* ---- Compact mode while a match is live: shrinks spacing so the scoreboard,
-         bowler/batter selection, keypad and Undo sit together with as little
-         scrolling as possible ---- */
-  body.onMatch { padding-bottom: env(safe-area-inset-bottom, 0px); }
-  body.onMatch .wrap { padding-top: 6px; padding-bottom: 4px; }
-  body.onMatch .hdr { display: none; }
-  body.onMatch .scoreboard { padding: 8px 10px; margin-bottom: 5px; border-radius: 12px; }
-  body.onMatch .scoreboard .teamsHeaderRowIn { margin-bottom: 3px; }
-  body.onMatch .sbOver { font-size: 9px; letter-spacing: 1.5px; margin-bottom: 1px; }
-  body.onMatch .sbScore { font-size: clamp(24px, 8vw, 30px); }
-  body.onMatch .sbSub { font-size: 9.5px; margin-top: 1px; }
-  body.onMatch .sbMeta { margin-top: 5px; padding-top: 5px; }
-  body.onMatch .sbMetaCol .lbl { font-size: 8px; }
-  body.onMatch .sbMetaCol .val { font-size: 12px; margin-top: 0; }
-  body.onMatch .sbMetaCol .valSub { font-size: 11px; }
-  body.onMatch #matchScreen .panel { padding: 8px; margin-bottom: 5px; }
-  body.onMatch #thisOverHeading { display: none; }
-  body.onMatch .ballLog { margin: 0 0 3px; min-height: 0; }
-  body.onMatch .matchupBlock { margin-bottom: 4px; }
-  body.onMatch .matchupBlock label { margin-bottom: 3px; font-size: 9px; }
-  /* Bowler/batter name chips: one horizontally-swipeable row instead of wrapping several rows —
-     this alone saves the most vertical space when there are many players. */
-  body.onMatch .tapGrid { flex-wrap: wrap; }
-  body.onMatch .tapChip { padding: 4px 8px; font-size: 11px; min-height: 30px; }
-  body.onMatch .padGrid { gap: 5px; margin-bottom: 5px; }
-  body.onMatch .padGrid .padBtn { padding: 7px 0; font-size: 15px; min-height: 34px; }
-  body.onMatch .padBtn.out { padding: 8px 0; font-size: 13px; margin-bottom: 0 !important; }
-  body.onMatch .padBtn.extra { padding: 7px 0; font-size: 11.5px; margin-bottom: 4px !important; }
-  body.onMatch .undoRow { margin-bottom: 5px; }
-  body.onMatch .undoRow button { padding: 5px 14px; font-size: 11px; min-height: 30px; }
-  body.onMatch #endMatchBtn { padding: 6px; font-size: 11px; min-height: 28px; }
-  body.onMatch #matchStatsHeading { font-size: 10px; }
-  body.onMatch #matchScreen #matchStatsPanel { padding: 6px 8px; margin-bottom: 5px; }
-  /* Net Bonus is used rarely — collapse it behind a small toggle by default to reclaim space */
-  body.onMatch #netBonusLabel { font-size: 8.5px; margin-bottom: 4px; }
-  body.onMatch #netBonusGrid { margin-bottom: 5px !important; }
-  .onMatchOnly { display: none; }
-  body.onMatch .onMatchOnly { display: inline; }
-  body.onMatch #extraBtn { margin-bottom: 5px !important; }
 </style>
 </head>
 <body>
@@ -681,9 +552,6 @@
 
   <!-- Offscreen JPEG-export render target -->
   <div id="exportCard"></div>
-
-  <!-- Alert toasts: OUT and OVER COMPLETE -->
-  <div id="toastWrap"></div>
 
   <!-- ================= SETUP SCREEN ================= -->
   <div id="setupScreen">
@@ -710,7 +578,7 @@
     <div class="panel">
       <h2>Split Into 2 Teams</h2>
       <div class="setupHint" style="margin-top:0; margin-bottom:10px;">Splits today's present players into two random, even-ish teams — give each a name, and tap ✕ on anyone who shouldn't be on that side. This is today's actual lineup — each player bowls one over and bats too.</div>
-      <button class="btn-primary" id="makeTwoTeamsBtn" style="background:linear-gradient(135deg, var(--amber-bright), var(--amber-deep)); box-shadow:0 4px 14px rgba(245,158,11,0.35);">🎲 MAKE 2 TEAMS</button>
+      <button class="btn-primary" id="makeTwoTeamsBtn" style="background:linear-gradient(135deg, var(--amber), #c9820f); box-shadow:0 4px 14px rgba(245,166,35,0.3);">🎲 MAKE 2 TEAMS</button>
       <div id="twoTeamsBlock" class="hidden" style="margin-top:14px;">
         <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-weight:700;">Or pick someone by hand</label>
         <div class="addRow" style="margin-bottom:12px;">
@@ -800,10 +668,9 @@
 
   <!-- ================= MATCH SCREEN ================= -->
   <div id="matchScreen" class="hidden">
-  <div id="matchScaleWrap">
 
+    <div class="teamsHeaderRow" id="matchTeamsHeaderRow"></div>
     <div class="scoreboard">
-      <div class="teamsHeaderRow teamsHeaderRowIn" id="matchTeamsHeaderRow"></div>
       <div class="sbOver" id="sbOverLabel">OVER 1 OF 8</div>
       <div class="sbScore"><span id="sbRuns">0</span>/<span class="wkt" id="sbWkts">0</span></div>
       <div class="sbSub" id="sbOverProgress">0.0 OVERS</div>
@@ -821,8 +688,8 @@
       </div>
     </div>
 
-    <div class="panel" id="thisOverPanel">
-      <h2 id="thisOverHeading">This Over</h2>
+    <div class="panel">
+      <h2>This Over</h2>
       <div class="ballLog" id="ballLog"></div>
 
       <div class="matchupBlock">
@@ -834,7 +701,6 @@
         <div class="tapGrid" id="batterChips"></div>
       </div>
 
-      <div class="undoRow"><button id="undoBtn">↩ Undo last ball</button></div>
       <div class="padGrid">
         <button class="padBtn dotBtn" data-run="0">0</button>
         <button class="padBtn" data-run="1">1</button>
@@ -844,39 +710,36 @@
         <button class="padBtn run6" data-run="6">6</button>
       </div>
       <button class="padBtn extra" id="extraBtn" style="width:100%; margin-bottom:8px;">WIDE / NO BALL</button>
-      <label id="netBonusLabel" style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber); margin-bottom:6px; font-weight:700;">🥅 Net Bonus (strike always swaps)</label>
-      <div class="padGrid" id="netBonusGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px;">
+      <div class="padGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px;">
         <button class="padBtn net" data-net="1">1+1</button>
         <button class="padBtn net" data-net="2">1+2</button>
       </div>
-      <button class="padBtn out" id="outBtn" style="width:100%;">OUT</button>
+      <button class="padBtn out" id="outBtn" style="width:100%; margin-bottom:10px;">OUT</button>
+      <div class="undoRow"><button id="undoBtn">↩ Undo last ball</button></div>
     </div>
 
-    <div class="panel" id="matchStatsPanel">
-      <h2 id="matchStatsHeading" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-        <span>Match Stats &amp; History</span>
-        <span id="matchStatsToggleIcon">▼</span>
-      </h2>
-      <div id="matchStatsBody" style="display:none;">
-        <div class="setupHint" style="margin-top:0;">Overs Bowled</div>
-        <div id="overBadges" style="margin-bottom:12px;"></div>
+    <div class="panel">
+      <h2>Overs Bowled</h2>
+      <div id="overBadges"></div>
+    </div>
 
-        <div class="setupHint" style="margin-top:0;">Scoreboard So Far</div>
-        <table class="stats" style="margin-bottom:12px;">
-          <thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
-          <tbody id="battingStatsBody"></tbody>
-        </table>
+    <div class="panel">
+      <h2>Scoreboard So Far</h2>
+      <table class="stats">
+        <thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
+        <tbody id="battingStatsBody"></tbody>
+      </table>
+    </div>
 
-        <div class="setupHint" style="margin-top:0;">Bowling Figures</div>
-        <table class="stats">
-          <thead><tr><th>Bowler</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead>
-          <tbody id="bowlingStatsBody"></tbody>
-        </table>
-      </div>
+    <div class="panel">
+      <h2>Bowling Figures</h2>
+      <table class="stats">
+        <thead><tr><th>Bowler</th><th class="num">Runs</th><th class="num">Wkts</th></tr></thead>
+        <tbody id="bowlingStatsBody"></tbody>
+      </table>
     </div>
 
     <button class="btn-ghost" id="endMatchBtn" style="width:100%;">🏁 End Match Now</button>
-  </div>
   </div>
 
   <!-- ================= FINAL SCREEN ================= -->
@@ -964,19 +827,10 @@ function loadState() {
       // Migrate older saved matches that predate these two settings.
       if (state.retirementRule === undefined) state.retirementRule = 'none';
       if (state.negOutSwapStrike === undefined) state.negOutSwapStrike = true;
-      // Migrate matches saved before manual bowler/batter selection was added — those had a
-      // bowler + pair auto-picked by the app. Clear that one-time so nothing is pre-selected
-      // that the scorer didn't actually tap themselves; future saves are left alone.
-      if (!state.manualPickMigrated) {
-        state.currentBowler = null;
-        state.striker = null;
-        state.nonStriker = null;
-        state.manualPickMigrated = true;
-      }
       return;
     }
   } catch (e) {}
-  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true, manualPickMigrated: true };
+  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true };
 }
 
 function saveState() {
@@ -1354,11 +1208,12 @@ startMatchBtn.addEventListener('click', () => {
   // proper innings, instead of the team on strike flipping every single over.
   state.bowlerOrder = [...state.team1Players, ...state.team2Players];
   state.currentOverIdx = 0;
-  // Nothing is pre-picked — admin taps the bowler and both batters by hand before scoring starts.
-  state.currentBowler = null;
-  state.striker = null;
-  state.nonStriker = null;
-  state.manualPickMigrated = true;
+  state.currentBowler = state.bowlerOrder[0];
+  // Default pair suggestion: the first two players from the OPPOSING team to whoever's bowling —
+  // bowling and batting always come from different sides, like a real match.
+  const pair = suggestBatterPair(0);
+  state.striker = pair[0];
+  state.nonStriker = pair[1];
   state.legalBallsThisOver = 0;
   state.thisOverBalls = [];
   state.totalRuns = 0;
@@ -1390,20 +1245,6 @@ function currentBowlingTeamPlayers() {
   if (!state.team1Players || !state.team2Players) return state.players; // old saved match, no team info
   const innings1Len = state.team1Players.length;
   return state.currentOverIdx < innings1Len ? state.team1Players : state.team2Players;
-}
-// The team currently BATTING — always the other side from whoever's bowling this innings.
-// This depends only on which over we're in, not on whether a specific bowler has been tapped
-// yet, so the batter list can show straight away without waiting for a bowler pick first.
-function currentBattingTeamPlayers() {
-  if (!state.team1Players || !state.team2Players) return state.players;
-  const innings1Len = state.team1Players.length;
-  return state.currentOverIdx < innings1Len ? state.team2Players : state.team1Players;
-}
-
-// True while Team 1 is the side currently bowling (i.e. we're still in the first innings).
-function currentOverIdxIsTeam1() {
-  if (!state.team1Players || !state.team2Players) return true;
-  return state.currentOverIdx < state.team1Players.length;
 }
 
 function suggestBatterPair(overIdx) {
@@ -1471,10 +1312,10 @@ function renderMatch() {
   document.getElementById('sbWkts').textContent = state.totalWkts;
   const oversDisplay = (oIdx) + '.' + state.legalBallsThisOver;
   document.getElementById('sbOverProgress').textContent = `${oversDisplay} OVERS BOWLED`;
-  document.getElementById('sbBowlerName').textContent = state.currentBowler || '—';
-  document.getElementById('sbBatterName').textContent = state.striker || '—';
+  document.getElementById('sbBowlerName').textContent = state.currentBowler;
+  document.getElementById('sbBatterName').textContent = state.striker;
   document.getElementById('sbBowlerFigures').textContent = `${currentOverRunsConceded()} runs · ${currentOverWkts()} wkt`;
-  const batterRuns = (state.striker && state.battingStats[state.striker] && state.battingStats[state.striker].runs) || 0;
+  const batterRuns = (state.battingStats[state.striker] && state.battingStats[state.striker].runs) || 0;
   document.getElementById('sbBatterRuns').textContent = `${batterRuns} run${batterRuns === 1 ? '' : 's'}`;
 
   // Bowler chips: only the CURRENT innings' bowling team, and only players who haven't bowled
@@ -1487,21 +1328,18 @@ function renderMatch() {
     `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''}" data-bowler="${p}">${p}</button>`
   ).join('');
 
-  // Batter chips: the team currently BATTING this innings — always shown, whether or not a
-  // bowler has been tapped yet, so the scorer can pick bowler and batters in any order.
-  const batterOptions = currentBattingTeamPlayers();
-  batterChipsEl.innerHTML = batterOptions.length ? batterOptions.map((p) => {
+  // Batter chips: only the OPPOSING team to whoever's bowling — tap a name to bring them on strike
+  const batterOptions = opposingTeamPlayers(state.currentBowler);
+  batterChipsEl.innerHTML = batterOptions.map((p) => {
     const role = p === state.striker ? 'striker' : (p === state.nonStriker ? 'nonstriker' : '');
     const tag = p === state.striker ? '<span class="roleTag">🟢 STRIKER</span>' : (p === state.nonStriker ? '<span class="roleTag">🔴 NON-STRIKER</span>' : '');
     return `<button type="button" class="tapChip ${role}" data-batter="${p}">${p}${tag}</button>`;
-  }).join('') : '<span style="color:var(--muted); font-size:12px;">No batters available</span>';
+  }).join('');
 
   const bowlerLabel = document.getElementById('bowlerLabel');
   const batterLabel = document.getElementById('batterLabel');
-  const bowlingTeamName = currentOverIdxIsTeam1() ? (state.team1Name || 'Team A') : (state.team2Name || 'Team B');
-  const battingTeamName = currentOverIdxIsTeam1() ? (state.team2Name || 'Team B') : (state.team1Name || 'Team A');
-  if (bowlerLabel) bowlerLabel.textContent = `Bowler (${bowlingTeamName}) — tap to set`;
-  if (batterLabel) batterLabel.textContent = `Batters (${battingTeamName}) — 🟢 striker · 🔴 non-striker · tap a name`;
+  if (bowlerLabel) bowlerLabel.textContent = `Bowler (${teamKeyOf(state.currentBowler) === 'team2' ? state.team2Name : state.team1Name}) — tap to set`;
+  if (batterLabel) batterLabel.textContent = `Batters (${teamKeyOf(state.currentBowler) === 'team2' ? state.team1Name : state.team2Name}) — 🟢 striker · 🔴 non-striker · tap a name`;
 
   ballLogEl.innerHTML = state.thisOverBalls.map((b) => {
     if (b.type === 'out') return `<div class="ballChip out">OUT</div>`;
@@ -1539,62 +1377,6 @@ function renderMatch() {
   bowlingStatsBody.innerHTML = bowlingRows.length
     ? bowlingRows.map((r) => `<tr><td class="rowName">${r.name}</td><td class="num">${r.runs}</td><td class="num">${r.wkts}</td></tr>`).join('')
     : `<tr><td colspan="3" style="color:var(--muted);">No overs bowled yet</td></tr>`;
-
-  fitMatchScreen();
-}
-
-// ---------------- SCALE-TO-FIT (no scrolling, nothing hidden) ----------------
-// Everything on the scoring screen stays exactly as built — nothing is removed or collapsed —
-// it's scaled up or down as one block so it always fills the available screen height with no
-// page scroll. Recomputed after every render and on resize/orientation change.
-let fitScaleRAF = null;
-function fitMatchScreen() {
-  if (fitScaleRAF) cancelAnimationFrame(fitScaleRAF);
-  fitScaleRAF = requestAnimationFrame(() => {
-    const wrap = document.getElementById('matchScaleWrap');
-    if (!wrap || state.screen !== 'match') return;
-    wrap.style.transform = 'none';
-    wrap.style.height = '';
-    const rect = wrap.getBoundingClientRect();
-    const available = Math.max(200, window.innerHeight - rect.top - 8);
-    const natural = wrap.scrollHeight;
-    if (!natural) return;
-    let scale = available / natural;
-    // Never scale wider than the viewport (with a small safety margin either side) — height
-    // isn't the only constraint, growing text mustn't push buttons off the sides.
-    const maxScaleByWidth = (window.innerWidth * 0.98) / Math.max(rect.width, 1);
-    scale = Math.min(scale, maxScaleByWidth);
-    scale = Math.max(0.6, Math.min(scale, 1.5)); // keep text readable, never absurdly huge
-    wrap.style.transform = `scale(${scale})`;
-    wrap.style.height = (natural * scale) + 'px';
-  });
-}
-window.addEventListener('resize', () => { if (state.screen === 'match') fitMatchScreen(); });
-
-
-// ---------------- ALERT TOASTS ----------------
-function showToast(kind, icon, title, sub) {
-  const wrap = document.getElementById('toastWrap');
-  if (!wrap) return;
-  const el = document.createElement('div');
-  el.className = `toast toast-${kind}`;
-  el.innerHTML = `<span class="toastIcon">${icon}</span><span><span>${title}</span>${sub ? `<span class="toastSub">${sub}</span>` : ''}</span>`;
-  wrap.appendChild(el);
-  if ('vibrate' in navigator) { try { navigator.vibrate(kind === 'out' ? [40, 60, 40] : 40); } catch (e) {} }
-  setTimeout(() => {
-    el.classList.add('toast-fadeOut');
-    setTimeout(() => el.remove(), 350);
-  }, 2600);
-}
-
-// ---------------- KEY FLASH FEEDBACK ----------------
-// Any run/extra/out/net/bowler/batter chip tap flashes briefly so a press always feels registered.
-function flashKey(btn) {
-  if (!btn) return;
-  btn.classList.remove('keyFlash');
-  void btn.offsetWidth; // restart the animation even on rapid repeat taps
-  btn.classList.add('keyFlash');
-  setTimeout(() => btn.classList.remove('keyFlash'), 320);
 }
 
 function currentOverRunsConceded() {
@@ -1609,19 +1391,22 @@ function currentOverWkts() {
 bowlerChipsEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-bowler]');
   if (!btn) return;
-  const picked = btn.dataset.bowler;
-  state.currentBowler = picked;
-  // Batting team is fixed by which innings we're in, not by who's bowling, so the batter list
-  // doesn't need to change here — striker/non-striker stay exactly as the scorer set them.
+  state.currentBowler = btn.dataset.bowler;
+  // Batters must always be from the team OPPOSITE the bowler — if the new bowler's team overlaps
+  // with the current striker/non-striker, swap in players from the correct (opposing) side.
+  const opponents = opposingTeamPlayers(state.currentBowler);
+  if (!opponents.includes(state.striker) || !opponents.includes(state.nonStriker)) {
+    state.striker = opponents[0] || state.striker;
+    state.nonStriker = opponents.find((p) => p !== state.striker) || opponents[0] || state.nonStriker;
+  }
   saveState();
   renderMatch();
-  flashKey(bowlerChipsEl.querySelector(`[data-bowler="${CSS.escape(picked)}"]`));
 });
 batterChipsEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-batter]');
   if (!btn) return;
   const name = btn.dataset.batter;
-  if (name === state.striker) { flashKey(btn); return; } // already on strike
+  if (name === state.striker) return; // already on strike
   if (name === state.nonStriker) {
     // swap roles
     const tmp = state.striker;
@@ -1633,7 +1418,6 @@ batterChipsEl.addEventListener('click', (e) => {
   }
   saveState();
   renderMatch();
-  flashKey(batterChipsEl.querySelector(`[data-batter="${CSS.escape(name)}"]`));
 });
 
 function swapStrike() {
@@ -1653,10 +1437,6 @@ function pushHistory() {
 }
 
 function recordBall(entry) {
-  if (!state.currentBowler || !state.striker || !state.nonStriker) {
-    showToast('out', '⚠️', 'Select bowler & both batters first', 'Tap them above before scoring this ball');
-    return;
-  }
   pushHistory();
   state.thisOverBalls.push(entry);
   if (entry.run) {
@@ -1671,11 +1451,9 @@ function recordBall(entry) {
     }
   }
   if (entry.type === 'out') {
-    const outBatter = state.striker;
     state.totalRuns += state.outPenalty;
     state.totalWkts += 1;
     state.battingStats[state.striker].faced = true;
-    showToast('out', '🔴', `OUT! ${outBatter}`, `Score now ${state.totalRuns}/${state.totalWkts}`);
     if (state.outPenalty < 0) {
       // A negative out-penalty is set — the house rule here is the batter just loses runs on
       // getting out, not their wicket: they stay in for their full over. Whether the strike also
@@ -1684,10 +1462,13 @@ function recordBall(entry) {
       state.battingStats[state.striker].outs = (state.battingStats[state.striker].outs || 0) + 1;
       if (state.negOutSwapStrike) swapStrike();
     } else {
-      // No penalty configured — real fall of wicket: the batter who's out leaves the crease,
-      // non-striker takes strike. Who comes in next is picked by hand — tap a name below.
+      // No penalty configured — this behaves like a real fall of wicket: the batter who's out
+      // leaves the crease, non-striker takes strike, and the next unused player from the SAME
+      // (batting) team comes in as the new non-striker.
+      const opponents = opposingTeamPlayers(state.currentBowler);
+      const nextIn = opponents.find((p) => p !== state.striker && p !== state.nonStriker);
       state.striker = state.nonStriker;
-      state.nonStriker = null;
+      state.nonStriker = nextIn || state.nonStriker;
     }
   }
   if (entry.type !== 'extra') {
@@ -1711,35 +1492,41 @@ function finishOver() {
     return;
   }
   state.currentOverIdx += 1;
-  // Fully manual selection — nothing is pre-picked. Admin taps the next bowler and both
-  // batters by hand for the new over.
-  state.currentBowler = null;
-  state.striker = null;
-  state.nonStriker = null;
+  state.currentBowler = state.bowlerOrder[state.currentOverIdx];
+  if (state.retirementRule === 'pair2' || state.retirementRule === 'single1') {
+    // Retirement rule is on — every over (or every 2 overs) auto-rotates in the next
+    // batter(s), regardless of who was in before.
+    const pair = getBattingPairForOver(state.currentOverIdx);
+    state.striker = pair[0];
+    state.nonStriker = pair[1];
+  } else {
+    // Batters must always be from the team OPPOSITE the (new) bowler — if the new bowler's team
+    // overlaps with the current pair, bring in the correct opposing-team players instead.
+    const opponents = opposingTeamPlayers(state.currentBowler);
+    if (!opponents.includes(state.striker) || !opponents.includes(state.nonStriker)) {
+      state.striker = opponents[0] || state.striker;
+      state.nonStriker = opponents.find((p) => p !== state.striker) || opponents[0] || state.nonStriker;
+    }
+  }
   state.legalBallsThisOver = 0;
   state.thisOverBalls = [];
-  showToast('over', '🟢', `Over complete!`, `Select the next bowler & batters`);
 }
 
 document.querySelectorAll('.padGrid .padBtn[data-run]').forEach((btn) => {
   btn.addEventListener('click', () => {
-    flashKey(btn);
     const run = Number(btn.dataset.run);
     recordBall({ type: 'run', run });
   });
 });
 
-document.getElementById('outBtn').addEventListener('click', (e) => {
-  flashKey(e.currentTarget);
+document.getElementById('outBtn').addEventListener('click', () => {
   recordBall({ type: 'out', run: 0 });
 });
-document.getElementById('extraBtn').addEventListener('click', (e) => {
-  flashKey(e.currentTarget);
+document.getElementById('extraBtn').addEventListener('click', () => {
   recordBall({ type: 'extra', run: state.extraRuns });
 });
 document.querySelectorAll('.padBtn[data-net]').forEach((btn) => {
   btn.addEventListener('click', () => {
-    flashKey(btn);
     // A real single run taken, plus a bonus (1 or 2) for hitting the net/fence — counts on the
     // board as the full total, but the strike still swaps because the batters actually crossed
     // once for the real single run.
@@ -1931,7 +1718,7 @@ async function exportRecordAsJPEG(rec, filenameHint) {
   container.style.display = 'block';
   await new Promise((r) => setTimeout(r, 60)); // let fonts/layout settle before capture
   try {
-    const canvas = await html2canvas(container, { backgroundColor: '#ffffff', scale: 2 });
+    const canvas = await html2canvas(container, { backgroundColor: '#0b1220', scale: 2 });
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     const a = document.createElement('a');
     a.href = dataUrl;
@@ -1949,7 +1736,6 @@ async function exportRecordAsJPEG(rec, filenameHint) {
 
 // ---------------- ROUTER ----------------
 function render() {
-  document.body.classList.toggle('onMatch', state.screen === 'match');
   document.getElementById('setupScreen').classList.toggle('hidden', state.screen !== 'setup');
   document.getElementById('matchScreen').classList.toggle('hidden', state.screen !== 'match');
   document.getElementById('finalScreen').classList.toggle('hidden', state.screen !== 'final');
@@ -1983,19 +1769,6 @@ document.getElementById('historyHeading').addEventListener('click', () => {
   applyHistoryExpanded();
 });
 applyHistoryExpanded();
-
-let matchStatsExpanded = false;
-function applyMatchStatsExpanded() {
-  const body = document.getElementById('matchStatsBody');
-  const icon = document.getElementById('matchStatsToggleIcon');
-  if (body) body.style.display = matchStatsExpanded ? '' : 'none';
-  if (icon) icon.textContent = matchStatsExpanded ? '▲' : '▼';
-}
-document.getElementById('matchStatsHeading').addEventListener('click', () => {
-  matchStatsExpanded = !matchStatsExpanded;
-  applyMatchStatsExpanded();
-});
-applyMatchStatsExpanded();
 
 applyRosterSortButtons();
 loadRoster();
