@@ -1917,15 +1917,11 @@ function render() {
     const border = statusColor(p.status);
     const crown = ADMIN_NAMES.includes(p.name.toUpperCase()) ? '👑 ' : '';
     const pha = monthlyPHA[p.name] || { present: 0, absent: 0, holiday: 0, total: 0 };
-    const phaHtml = `<span class="circleRow"><span class="miniCircle mc-green">${pha.present}</span><span class="miniCircle mc-yellow">${pha.holiday}</span><span class="miniCircle mc-red">${pha.absent}</span></span>`;
+    const phaHtml = `<span class="circleRow"><span class="miniCircle mc-green">${pha.present}</span><span class="miniCircle mc-yellow">${pha.holiday}</span><span class="miniCircle mc-red">${pha.absent}</span>${isFullAdmin ? `<button class="photoEditBtn" data-i="${i}" data-act="photoEdit" title="Change photo" style="width:16px; height:16px; border-radius:5px; background:var(--green-deep); color:#fff; border:none; font-size:8px; line-height:1; padding:0; margin-left:4px; flex-shrink:0;">✏️</button>${p.photo ? `<button class="photoDelBtn" data-i="${i}" data-act="photoDel" title="Delete photo" style="width:16px; height:16px; border-radius:5px; background:var(--red); color:#fff; border:none; font-size:8px; line-height:1; padding:0; margin-left:3px; flex-shrink:0;">🗑</button>` : ''}` : ''}</span>`;
     const bdayHtml = p.bday ? `<span class="pbday">🎂${formatBdayShort(p.bday)}</span>` : '';
-    const avatarHtml = isFullAdmin
-      ? `<span style="display:inline-flex; align-items:center; gap:3px;">
-           ${p.photo ? `<img class="miniAvatar" src="${p.photo}" alt="">` : `<span class="miniAvatar" style="display:inline-flex; align-items:center; justify-content:center; background:var(--line); color:var(--muted); font-size:10px;">＋</span>`}
-           <button class="photoEditBtn" data-i="${i}" data-act="photoEdit" title="Change photo" style="width:16px; height:16px; border-radius:5px; background:var(--green-deep); color:#fff; border:none; font-size:8px; line-height:1; padding:0; flex-shrink:0;">✏️</button>
-           ${p.photo ? `<button class="photoDelBtn" data-i="${i}" data-act="photoDel" title="Delete photo" style="width:16px; height:16px; border-radius:5px; background:var(--red); color:#fff; border:none; font-size:8px; line-height:1; padding:0; flex-shrink:0;">🗑</button>` : ''}
-         </span>`
-      : (p.photo ? `<img class="miniAvatar" src="${p.photo}" alt="">` : '');
+    const avatarHtml = p.photo
+      ? `<img class="miniAvatar" src="${p.photo}" alt="">`
+      : (isFullAdmin ? `<span class="miniAvatar" style="display:inline-flex; align-items:center; justify-content:center; background:var(--line); color:var(--muted); font-size:10px;">＋</span>` : '');
     const nameRowHtml = `
       <div class="pnameRow">
         ${avatarHtml}
