@@ -1162,6 +1162,7 @@
       <button class="sortBtn" id="sortStatusBtn" data-mode="status">ABSENT <span id="statusArrow">↕</span></button>
     </div>
     <ul class="plist" id="plist"></ul>
+    <input type="file" id="rosterPhotoInput" accept="image/*" style="display:none;">
     <button class="secondary" id="saveBtn" style="margin-top:14px;">💾 SAVE</button>
     <div class="saved-msg" id="savedMsg">Saved ✅</div>
     <button id="saveAttnBtn" style="margin-top:10px; background:var(--green-deep);">✅ SAVE TODAY'S ATTENDANCE</button>
@@ -1398,6 +1399,7 @@
   <button class="navBtn" data-tab="attendance"><span class="navIcon">🗓️</span><span class="navLabel">Attendance</span></button>
   <button class="navBtn" id="navAccountsBtn" data-tab="accounts" style="display:none;"><span class="navIcon">💰</span><span class="navLabel">Accounts</span></button>
   <button class="navBtn" id="navHolidayBtn" data-tab="holiday" style="display:none;"><span class="navIcon">🏖️</span><span class="navLabel">Holiday</span></button>
+  <button class="navBtn" id="navCricketBtn"><span class="navIcon">🏏</span><span class="navLabel">Cricket</span></button>
 </nav>
 </div>
 
@@ -1652,7 +1654,10 @@ let pendingLoginName = '';
 
 function openLoginModal() {
   const names = players.map(p => p.name);
-  loginNameSelect.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+  // Start blank — don't default to the first name in the list (was showing "Devendra" pre-selected
+  // even though nobody had picked it), so the person has to actively choose their own name.
+  loginNameSelect.innerHTML = '<option value="" selected disabled>Select your name…</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+  loginNameSelect.value = '';
   loginPassInput.value = '';
   loginErrEl.style.display = 'none';
   pendingLoginName = '';
@@ -1769,9 +1774,15 @@ document.getElementById('loginSubmitBtn').addEventListener('click', () => {
     return;
   }
   const name = loginNameSelect.value;
+  if (!name) {
+    loginErrEl.textContent = 'Please select your name first.';
+    loginErrEl.style.display = 'block';
+    return;
+  }
   const pass = loginPassInput.value;
   const expected = currentPasswordFor(name);
   if (pass !== expected) {
+    loginErrEl.textContent = 'Wrong password, please try again.';
     loginErrEl.style.display = 'block';
     return;
   }
@@ -1908,7 +1919,13 @@ function render() {
     const pha = monthlyPHA[p.name] || { present: 0, absent: 0, holiday: 0, total: 0 };
     const phaHtml = `<span class="circleRow"><span class="miniCircle mc-green">${pha.present}</span><span class="miniCircle mc-yellow">${pha.holiday}</span><span class="miniCircle mc-red">${pha.absent}</span></span>`;
     const bdayHtml = p.bday ? `<span class="pbday">🎂${formatBdayShort(p.bday)}</span>` : '';
-    const avatarHtml = p.photo ? `<img class="miniAvatar" src="${p.photo}" alt="">` : '';
+    const avatarHtml = isFullAdmin
+      ? `<span style="display:inline-flex; align-items:center; gap:3px;">
+           ${p.photo ? `<img class="miniAvatar" src="${p.photo}" alt="">` : `<span class="miniAvatar" style="display:inline-flex; align-items:center; justify-content:center; background:var(--line); color:var(--muted); font-size:10px;">＋</span>`}
+           <button class="photoEditBtn" data-i="${i}" data-act="photoEdit" title="Change photo" style="width:16px; height:16px; border-radius:5px; background:var(--green-deep); color:#fff; border:none; font-size:8px; line-height:1; padding:0; flex-shrink:0;">✏️</button>
+           ${p.photo ? `<button class="photoDelBtn" data-i="${i}" data-act="photoDel" title="Delete photo" style="width:16px; height:16px; border-radius:5px; background:var(--red); color:#fff; border:none; font-size:8px; line-height:1; padding:0; flex-shrink:0;">🗑</button>` : ''}
+         </span>`
+      : (p.photo ? `<img class="miniAvatar" src="${p.photo}" alt="">` : '');
     const nameRowHtml = `
       <div class="pnameRow">
         ${avatarHtml}
@@ -2241,6 +2258,23 @@ document.getElementById('loginPhotoInput').addEventListener('change', (e) => {
 });
 
 let editingRatingIdx = null; // which row's skill number is currently unlocked for editing (null = none)
+let pendingPhotoEditIdx = null; // which row's photo the admin is currently changing (via rosterPhotoInput)
+document.getElementById('rosterPhotoInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  const i = pendingPhotoEditIdx;
+  pendingPhotoEditIdx = null;
+  if (!file || i === null || !players[i]) return;
+  compressImageFile(file, (dataUrl) => {
+    players[i].photo = dataUrl;
+    render();
+    save();
+    if (currentUser && players[i].name === currentUser.toUpperCase()) {
+      updateLoginAvatar();
+      renderHeroAvatar();
+    }
+  });
+});
 plistEl.addEventListener('click', (e) => {
   const btn = e.target.closest('button');
   if (!btn) return;
@@ -2251,6 +2285,20 @@ plistEl.addEventListener('click', (e) => {
   }
   const i = Number(btn.dataset.i);
   const act = btn.dataset.act;
+  if (act === 'photoEdit') {
+    pendingPhotoEditIdx = i;
+    document.getElementById('rosterPhotoInput').click();
+    return;
+  }
+  if (act === 'photoDel') {
+    const name = players[i] ? players[i].name : 'this player';
+    showConfirmModal(`Delete ${name}'s photo?`, () => {
+      delete players[i].photo;
+      render();
+      save();
+    });
+    return;
+  }
   if (act === 'del') {
     const name = players[i] ? players[i].name : 'this player';
     showConfirmModal(`Delete ${name} from the player list? This cannot be undone.`, () => {
@@ -4344,7 +4392,13 @@ function showTab(tab) {
 }
 
 document.querySelectorAll('.navBtn').forEach((btn) => {
+  if (!btn.dataset.tab) return; // e.g. navCricketBtn — links out instead of switching tabs
   btn.addEventListener('click', () => showTab(btn.dataset.tab));
+});
+// Cricket is a separate app (box-cricket-scorer.html) living alongside this one — opens in a
+// new tab rather than switching an internal tab, so nothing here is lost.
+document.getElementById('navCricketBtn').addEventListener('click', () => {
+  window.open('box-cricket-scorer.html', '_blank');
 });
 
 (function restoreTab() {
