@@ -1589,10 +1589,22 @@ document.getElementById('scorerPermChips').addEventListener('click', (e) => {
   const name = btn.dataset.scorer;
   if (!state.allowedScorers) state.allowedScorers = [];
   const i = state.allowedScorers.indexOf(name);
-  if (i === -1) state.allowedScorers.push(name); else state.allowedScorers.splice(i, 1);
+  const adding = i === -1;
+  if (adding) state.allowedScorers.push(name); else state.allowedScorers.splice(i, 1);
   saveState();
   renderScorerPerms();
   applyScoringLock();
+  // Ticking/unticking a name writes straight to just this one field in the cloud (an atomic
+  // array add/remove), instead of going through the usual whole-state overwrite — so if another
+  // phone is mid-scoring right now and pushes its own (slightly older) copy of this list a
+  // moment later, this tick can't get silently wiped out by that race.
+  try {
+    liveMatchRef.update({
+      'state.allowedScorers': adding
+        ? firebase.firestore.FieldValue.arrayUnion(name)
+        : firebase.firestore.FieldValue.arrayRemove(name)
+    }).catch((err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'blocked by Firestore rules (permission-denied)' : (err.message || 'write failed')));
+  } catch (e2) {}
 });
 
 outPenaltyInput.addEventListener('change', () => { state.outPenalty = Number(outPenaltyInput.value); saveState(); renderSetup(); });
@@ -2463,9 +2475,17 @@ function openWhoAmIOverlay() {
   const names = (roster && roster.names) || [];
   if (!names.length) { alert('Add players to the roster first.'); return; }
   const chipsEl = document.getElementById('whoAmIChips');
-  chipsEl.innerHTML = names.map((n) =>
-    `<button type="button" class="tapChip ${n === myPlayerName ? 'striker' : ''}" data-whoami="${n}">${n}</button>`
-  ).join('');
+  // Admin names (Dippu) are pinned to the top with a crown, so it's unmistakable which one to
+  // tap — picking the wrong (or no) name is exactly why the admin ends up looking locked too.
+  const sorted = [...names].sort((a, b) => {
+    const aAdmin = ADMIN_NAMES.includes(a.toUpperCase());
+    const bAdmin = ADMIN_NAMES.includes(b.toUpperCase());
+    return (bAdmin ? 1 : 0) - (aAdmin ? 1 : 0);
+  });
+  chipsEl.innerHTML = sorted.map((n) => {
+    const isAdmin = ADMIN_NAMES.includes(n.toUpperCase());
+    return `<button type="button" class="tapChip ${n === myPlayerName ? 'striker' : ''}" data-whoami="${n}">${isAdmin ? '👑 ' : ''}${n}</button>`;
+  }).join('');
   document.getElementById('whoAmIOverlay').style.display = 'flex';
 }
 function closeWhoAmIOverlay() {
