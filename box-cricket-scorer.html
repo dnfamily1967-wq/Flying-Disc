@@ -39,7 +39,7 @@
     min-height: 100vh;
     padding-bottom: 40px;
   }
-  .wrap { max-width: 600px; margin: 0 auto; padding: 14px 14px 10px; }
+  .wrap { max-width: 600px; margin: 0 auto; padding: 14px 10px 10px; }
   body.onMatch .hdr { display: none; }
   body.onMatch .wrap { padding-top: 6px; }
   /* ---- Compact match-scoring layout: uses the FULL screen width (nothing scaled/shrunk
@@ -52,7 +52,7 @@
   body.onMatch .sbScore { font-size: clamp(26px, 8vw, 34px); }
   body.onMatch .sbSub { font-size: 10px; margin-top: 2px; }
   body.onMatch .sbMeta { margin-top: 7px; padding-top: 7px; }
-  body.onMatch #matchScaleWrap .panel { padding: 10px; margin-bottom: 5px; }
+  body.onMatch #matchScaleWrap .panel { padding: 10px 8px; margin-bottom: 5px; }
   body.onMatch #thisOverHeading { display: none; }
   body.onMatch .ballLog { margin: 0 0 4px; min-height: 0; }
   body.onMatch .matchupBlock { margin-bottom: 5px; }
@@ -498,11 +498,11 @@
     font-weight: 800;
   }
   .padBtn:active { transform: scale(0.94); }
-  .padBtn.run4 { border-color: var(--amber); color: var(--amber); }
-  .padBtn.run6 { border-color: var(--led); color: var(--led); background: rgba(124,255,158,0.08); }
-  .padBtn.net { border-color: var(--amber); color: var(--amber); background: rgba(245,166,35,0.08); font-size: 15px; }
+  .padBtn.run4 { border-color: var(--amber); color: var(--ink); font-weight: 800; }
+  .padBtn.run6 { border-color: var(--led); color: var(--ink); font-weight: 800; background: rgba(24,155,82,0.08); }
+  .padBtn.net { border-color: var(--amber); color: var(--ink); font-weight: 800; background: rgba(232,137,12,0.08); font-size: 15px; }
   .padBtn.out { grid-column: span 3; background: linear-gradient(135deg, var(--ball), #a01f1f); border-color: var(--ball); color: #fff; font-size: 14px; letter-spacing: 1px; padding: 12px 0; }
-  .padBtn.extra { grid-column: span 3; background: rgba(245,166,35,0.12); border-color: var(--amber); color: var(--amber); font-size: 13px; letter-spacing: 1px; }
+  .padBtn.extra { grid-column: span 3; background: rgba(232,137,12,0.12); border-color: var(--amber); color: var(--ink); font-weight: 800; font-size: 13px; letter-spacing: 1px; }
   .padRow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 
   .undoRow { text-align: center; margin-top: 4px; }
@@ -687,10 +687,11 @@
       <h2>Match Settings</h2>
       <div class="matchupRow" style="margin-bottom:12px;">
         <div class="matchupCol">
-          <label>Overs</label>
+          <label>Overs (per side)</label>
           <input type="number" id="oversInput" min="1" placeholder="Overs">
         </div>
       </div>
+      <div class="setupHint" id="oversHint" style="margin-top:-6px; margin-bottom:10px;"></div>
       <div class="matchupRow">
         <div class="matchupCol">
           <label>Out Penalty</label>
@@ -1272,8 +1273,13 @@ function renderSetup() {
   }
   retirementRuleInput.value = state.retirementRule || 'none';
   retirementHintEl.textContent = RETIREMENT_HINTS[state.retirementRule || 'none'];
-  oversInput.value = String(state.overs || combined.length || '');
-  oversInput.max = String(Math.max(combined.length, 1));
+  const perSideMax = Math.max(teamsState.team1.length, teamsState.team2.length, 1);
+  oversInput.value = String(state.overs || perSideMax || '');
+  oversInput.max = String(perSideMax);
+  const oversHintEl = document.getElementById('oversHint');
+  if (oversHintEl) {
+    oversHintEl.textContent = `Each side bowls this many overs (max ${perSideMax}, based on your bigger team) — the match ends once BOTH sides have batted.`;
+  }
   renderRoster();
   renderTeams();
   renderHistory();
@@ -1289,7 +1295,7 @@ retirementRuleInput.addEventListener('change', () => {
 });
 oversInput.addEventListener('change', () => {
   let val = parseInt(oversInput.value, 10);
-  const maxOvers = Math.max(combinedTeamPlayers().length, 1);
+  const maxOvers = Math.max(teamsState.team1.length, teamsState.team2.length, 1);
   if (isNaN(val) || val < 1) val = 1;
   if (val > maxOvers) val = maxOvers;
   state.overs = val;
@@ -1306,7 +1312,13 @@ startMatchBtn.addEventListener('click', () => {
   state.team1Players = teamsState.team1.slice();
   state.team2Players = teamsState.team2.slice();
   state.screen = 'match';
-  state.overs = Math.min(Math.max(state.overs || state.players.length, 1), state.players.length);
+  // "Overs" is PER INNINGS — each side gets this many overs to bowl (capped at how many
+  // players that side actually has, since every bowler only gets one over). The match only
+  // ends once BOTH innings are complete, not after a combined total.
+  const perSideCap = Math.max(state.team1Players.length, state.team2Players.length, 1);
+  state.overs = Math.min(Math.max(state.overs || perSideCap, 1), perSideCap);
+  state.innings1Overs = Math.min(state.overs, state.team1Players.length);
+  state.innings2Overs = Math.min(state.overs, state.team2Players.length);
   // Bowling order is grouped by team, not mixed — every one of Team A's players bowls (with Team
   // B batting throughout) before Team B gets a turn to bowl (with Team A batting) — like two
   // proper innings, instead of the team on strike flipping every single over.
@@ -1347,25 +1359,35 @@ function opposingTeamPlayers(name) {
   if (key === 'team2') return state.team1Players || [];
   return state.players; // no team info (e.g. old saved match) — fall back to everyone
 }
-// Which team is currently bowling — the bowling order is grouped by team (all of Team A's overs,
-// then all of Team B's), so this is just based on how far along the over count is.
+// How many overs each side actually bowls this match — capped at the "Overs" setting (which is
+// PER INNINGS, not combined), and also capped by how many players that side has (can't bowl more
+// overs than it has players, since each bowler only gets one over). Falls back gracefully for
+// matches saved before this per-innings cap existed.
+function innings1OversCount() {
+  if (state.innings1Overs !== undefined) return state.innings1Overs;
+  return (state.team1Players && state.team1Players.length) || 0;
+}
+function innings2OversCount() {
+  if (state.innings2Overs !== undefined) return state.innings2Overs;
+  return (state.team2Players && state.team2Players.length) || 0;
+}
+// Which team is currently bowling — the bowling order is grouped by team (Team A's innings,
+// then Team B's), so this is just based on how far along the over count is.
 function currentBowlingTeamPlayers() {
   if (!state.team1Players || !state.team2Players) return state.players; // old saved match, no team info
-  const innings1Len = state.team1Players.length;
-  return state.currentOverIdx < innings1Len ? state.team1Players : state.team2Players;
+  return state.currentOverIdx < innings1OversCount() ? state.team1Players : state.team2Players;
 }
 // The team currently BATTING — always the other side from whoever's bowling this innings. This
 // depends only on which over we're in, not on whether a specific bowler has been tapped yet, so
 // the batter list can show straight away without waiting for a bowler pick first.
 function currentBattingTeamPlayers() {
   if (!state.team1Players || !state.team2Players) return state.players;
-  const innings1Len = state.team1Players.length;
-  return state.currentOverIdx < innings1Len ? state.team2Players : state.team1Players;
+  return state.currentOverIdx < innings1OversCount() ? state.team2Players : state.team1Players;
 }
 // True while Team 1 is the side currently bowling (i.e. we're still in the first innings).
 function currentOverIdxIsTeam1() {
   if (!state.team1Players || !state.team2Players) return true;
-  return state.currentOverIdx < state.team1Players.length;
+  return state.currentOverIdx < innings1OversCount();
 }
 
 function suggestBatterPair(overIdx) {
@@ -1380,7 +1402,7 @@ function suggestBatterPair(overIdx) {
 // How many overs into the CURRENT innings we are (each innings restarts the count at 0),
 // since retirement is about a pair/player's time at THIS crease, not the whole match.
 function localInningsOverIdx(overIdx) {
-  const innings1Len = (state.team1Players && state.team1Players.length) || 0;
+  const innings1Len = innings1OversCount();
   return overIdx < innings1Len ? overIdx : overIdx - innings1Len;
 }
 
@@ -1408,7 +1430,9 @@ const overBadgesEl = document.getElementById('overBadges');
 const battingStatsBody = document.getElementById('battingStatsBody');
 const bowlingStatsBody = document.getElementById('bowlingStatsBody');
 
-function totalOvers() { return state.overs || state.players.length; }
+// Total overs for the WHOLE match = both innings added together, each capped at the per-innings
+// "Overs" setting — this is what decides when the match is actually complete (see finishOver).
+function totalOvers() { return innings1OversCount() + innings2OversCount(); }
 
 function renderTeamsHeaderRow(containerId, bowlingIsTeam1) {
   const el = document.getElementById(containerId);
@@ -1426,7 +1450,7 @@ function renderTeamsHeaderRow(containerId, bowlingIsTeam1) {
 
 function renderMatch() {
   const oIdx = state.currentOverIdx;
-  const teamsHeaderInnings1Len = (state.team1Players && state.team1Players.length) || 0;
+  const teamsHeaderInnings1Len = innings1OversCount();
   renderTeamsHeaderRow('matchTeamsHeaderRow', oIdx < teamsHeaderInnings1Len);
   document.getElementById('sbOverLabel').textContent = `OVER ${oIdx + 1} OF ${totalOvers()}`;
   document.getElementById('sbRuns').textContent = state.totalRuns;
@@ -1478,12 +1502,12 @@ function renderMatch() {
     return `<div class="ballChip">${b.run}</div>`;
   }).join('') || '<span style="color:var(--muted); font-size:12px;">No balls bowled yet this over</span>';
 
-  const innings1Len = (state.team1Players && state.team1Players.length) || 0;
+  const innings1Len = innings1OversCount();
   const inn1Label = innings1Len ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Innings 1 — ${state.team1Name || 'Team A'} bowling</div>` : '';
   overBadgesEl.innerHTML = inn1Label + state.bowlerOrder.map((p, i) => {
     const done = state.oversLog.find((o) => o.bowler === p);
     const cur = p === state.currentBowler; // whoever is ACTUALLY selected right now, not just "next in the fixed order" — bowler picks are manual, so this can be any player on the bowling side
-    const divider = (i === innings1Len && i > 0)
+    const divider = (i === (state.team1Players ? state.team1Players.length : 0) && i > 0)
       ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin:8px 0 4px;">Innings 2 — ${state.team2Name || 'Team B'} bowling</div>`
       : '';
     return `${divider}<span class="overBadge ${done ? 'done' : ''}" style="${cur ? 'border-color:var(--amber); color:var(--amber);' : ''}">${p}${done ? ' ✓' : cur ? ' •' : ''}</span>`;
