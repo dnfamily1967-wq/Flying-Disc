@@ -1095,7 +1095,25 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const cricketDb = firebase.firestore();
-const liveMatchRef = cricketDb.collection('box_cricket').doc('live_match');
+// Reuses the SAME Firestore collection ('disc_team') the Flying Disc app already writes to —
+// under its own document name so it never clashes with players/attendance/accounts/etc. Doing
+// it this way means the existing Firestore security rules (already set up and working for that
+// collection) cover this too, with no extra Firebase Console configuration needed.
+const liveMatchRef = cricketDb.collection('disc_team').doc('box_cricket_live_match');
+
+function showSyncErrorBanner(msg) {
+  const btn = document.getElementById('scoringLockBtn');
+  if (btn) { btn.textContent = '⚠️'; btn.title = msg; }
+  console.error('[Cloud sync]', msg);
+  let banner = document.getElementById('cloudSyncErrorBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'cloudSyncErrorBanner';
+    banner.style.cssText = 'position:fixed; top:44px; right:10px; left:10px; max-width:440px; margin:0 auto; z-index:79; background:#FDECEA; border:1.5px solid #d32f2f; color:#a01f1f; font-size:11px; font-weight:700; padding:8px 12px; border-radius:10px; text-align:center;';
+    document.body.appendChild(banner);
+  }
+  banner.textContent = '⚠️ Cloud sync not working: ' + msg;
+}
 
 let applyingRemoteUpdate = false; // true while we're applying someone ELSE's update, so we don't immediately echo it straight back to the cloud
 let pushTimer = null;
@@ -1106,7 +1124,8 @@ function pushStateToCloud() {
     try {
       // Firestore rejects `undefined` values — a clean JSON round-trip strips those out safely.
       const clean = JSON.parse(JSON.stringify(state));
-      liveMatchRef.set({ state: clean, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      liveMatchRef.set({ state: clean, updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
+        .catch((err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'blocked by Firestore rules (permission-denied)' : (err.message || 'write failed')));
     } catch (e) {}
   }, 400); // small debounce so a burst of taps doesn't spam the network
 }
@@ -1129,7 +1148,7 @@ function startCloudSync() {
     render();
     applyingRemoteUpdate = false;
     cloudSyncStarted = true;
-  }, () => { /* offline or blocked — the app still works locally on this one phone */ });
+  }, (err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'blocked by Firestore rules (permission-denied)' : (err.message || 'connection failed')));
 }
 
 function loadRoster() {
