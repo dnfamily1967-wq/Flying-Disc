@@ -68,8 +68,8 @@
   body.onMatch .padGrid .padBtn { padding: 8px 0; font-size: 16px; min-height: 36px; }
   body.onMatch .padBtn.out { padding: 9px 0; font-size: 13px; margin-bottom: 0 !important; }
   body.onMatch .padBtn.extra { padding: 7px 0; font-size: 12px; margin-bottom: 4px !important; }
-  body.onMatch .undoRow { margin-top: 1px; margin-bottom: 0; }
-  body.onMatch .undoRow button { padding: 5px 12px; font-size: 11.5px; }
+  body.onMatch .outUndoRow { margin-top: 1px; margin-bottom: 0; }
+  body.onMatch .outUndoRow #undoBtn { padding: 9px 0; font-size: 11.5px; }
 
   /* ---- Over-complete alert toast ---- */
   /* ---- Scoring lock: view-only for any device that hasn't entered the PIN. The live score,
@@ -79,7 +79,7 @@
   body:not(.scoringUnlocked) .padGrid .padBtn,
   body:not(.scoringUnlocked) #outBtn,
   body:not(.scoringUnlocked) #extraBtn,
-  body:not(.scoringUnlocked) .undoRow button,
+  body:not(.scoringUnlocked) #undoBtn,
   body:not(.scoringUnlocked) #bowlerChips .tapChip,
   body:not(.scoringUnlocked) #batterChips .tapChip {
     opacity: 0.45;
@@ -583,6 +583,7 @@
   #batterChips .tapChip.striker { background: #16a34a; border-color: #0d7a3a; color: #fff; }
   #batterChips .tapChip.nonstriker { background: #d32f2f; border-color: #a01f1f; color: #fff; }
   #batterChips .tapChip.striker .roleTag, #batterChips .tapChip.nonstriker .roleTag { color: #fff; opacity: 0.9; }
+  #scorerPermChips .tapChip.striker { background: #16a34a; border-color: #0d7a3a; color: #fff; }
   /* Already-used bowler/batter — stays visible in the list (not removed) but greyed out and
      un-tappable, so the whole roster is always visible at a glance. */
   #bowlerChips .tapChip.usedChip, #batterChips .tapChip.usedChip {
@@ -616,12 +617,26 @@
   .padBtn.run4 { border-color: var(--amber); color: var(--ink); font-weight: 800; }
   .padBtn.run6 { border-color: var(--led); color: var(--ink); font-weight: 800; background: rgba(24,155,82,0.08); }
   .padBtn.net { border-color: var(--amber); color: var(--ink); font-weight: 800; background: rgba(232,137,12,0.08); font-size: 15px; }
-  .padBtn.out { grid-column: span 3; background: linear-gradient(135deg, var(--ball), #a01f1f); border-color: var(--ball); color: #fff; font-size: 14px; letter-spacing: 1px; padding: 12px 0; }
+  .padBtn.out { background: linear-gradient(135deg, var(--ball), #a01f1f); border-color: var(--ball); color: #fff; font-size: 14px; letter-spacing: 1px; padding: 12px 0; }
   .padBtn.extra { grid-column: span 3; background: rgba(232,137,12,0.12); border-color: var(--amber); color: var(--ink); font-weight: 800; font-size: 13px; letter-spacing: 1px; }
   .padRow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 
-  .undoRow { text-align: center; margin-top: 4px; }
-  .undoRow button { background: none; color: var(--muted); font-size: 11.5px; padding: 5px 10px; text-decoration: underline; }
+  /* ---- OUT and Undo side by side: red OUT box, green Undo box, sized to fit any mobile
+         width evenly (each takes half, with a small gap between). ---- */
+  .outUndoRow { display: flex; gap: 8px; margin-top: 4px; }
+  .outUndoRow .padBtn.out { flex: 1 1 0; margin: 0; }
+  .outUndoRow #undoBtn {
+    flex: 1 1 0;
+    background: rgba(24,155,82,0.12);
+    border: 1.5px solid var(--led);
+    color: #0e6a38;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    border-radius: 11px;
+    padding: 12px 0;
+  }
+  .outUndoRow #undoBtn:active { transform: scale(0.96); }
 
   /* ---- Leaderboard ---- */
   table.stats { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -858,6 +873,10 @@
       </div>
       <div class="setupHint" id="negOutSwapHint" style="margin-top:6px;"></div>
       <div class="setupHint" id="retirementHint" style="margin-top:8px;"></div>
+      <div style="margin-top:14px; border-top:1px dashed var(--line); padding-top:12px;">
+        <label>👤 Who can score? (leave all unticked = open to everyone)</label>
+        <div class="tapGrid" id="scorerPermChips" style="margin-top:6px;"></div>
+      </div>
     </div>
 
     <div class="panel">
@@ -911,7 +930,7 @@
 
     <div class="panel">
       <h2 id="thisOverHeading">This Over</h2>
-      <div id="scoringViewOnlyBanner">👁️ View only — ask the admin for the scoring PIN to score from this device.</div>
+      <div id="scoringViewOnlyBanner">👁️ View only — tap the 👤 icon (top-right) and enter your name, or ask the admin to add you to the scoring list.</div>
       <div class="ballLog" id="ballLog"></div>
 
       <div class="matchupBlock">
@@ -936,8 +955,10 @@
         <button class="padBtn net" data-net="1">1+1</button>
         <button class="padBtn net" data-net="2">1+2</button>
       </div>
-      <button class="padBtn out" id="outBtn" style="width:100%; margin-bottom:10px;">OUT</button>
-      <div class="undoRow"><button id="undoBtn">↩ Undo last ball</button></div>
+      <div class="outUndoRow">
+        <button class="padBtn out" id="outBtn">OUT</button>
+        <button id="undoBtn">↩ Undo last ball</button>
+      </div>
     </div>
 
   </div>
@@ -1539,7 +1560,30 @@ function renderSetup() {
   renderRoster();
   renderTeams();
   renderHistory();
+  renderScorerPerms();
 }
+
+function renderScorerPerms() {
+  const el = document.getElementById('scorerPermChips');
+  if (!el) return;
+  const names = (roster && roster.names) || [];
+  const allowed = state.allowedScorers || [];
+  el.innerHTML = names.map((n) => {
+    const on = allowed.includes(n);
+    return `<button type="button" class="tapChip ${on ? 'striker' : ''}" data-scorer="${n}">${n}</button>`;
+  }).join('');
+}
+document.getElementById('scorerPermChips').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-scorer]');
+  if (!btn) return;
+  const name = btn.dataset.scorer;
+  if (!state.allowedScorers) state.allowedScorers = [];
+  const i = state.allowedScorers.indexOf(name);
+  if (i === -1) state.allowedScorers.push(name); else state.allowedScorers.splice(i, 1);
+  saveState();
+  renderScorerPerms();
+  applyScoringLock();
+});
 
 outPenaltyInput.addEventListener('change', () => { state.outPenalty = Number(outPenaltyInput.value); saveState(); renderSetup(); });
 extraRunsInput.addEventListener('change', () => { state.extraRuns = Number(extraRunsInput.value); saveState(); });
@@ -1909,7 +1953,7 @@ function pushHistory() {
 }
 
 function recordBall(entry) {
-  if (!scoringUnlocked) { alert('This device is view-only. Ask the admin for the scoring PIN to score.'); return; }
+  if (!scoringUnlocked) { alert('This device is view-only. Tap the icon at the top-right and enter your name, or ask the admin to add you to the scoring list.'); return; }
   if (!state.currentBowler || !state.striker || !state.nonStriker) {
     alert('Please select the bowler and both batters first.');
     return;
@@ -2328,6 +2372,7 @@ function render() {
   if (state.screen === 'setup') renderSetup();
   if (state.screen === 'match') renderMatch();
   if (state.screen === 'final') renderFinal();
+  applyScoringLock();
 }
 
 let rosterExpanded = false;
@@ -2363,41 +2408,53 @@ loadState();
 render();
 startCloudSync();
 
-// ---------------- SCORING ACCESS LOCK ----------------
-// Admin decides who can actually score by sharing (or not sharing) this PIN. Any phone can
-// open the page and watch the live match update in real time; only a phone that's entered the
-// PIN can tap the scoring buttons. This is per-device (stored locally, never synced), so
-// multiple people can be trusted with scoring access at once if the admin shares the PIN with
-// more than one person.
-const SCORING_PIN = '1967';
-const SCORING_UNLOCK_KEY = 'bc_scoring_unlocked';
-let scoringUnlocked = localStorage.getItem(SCORING_UNLOCK_KEY) === '1';
+// ---------------- SCORING ACCESS: named-player permission list ----------------
+// Admin ticks which specific players are allowed to score (see the "Who can score?" checklist
+// in Match Settings — state.allowedScorers, synced to the cloud like everything else). Each
+// device just picks its own name once ("Who are you?"), stored locally on that device only —
+// and the app checks that name against the allowed list. If the admin hasn't picked anyone yet
+// (list empty), scoring stays open to everyone, so this never accidentally locks out a match
+// that hasn't been configured for it.
+const MY_NAME_KEY = 'bc_my_player_name';
+let myPlayerName = localStorage.getItem(MY_NAME_KEY) || '';
+function computeScoringUnlocked() {
+  const allowed = state && state.allowedScorers;
+  if (!allowed || !allowed.length) return true; // not configured — open to everyone
+  return allowed.includes(myPlayerName);
+}
+let scoringUnlocked = true; // recomputed below once state/roster are loaded
 function applyScoringLock() {
+  scoringUnlocked = computeScoringUnlocked();
   document.body.classList.toggle('scoringUnlocked', scoringUnlocked);
   const btn = document.getElementById('scoringLockBtn');
-  if (btn) {
-    btn.textContent = scoringUnlocked ? '🔓' : '🔒';
-    btn.title = scoringUnlocked ? 'Scoring unlocked on this device — tap to lock' : 'View only — tap to enter the scoring PIN';
+  if (!btn) return;
+  const allowed = state && state.allowedScorers;
+  if (!allowed || !allowed.length) {
+    btn.textContent = '🔓';
+    btn.title = 'Scoring is open to everyone — admin hasn\'t restricted it';
+  } else if (scoringUnlocked) {
+    btn.textContent = '🔓';
+    btn.title = `Scoring enabled — you're set as "${myPlayerName}"`;
+  } else if (myPlayerName) {
+    btn.textContent = '🔒';
+    btn.title = `View only — "${myPlayerName}" isn't on the admin's scoring list`;
+  } else {
+    btn.textContent = '👤';
+    btn.title = 'Tap to tell the app who you are';
   }
 }
-document.getElementById('scoringLockBtn').addEventListener('click', () => {
-  if (scoringUnlocked) {
-    if (!confirm('Lock scoring on this device again? You can unlock any time with the PIN.')) return;
-    scoringUnlocked = false;
-    localStorage.setItem(SCORING_UNLOCK_KEY, '0');
-    applyScoringLock();
-    return;
-  }
-  const pin = prompt('Enter the scoring PIN to enable scoring on this device:');
-  if (pin === null) return;
-  if (pin.trim() === SCORING_PIN) {
-    scoringUnlocked = true;
-    localStorage.setItem(SCORING_UNLOCK_KEY, '1');
-    applyScoringLock();
-  } else {
-    alert('Wrong PIN.');
-  }
-});
+function promptWhoAmI() {
+  const names = (roster && roster.names) || [];
+  if (!names.length) { alert('Add players to the roster first.'); return; }
+  const choice = prompt(`Who are you? Type your exact name from the roster:\n\n${names.join(', ')}`, myPlayerName || '');
+  if (choice === null) return;
+  const matched = names.find((n) => n.toLowerCase() === choice.trim().toLowerCase());
+  if (!matched) { alert('That name isn\'t on the roster — check the spelling and try again.'); return; }
+  myPlayerName = matched;
+  localStorage.setItem(MY_NAME_KEY, myPlayerName);
+  applyScoringLock();
+}
+document.getElementById('scoringLockBtn').addEventListener('click', promptWhoAmI);
 applyScoringLock();
 
 // ---- Manual "clear cache & refresh" — for anyone stuck seeing an old/stale version of the app
