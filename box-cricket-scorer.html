@@ -673,9 +673,10 @@
 <div id="overToastWrap"></div>
 <div class="wrap">
 
-  <div class="hdr">
+  <div class="hdr" style="position:relative;">
     <div class="eyebrow">🏏 Live Scorer</div>
     <h1>BOX <span>CRICKET</span></h1>
+    <button id="refreshAppBtn" title="Clear cache & refresh app" style="position:absolute; top:0; right:0; width:26px; height:26px; border-radius:50%; background:var(--panel-2); border:1.5px solid var(--line); color:var(--muted); font-size:12px; padding:0; cursor:pointer;">🔄</button>
   </div>
 
   <!-- Offscreen JPEG-export render target -->
@@ -2247,6 +2248,28 @@ loadTeams();
 loadState();
 render();
 startCloudSync();
+
+// ---- Manual "clear cache & refresh" — for anyone stuck seeing an old/stale version of the app
+// even after a new one's been uploaded to GitHub. Only clears the BROWSER's cached copy of the
+// page files — match data (localStorage) and the cloud-synced live match (Firestore) are
+// completely untouched, so nothing is lost.
+document.getElementById('refreshAppBtn').addEventListener('click', () => {
+  if (!confirm("Clear the app's cached files and reload? Your match data is safe either way — this only clears old cached copies of the page itself.")) return;
+  const tasks = [];
+  if ('serviceWorker' in navigator) {
+    tasks.push(navigator.serviceWorker.getRegistrations().then((regs) => Promise.all(regs.map((r) => r.unregister()))));
+  }
+  if (window.caches && caches.keys) {
+    tasks.push(caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))));
+  }
+  Promise.all(tasks).catch((err) => console.error('Cache clear error', err)).finally(() => {
+    // Cache-bust the URL itself too, in case the browser's plain HTTP cache (not just a service
+    // worker) is holding onto the old HTML file.
+    const url = new URL(window.location.href);
+    url.searchParams.set('_r', Date.now());
+    window.location.href = url.toString();
+  });
+});
 </script>
 </body>
 </html>
