@@ -738,6 +738,16 @@
       <h2>Match Settings</h2>
       <div class="matchupRow" style="margin-bottom:12px;">
         <div class="matchupCol">
+          <label>🪙 Toss — who bowls first?</label>
+          <select id="tossBowlsFirst">
+            <option value="team1" selected>Team A</option>
+            <option value="team2">Team B</option>
+          </select>
+        </div>
+      </div>
+      <div class="setupHint" id="tossHint" style="margin-top:-6px; margin-bottom:10px;"></div>
+      <div class="matchupRow" style="margin-bottom:12px;">
+        <div class="matchupCol">
           <label>Overs (per side)</label>
           <input type="number" id="oversInput" min="1" placeholder="Overs">
         </div>
@@ -1088,6 +1098,7 @@ const negOutSwapInput = document.getElementById('negOutSwapInput');
 const retirementRuleInput = document.getElementById('retirementRuleInput');
 const retirementHintEl = document.getElementById('retirementHint');
 const oversInput = document.getElementById('oversInput');
+const tossBowlsFirstInput = document.getElementById('tossBowlsFirst');
 const rosterChipsEl = document.getElementById('rosterChips');
 const rosterNameInput = document.getElementById('rosterNameInput');
 const addRosterBtn = document.getElementById('addRosterBtn');
@@ -1383,6 +1394,19 @@ function renderSetup() {
   outPenaltyInput.value = String(state.outPenalty);
   extraRunsInput.value = String(state.extraRuns);
   negOutSwapInput.value = state.negOutSwapStrike ? '1' : '0';
+  // Toss: label the two options with the actual team names (which can be renamed), and remember
+  // whichever side was picked last so it doesn't silently reset.
+  if (tossBowlsFirstInput) {
+    tossBowlsFirstInput.options[0].textContent = teamsState.name1 || 'Team A';
+    tossBowlsFirstInput.options[1].textContent = teamsState.name2 || 'Team B';
+    tossBowlsFirstInput.value = state.tossBowlsFirst || 'team1';
+  }
+  const tossHintEl = document.getElementById('tossHint');
+  if (tossHintEl) {
+    const bowlingName = (tossBowlsFirstInput && tossBowlsFirstInput.value === 'team2') ? (teamsState.name2 || 'Team B') : (teamsState.name1 || 'Team A');
+    const battingName = (tossBowlsFirstInput && tossBowlsFirstInput.value === 'team2') ? (teamsState.name1 || 'Team A') : (teamsState.name2 || 'Team B');
+    tossHintEl.textContent = `${bowlingName} bowls first, ${battingName} bats first (and chases in the 2nd innings).`;
+  }
   // "Strike Rotation" choice only makes sense when playing with a negative out penalty — hide it
   // entirely for the normal (0-penalty, real fall-of-wicket) mode.
   const negOutSwapColEl = document.getElementById('negOutSwapCol');
@@ -1412,6 +1436,7 @@ function renderSetup() {
 outPenaltyInput.addEventListener('change', () => { state.outPenalty = Number(outPenaltyInput.value); saveState(); renderSetup(); });
 extraRunsInput.addEventListener('change', () => { state.extraRuns = Number(extraRunsInput.value); saveState(); });
 negOutSwapInput.addEventListener('change', () => { state.negOutSwapStrike = negOutSwapInput.value === '1'; saveState(); renderSetup(); });
+tossBowlsFirstInput.addEventListener('change', () => { state.tossBowlsFirst = tossBowlsFirstInput.value; saveState(); renderSetup(); });
 retirementRuleInput.addEventListener('change', () => {
   state.retirementRule = retirementRuleInput.value;
   saveState();
@@ -1431,10 +1456,14 @@ startMatchBtn.addEventListener('click', () => {
   const combined = combinedTeamPlayers();
   if (combined.length < 2) { alert('Need at least 2 players across both teams to start.'); return; }
   state.players = combined;
-  state.team1Name = teamsState.name1;
-  state.team2Name = teamsState.name2;
-  state.team1Players = teamsState.team1.slice();
-  state.team2Players = teamsState.team2.slice();
+  // Toss decides who actually bowls first — everything internally still treats "team1" as the
+  // side that bowls first, so if the toss went the other way we just swap which real team gets
+  // that role here, once, before anything else is set up.
+  const bTeamBowlsFirst = document.getElementById('tossBowlsFirst').value === 'team2';
+  state.team1Name = bTeamBowlsFirst ? teamsState.name2 : teamsState.name1;
+  state.team2Name = bTeamBowlsFirst ? teamsState.name1 : teamsState.name2;
+  state.team1Players = (bTeamBowlsFirst ? teamsState.team2 : teamsState.team1).slice();
+  state.team2Players = (bTeamBowlsFirst ? teamsState.team1 : teamsState.team2).slice();
   state.screen = 'match';
   // "Overs" is PER INNINGS — each side gets this many overs to bowl (capped at how many
   // players that side actually has, since every bowler only gets one over). The match only
