@@ -71,6 +71,33 @@
   body.onMatch .outUndoRow { margin-top: 1px; margin-bottom: 0; }
   body.onMatch .outUndoRow #undoBtn { padding: 9px 0; font-size: 11.5px; }
 
+  /* ---- Scoring lock: view-only for any device that hasn't confirmed its identity as an
+         allowed scorer. The live score, This Over ball log, stats etc. all keep updating in
+         real time either way — only the actual scoring controls are greyed out. ---- */
+  body:not(.scoringUnlocked) .padGrid .padBtn,
+  body:not(.scoringUnlocked) #outBtn,
+  body:not(.scoringUnlocked) #extraBtn,
+  body:not(.scoringUnlocked) #undoBtn,
+  body:not(.scoringUnlocked) #bowlerChips .tapChip,
+  body:not(.scoringUnlocked) #batterChips .tapChip {
+    opacity: 0.45;
+    filter: grayscale(0.6);
+    pointer-events: none;
+  }
+  #scoringViewOnlyBanner {
+    display: none;
+    background: #FFF3E0;
+    border: 1.5px solid var(--amber);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #8a5306;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  body:not(.scoringUnlocked) #scoringViewOnlyBanner { display: block; }
+
   /* ---- Over-complete alert toast ---- */
   #overToastWrap {
     position: fixed;
@@ -555,6 +582,8 @@
   #batterChips .tapChip.striker { background: #16a34a; border-color: #0d7a3a; color: #fff; }
   #batterChips .tapChip.nonstriker { background: #d32f2f; border-color: #a01f1f; color: #fff; }
   #batterChips .tapChip.striker .roleTag, #batterChips .tapChip.nonstriker .roleTag { color: #fff; opacity: 0.9; }
+  #scorerPermChips .tapChip.striker { background: #16a34a; border-color: #0d7a3a; color: #fff; }
+  #whoAmIChips .tapChip.striker { background: #16a34a; border-color: #0d7a3a; color: #fff; }
 
   /* Already-used bowler/batter — stays visible in the list (not removed) but greyed out and
      un-tappable, so the whole roster is always visible at a glance. */
@@ -725,6 +754,18 @@
 </head>
 <body>
 <div id="overToastWrap"></div>
+<button id="scoringLockBtn" title="Scoring access" style="position:fixed; top:10px; right:10px; z-index:80; width:30px; height:30px; border-radius:50%; background:#fff; border:1.5px solid var(--line); color:var(--muted); font-size:13px; padding:0; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.15);">🔒</button>
+
+<!-- "Who are you?" — tap-a-name picker (no typing, so no risk of a typo silently failing to
+     match the roster). -->
+<div id="whoAmIOverlay" style="display:none; position:fixed; inset:0; z-index:90; background:rgba(20,46,69,0.55); align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:16px; padding:18px; max-width:420px; width:100%; max-height:80vh; overflow-y:auto;">
+    <div style="font-weight:800; font-size:15px; margin-bottom:4px; color:var(--ink);">Who are you?</div>
+    <div style="font-size:12.5px; color:var(--muted); margin-bottom:12px;">Pick your name so the app knows whether you have scoring access on this device.</div>
+    <div class="tapGrid" id="whoAmIChips"></div>
+    <button type="button" id="whoAmICloseBtn" style="width:100%; margin-top:14px; padding:10px 0; background:var(--panel-2); border:1.5px solid var(--line); border-radius:11px; font-weight:800; color:var(--muted);">Cancel</button>
+  </div>
+</div>
 <div class="wrap">
 
   <div class="hdr" style="position:relative;">
@@ -844,6 +885,10 @@
       </div>
       <div class="setupHint" id="negOutSwapHint" style="margin-top:6px;"></div>
       <div class="setupHint" id="retirementHint" style="margin-top:8px;"></div>
+      <div style="margin-top:14px; border-top:1px dashed var(--line); padding-top:12px;">
+        <label>👤 Who can score? (leave all unticked = open to everyone)</label>
+        <div class="tapGrid" id="scorerPermChips" style="margin-top:6px;"></div>
+      </div>
     </div>
 
     <div class="panel">
@@ -897,6 +942,7 @@
 
     <div class="panel">
       <h2 id="thisOverHeading">This Over</h2>
+      <div id="scoringViewOnlyBanner">👁️ View only — tap the icon at top-right and pick your name to check your scoring access.</div>
       <div class="ballLog" id="ballLog"></div>
 
       <div class="matchupBlock">
@@ -1524,7 +1570,30 @@ function renderSetup() {
   renderRoster();
   renderTeams();
   renderHistory();
+  renderScorerPerms();
 }
+
+function renderScorerPerms() {
+  const el = document.getElementById('scorerPermChips');
+  if (!el) return;
+  const names = (roster && roster.names) || [];
+  const allowed = state.allowedScorers || [];
+  el.innerHTML = names.map((n) => {
+    const on = allowed.includes(n);
+    return `<button type="button" class="tapChip ${on ? 'striker' : ''}" data-scorer="${n}">${n}</button>`;
+  }).join('');
+}
+document.getElementById('scorerPermChips').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-scorer]');
+  if (!btn) return;
+  const name = btn.dataset.scorer;
+  if (!state.allowedScorers) state.allowedScorers = [];
+  const i = state.allowedScorers.indexOf(name);
+  if (i === -1) state.allowedScorers.push(name); else state.allowedScorers.splice(i, 1);
+  saveState();
+  renderScorerPerms();
+  applyScoringLock();
+});
 
 outPenaltyInput.addEventListener('change', () => { state.outPenalty = Number(outPenaltyInput.value); saveState(); renderSetup(); });
 extraRunsInput.addEventListener('change', () => { state.extraRuns = Number(extraRunsInput.value); saveState(); });
@@ -1841,6 +1910,7 @@ function currentOverWkts() {
 // Tap a name to bring them on strike (🟢). The player who was previously on strike drops back to
 // non-striker (🔴) automatically — tapping the current non-striker just swaps the two around.
 bowlerChipsEl.addEventListener('click', (e) => {
+  if (!scoringUnlocked) return;
   const btn = e.target.closest('[data-bowler]');
   if (!btn) return;
   state.currentBowler = btn.dataset.bowler;
@@ -1850,6 +1920,7 @@ bowlerChipsEl.addEventListener('click', (e) => {
   renderMatch();
 });
 batterChipsEl.addEventListener('click', (e) => {
+  if (!scoringUnlocked) return;
   const btn = e.target.closest('[data-batter]');
   if (!btn) return;
   const name = btn.dataset.batter;
@@ -1892,6 +1963,7 @@ function pushHistory() {
 }
 
 function recordBall(entry) {
+  if (!scoringUnlocked) { alert('This device is view-only. Tap the icon at the top-right and pick your name to check scoring access.'); return; }
   if (!state.currentBowler || !state.striker || !state.nonStriker) {
     alert('Please select the bowler and both batters first.');
     return;
@@ -2069,6 +2141,7 @@ document.querySelectorAll('.padBtn[data-net]').forEach((btn) => {
 });
 
 document.getElementById('undoBtn').addEventListener('click', () => {
+  if (!scoringUnlocked) return;
   if (!state.history.length) return;
   const prev = state.history.pop();
   Object.assign(state, prev);
@@ -2309,6 +2382,7 @@ function render() {
   if (state.screen === 'setup') renderSetup();
   if (state.screen === 'match') renderMatch();
   if (state.screen === 'final') renderFinal();
+  applyScoringLock();
 }
 
 let rosterExpanded = false;
@@ -2343,6 +2417,74 @@ loadTeams();
 loadState();
 render();
 startCloudSync();
+
+// ---------------- SCORING ACCESS: named-player permission list ----------------
+// Admin (Dippu) ticks which specific players are allowed to score — see the "Who can score?"
+// checklist in Match Settings (state.allowedScorers, synced to the cloud like everything else).
+// Each device just picks its own name once ("Who are you?"), stored locally on that device
+// only — and the app checks that name against the allowed list. If nobody's been ticked yet,
+// scoring stays open to everyone, so this never accidentally locks out an unconfigured match.
+const MY_NAME_KEY = 'bc_my_player_name';
+let myPlayerName = localStorage.getItem(MY_NAME_KEY) || '';
+// Dippu is the admin — always has scoring access, no matter what the "Who can score?" list says.
+const ADMIN_NAMES = ['DIPPU'];
+function computeScoringUnlocked() {
+  if (myPlayerName && ADMIN_NAMES.includes(myPlayerName.toUpperCase())) return true;
+  const allowed = state && state.allowedScorers;
+  if (!allowed || !allowed.length) return true; // not configured — open to everyone
+  return allowed.includes(myPlayerName);
+}
+let scoringUnlocked = true; // recomputed below once state/roster are loaded
+function applyScoringLock() {
+  scoringUnlocked = computeScoringUnlocked();
+  document.body.classList.toggle('scoringUnlocked', scoringUnlocked);
+  const btn = document.getElementById('scoringLockBtn');
+  if (!btn) return;
+  const isAdmin = myPlayerName && ADMIN_NAMES.includes(myPlayerName.toUpperCase());
+  const allowed = state && state.allowedScorers;
+  if (isAdmin) {
+    btn.textContent = '🔓';
+    btn.title = `Scoring enabled — you're the admin ("${myPlayerName}")`;
+  } else if (!allowed || !allowed.length) {
+    btn.textContent = '🔓';
+    btn.title = 'Scoring is open to everyone — admin hasn\'t restricted it';
+  } else if (scoringUnlocked) {
+    btn.textContent = '🔓';
+    btn.title = `Scoring enabled — you're set as "${myPlayerName}"`;
+  } else if (myPlayerName) {
+    btn.textContent = '🔒';
+    btn.title = `View only — "${myPlayerName}" isn't on the admin's scoring list`;
+  } else {
+    btn.textContent = '👤';
+    btn.title = 'Tap to tell the app who you are';
+  }
+}
+function openWhoAmIOverlay() {
+  const names = (roster && roster.names) || [];
+  if (!names.length) { alert('Add players to the roster first.'); return; }
+  const chipsEl = document.getElementById('whoAmIChips');
+  chipsEl.innerHTML = names.map((n) =>
+    `<button type="button" class="tapChip ${n === myPlayerName ? 'striker' : ''}" data-whoami="${n}">${n}</button>`
+  ).join('');
+  document.getElementById('whoAmIOverlay').style.display = 'flex';
+}
+function closeWhoAmIOverlay() {
+  document.getElementById('whoAmIOverlay').style.display = 'none';
+}
+document.getElementById('whoAmIChips').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-whoami]');
+  if (!btn) return;
+  myPlayerName = btn.dataset.whoami;
+  localStorage.setItem(MY_NAME_KEY, myPlayerName);
+  applyScoringLock();
+  closeWhoAmIOverlay();
+});
+document.getElementById('whoAmICloseBtn').addEventListener('click', closeWhoAmIOverlay);
+document.getElementById('whoAmIOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'whoAmIOverlay') closeWhoAmIOverlay();
+});
+document.getElementById('scoringLockBtn').addEventListener('click', openWhoAmIOverlay);
+applyScoringLock();
 
 // ---- Manual "clear cache & refresh" — for anyone stuck seeing an old/stale version of the app
 // even after a new one's been uploaded to GitHub. Only clears the BROWSER's cached copy of the
