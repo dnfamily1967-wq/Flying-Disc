@@ -735,11 +735,7 @@
     </div>
 
     <div class="panel" id="matchSettingsPanel">
-      <h2 style="display:flex; justify-content:space-between; align-items:center;">
-        <span>Match Settings</span>
-        <button type="button" id="settingsLockBtn" style="font-size:10px; letter-spacing:0.5px; text-transform:none; font-weight:800; background:var(--panel-2); border:1.5px solid var(--line); border-radius:14px; padding:5px 10px; color:var(--muted); cursor:pointer;">🔒 Admin</button>
-      </h2>
-      <div id="matchSettingsFields" style="opacity:0.45; pointer-events:none; transition: opacity 0.15s;">
+      <h2>Match Settings</h2>
       <div class="matchupRow" style="margin-bottom:12px;">
         <div class="matchupCol">
           <label>Overs (per side)</label>
@@ -784,7 +780,6 @@
       </div>
       <div class="setupHint" id="negOutSwapHint" style="margin-top:6px;"></div>
       <div class="setupHint" id="retirementHint" style="margin-top:8px;"></div>
-      </div>
     </div>
 
     <div class="panel">
@@ -1097,37 +1092,6 @@ const rosterChipsEl = document.getElementById('rosterChips');
 const rosterNameInput = document.getElementById('rosterNameInput');
 const addRosterBtn = document.getElementById('addRosterBtn');
 
-// ---------------- ADMIN LOCK for Match Settings ----------------
-// Match Settings (overs, out penalty, strike rotation, retirement rule) are locked by default —
-// any player opening this on their phone can look, but only someone who knows the admin PIN can
-// actually change the match rules. Session-only (not saved), so it re-locks on next open.
-const ADMIN_PIN = '1967';
-let isSettingsAdmin = false;
-function applySettingsLock() {
-  const fields = document.getElementById('matchSettingsFields');
-  const lockBtn = document.getElementById('settingsLockBtn');
-  if (!fields || !lockBtn) return;
-  fields.style.opacity = isSettingsAdmin ? '1' : '0.45';
-  fields.style.pointerEvents = isSettingsAdmin ? '' : 'none';
-  fields.querySelectorAll('input, select').forEach((el) => { el.disabled = !isSettingsAdmin; });
-  lockBtn.textContent = isSettingsAdmin ? '🔓 Admin (unlocked)' : '🔒 Admin';
-}
-document.getElementById('settingsLockBtn').addEventListener('click', () => {
-  if (isSettingsAdmin) {
-    isSettingsAdmin = false;
-    applySettingsLock();
-    return;
-  }
-  const pin = prompt('Enter the admin PIN to change Match Settings:');
-  if (pin === null) return;
-  if (pin.trim() === ADMIN_PIN) {
-    isSettingsAdmin = true;
-    applySettingsLock();
-  } else {
-    alert('Wrong PIN.');
-  }
-});
-applySettingsLock();
 
 let editingRatingName = null; // which roster row's skill number is unlocked for editing right now (null = none)
 let rosterSortMode = 'name'; // 'name' | 'skill'
