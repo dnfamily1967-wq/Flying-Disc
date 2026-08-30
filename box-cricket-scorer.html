@@ -2417,7 +2417,10 @@ startCloudSync();
 // that hasn't been configured for it.
 const MY_NAME_KEY = 'bc_my_player_name';
 let myPlayerName = localStorage.getItem(MY_NAME_KEY) || '';
+// Dippu is the admin — always has scoring access, no matter what the "Who can score?" list says.
+const ADMIN_NAMES = ['DIPPU'];
 function computeScoringUnlocked() {
+  if (myPlayerName && ADMIN_NAMES.includes(myPlayerName.toUpperCase())) return true;
   const allowed = state && state.allowedScorers;
   if (!allowed || !allowed.length) return true; // not configured — open to everyone
   return allowed.includes(myPlayerName);
@@ -2428,8 +2431,12 @@ function applyScoringLock() {
   document.body.classList.toggle('scoringUnlocked', scoringUnlocked);
   const btn = document.getElementById('scoringLockBtn');
   if (!btn) return;
+  const isAdmin = myPlayerName && ADMIN_NAMES.includes(myPlayerName.toUpperCase());
   const allowed = state && state.allowedScorers;
-  if (!allowed || !allowed.length) {
+  if (isAdmin) {
+    btn.textContent = '🔓';
+    btn.title = `Scoring enabled — you're the admin ("${myPlayerName}")`;
+  } else if (!allowed || !allowed.length) {
     btn.textContent = '🔓';
     btn.title = 'Scoring is open to everyone — admin hasn\'t restricted it';
   } else if (scoringUnlocked) {
