@@ -897,6 +897,19 @@ const STORAGE_KEY = 'box-cricket-match-v1';
 const ROSTER_KEY = 'box-cricket-roster-v1';
 const MATCH_HISTORY_KEY = 'box-cricket-history-v1';
 const DEFAULT_ROSTER = ['DEVENDRA','DINESH','DIPPU','KAMLESH','MAHAVIR','NAVIN','PAWAN','PRAMOD','RAJENDRA','RAJESH','SANJAY','SHANKAR','SUBHASH','SURESH','VIBHAW','VISHAL','VISHNU'];
+// Skill levels set for the default roster (1 = weakest, 9 = strongest) — used the first time the
+// app runs with no saved roster yet.
+const DEFAULT_RATINGS = {
+  DEVENDRA: 1, RAJENDRA: 1,
+  VIBHAW: 2, VISHNU: 2,
+  MAHAVIR: 3, SANJAY: 3,
+  PAWAN: 4, PRAMOD: 4,
+  NAVIN: 5, RAJESH: 5,
+  DIPPU: 6, SHANKAR: 6,
+  SUBHASH: 7, VISHAL: 7,
+  DINESH: 8, SURESH: 8,
+  KAMLESH: 9
+};
 
 let state = null;
 let roster = null; // { names: [...], absent: [...] } — persists across matches, separate from the live match state
@@ -957,12 +970,12 @@ function loadRoster() {
     if (raw) {
       roster = JSON.parse(raw);
       if (!roster.ratings) roster.ratings = {}; // migrate older saved rosters that had no skill ratings
-      roster.names.forEach((n) => { if (!roster.ratings[n]) roster.ratings[n] = 5; });
+      roster.names.forEach((n) => { if (!roster.ratings[n]) roster.ratings[n] = DEFAULT_RATINGS[n] || 5; });
       return;
     }
   } catch (e) {}
   roster = { names: DEFAULT_ROSTER.slice(), absent: [], ratings: {} };
-  DEFAULT_ROSTER.forEach((n) => { roster.ratings[n] = 5; });
+  DEFAULT_ROSTER.forEach((n) => { roster.ratings[n] = DEFAULT_RATINGS[n] || 5; });
 }
 
 function saveRoster() {
