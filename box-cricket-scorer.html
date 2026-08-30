@@ -72,6 +72,34 @@
   body.onMatch .undoRow button { padding: 5px 12px; font-size: 11.5px; }
 
   /* ---- Over-complete alert toast ---- */
+  /* ---- Scoring lock: view-only for any device that hasn't entered the PIN. The live score,
+         This Over ball log, stats etc. all keep updating in real time either way — only the
+         actual scoring controls (keypad, OUT, bowler/batter taps, undo) are greyed out and
+         un-tappable until unlocked on THIS device. ---- */
+  body:not(.scoringUnlocked) .padGrid .padBtn,
+  body:not(.scoringUnlocked) #outBtn,
+  body:not(.scoringUnlocked) #extraBtn,
+  body:not(.scoringUnlocked) .undoRow button,
+  body:not(.scoringUnlocked) #bowlerChips .tapChip,
+  body:not(.scoringUnlocked) #batterChips .tapChip {
+    opacity: 0.45;
+    filter: grayscale(0.6);
+    pointer-events: none;
+  }
+  #scoringViewOnlyBanner {
+    display: none;
+    background: #FFF3E0;
+    border: 1.5px solid var(--amber);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #8a5306;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  body:not(.scoringUnlocked) #scoringViewOnlyBanner { display: block; }
+
   #overToastWrap {
     position: fixed;
     top: 14px;
@@ -710,6 +738,7 @@
 </head>
 <body>
 <div id="overToastWrap"></div>
+<button id="scoringLockBtn" title="Scoring access" style="position:fixed; top:10px; right:10px; z-index:80; width:30px; height:30px; border-radius:50%; background:#fff; border:1.5px solid var(--line); color:var(--muted); font-size:13px; padding:0; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.15);">🔒</button>
 <div class="wrap">
 
   <div class="hdr" style="position:relative;">
@@ -882,6 +911,7 @@
 
     <div class="panel">
       <h2 id="thisOverHeading">This Over</h2>
+      <div id="scoringViewOnlyBanner">👁️ View only — ask the admin for the scoring PIN to score from this device.</div>
       <div class="ballLog" id="ballLog"></div>
 
       <div class="matchupBlock">
@@ -1787,6 +1817,7 @@ function currentOverWkts() {
 // Tap a name to bring them on strike (🟢). The player who was previously on strike drops back to
 // non-striker (🔴) automatically — tapping the current non-striker just swaps the two around.
 bowlerChipsEl.addEventListener('click', (e) => {
+  if (!scoringUnlocked) return;
   const btn = e.target.closest('[data-bowler]');
   if (!btn) return;
   state.currentBowler = btn.dataset.bowler;
@@ -1796,6 +1827,7 @@ bowlerChipsEl.addEventListener('click', (e) => {
   renderMatch();
 });
 batterChipsEl.addEventListener('click', (e) => {
+  if (!scoringUnlocked) return;
   const btn = e.target.closest('[data-batter]');
   if (!btn) return;
   const name = btn.dataset.batter;
@@ -1838,6 +1870,7 @@ function pushHistory() {
 }
 
 function recordBall(entry) {
+  if (!scoringUnlocked) { alert('This device is view-only. Ask the admin for the scoring PIN to score.'); return; }
   if (!state.currentBowler || !state.striker || !state.nonStriker) {
     alert('Please select the bowler and both batters first.');
     return;
@@ -2015,6 +2048,7 @@ document.querySelectorAll('.padBtn[data-net]').forEach((btn) => {
 });
 
 document.getElementById('undoBtn').addEventListener('click', () => {
+  if (!scoringUnlocked) return;
   if (!state.history.length) return;
   const prev = state.history.pop();
   Object.assign(state, prev);
@@ -2289,6 +2323,43 @@ loadTeams();
 loadState();
 render();
 startCloudSync();
+
+// ---------------- SCORING ACCESS LOCK ----------------
+// Admin decides who can actually score by sharing (or not sharing) this PIN. Any phone can
+// open the page and watch the live match update in real time; only a phone that's entered the
+// PIN can tap the scoring buttons. This is per-device (stored locally, never synced), so
+// multiple people can be trusted with scoring access at once if the admin shares the PIN with
+// more than one person.
+const SCORING_PIN = '1967';
+const SCORING_UNLOCK_KEY = 'bc_scoring_unlocked';
+let scoringUnlocked = localStorage.getItem(SCORING_UNLOCK_KEY) === '1';
+function applyScoringLock() {
+  document.body.classList.toggle('scoringUnlocked', scoringUnlocked);
+  const btn = document.getElementById('scoringLockBtn');
+  if (btn) {
+    btn.textContent = scoringUnlocked ? '🔓' : '🔒';
+    btn.title = scoringUnlocked ? 'Scoring unlocked on this device — tap to lock' : 'View only — tap to enter the scoring PIN';
+  }
+}
+document.getElementById('scoringLockBtn').addEventListener('click', () => {
+  if (scoringUnlocked) {
+    if (!confirm('Lock scoring on this device again? You can unlock any time with the PIN.')) return;
+    scoringUnlocked = false;
+    localStorage.setItem(SCORING_UNLOCK_KEY, '0');
+    applyScoringLock();
+    return;
+  }
+  const pin = prompt('Enter the scoring PIN to enable scoring on this device:');
+  if (pin === null) return;
+  if (pin.trim() === SCORING_PIN) {
+    scoringUnlocked = true;
+    localStorage.setItem(SCORING_UNLOCK_KEY, '1');
+    applyScoringLock();
+  } else {
+    alert('Wrong PIN.');
+  }
+});
+applyScoringLock();
 
 // ---- Manual "clear cache & refresh" — for anyone stuck seeing an old/stale version of the app
 // even after a new one's been uploaded to GitHub. Only clears the BROWSER's cached copy of the
