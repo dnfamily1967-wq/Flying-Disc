@@ -40,6 +40,9 @@
     padding-bottom: 40px;
   }
   .wrap { max-width: 480px; margin: 0 auto; padding: 14px 12px 10px; }
+  #matchScaleWrap { transform-origin: top center; }
+  body.onMatch .hdr { display: none; }
+  body.onMatch .wrap { padding-top: 6px; }
 
   /* ---- Over-complete alert toast ---- */
   #overToastWrap {
@@ -719,6 +722,7 @@
 
   <!-- ================= MATCH SCREEN ================= -->
   <div id="matchScreen" class="hidden">
+  <div id="matchScaleWrap">
 
     <div class="teamsHeaderRow" id="matchTeamsHeaderRow"></div>
     <div class="scoreboard">
@@ -768,6 +772,8 @@
       <button class="padBtn out" id="outBtn" style="width:100%; margin-bottom:10px;">OUT</button>
       <div class="undoRow"><button id="undoBtn">↩ Undo last ball</button></div>
     </div>
+
+  </div>
 
     <div class="panel">
       <h2>Overs Bowled</h2>
@@ -1473,7 +1479,37 @@ function renderMatch() {
   bowlingStatsBody.innerHTML = bowlingRows.length
     ? bowlingRows.map((r) => `<tr><td class="rowName">${r.name}</td><td class="num">${r.runs}</td><td class="num">${r.wkts}</td></tr>`).join('')
     : `<tr><td colspan="3" style="color:var(--muted);">No overs bowled yet</td></tr>`;
+
+  fitMatchScreen();
 }
+
+// ---------------- SCALE-TO-FIT (score + This Over stay on one screen, nothing shrinks below
+// a readable floor) ----------------
+// Everything from the team header down through "Undo last ball" is scaled as one block so it
+// fills the available screen height with little to no scrolling — bigger if there's room, only
+// as small as it needs to be to fit otherwise, never smaller than a comfortably readable size.
+let fitScaleRAF = null;
+function fitMatchScreen() {
+  if (fitScaleRAF) cancelAnimationFrame(fitScaleRAF);
+  fitScaleRAF = requestAnimationFrame(() => {
+    const wrap = document.getElementById('matchScaleWrap');
+    if (!wrap || state.screen !== 'match') return;
+    wrap.style.transform = 'none';
+    wrap.style.height = '';
+    const rect = wrap.getBoundingClientRect();
+    const available = Math.max(200, window.innerHeight - rect.top - 8);
+    const natural = wrap.scrollHeight;
+    if (!natural) return;
+    let scale = available / natural;
+    // Never scale wider than the viewport (small safety margin either side).
+    const maxScaleByWidth = (window.innerWidth * 0.98) / Math.max(rect.width, 1);
+    scale = Math.min(scale, maxScaleByWidth);
+    scale = Math.max(0.8, Math.min(scale, 1.25)); // readable floor, and not absurdly huge either
+    wrap.style.transform = `scale(${scale})`;
+    wrap.style.height = (natural * scale) + 'px';
+  });
+}
+window.addEventListener('resize', () => { if (state.screen === 'match') fitMatchScreen(); });
 
 function showOverCompleteAlert() {
   const wrap = document.getElementById('overToastWrap');
@@ -1919,6 +1955,7 @@ async function exportRecordAsJPEG(rec, filenameHint) {
 
 // ---------------- ROUTER ----------------
 function render() {
+  document.body.classList.toggle('onMatch', state.screen === 'match');
   document.getElementById('setupScreen').classList.toggle('hidden', state.screen !== 'setup');
   document.getElementById('matchScreen').classList.toggle('hidden', state.screen !== 'match');
   document.getElementById('finalScreen').classList.toggle('hidden', state.screen !== 'final');
