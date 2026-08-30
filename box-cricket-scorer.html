@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Firebase (same cloud project as the Flying Disc app, so no new setup needed) — keeps the
+     live match state in sync across everyone's phones automatically. -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --pitch: #16a34a;
@@ -683,21 +687,12 @@
       </div>
     </div>
 
-    <div class="panel" id="tossPanel">
-      <h2>🪙 Toss</h2>
-      <div id="tossStatus" class="setupHint" style="margin-top:0; margin-bottom:10px;"></div>
-      <button class="btn-primary" id="doTossBtn" style="background:linear-gradient(135deg, var(--amber), #c9820f); box-shadow:0 4px 14px rgba(245,166,35,0.3);">🪙 Flip Coin</button>
-      <div id="tossChoiceBlock" class="hidden" style="margin-top:12px;">
-        <div class="setupHint" id="tossWinnerLabel" style="margin-top:0; margin-bottom:8px;"></div>
-        <div class="padRow2">
-          <button class="btn-ghost" id="tossBatBtn">🏏 Bat First</button>
-          <button class="btn-ghost" id="tossBowlBtn">🎯 Bowl First</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h2>Match Settings</h2>
+    <div class="panel" id="matchSettingsPanel">
+      <h2 style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Match Settings</span>
+        <button type="button" id="settingsLockBtn" style="font-size:10px; letter-spacing:0.5px; text-transform:none; font-weight:800; background:var(--panel-2); border:1.5px solid var(--line); border-radius:14px; padding:5px 10px; color:var(--muted); cursor:pointer;">🔒 Admin</button>
+      </h2>
+      <div id="matchSettingsFields" style="opacity:0.45; pointer-events:none; transition: opacity 0.15s;">
       <div class="matchupRow" style="margin-bottom:12px;">
         <div class="matchupCol">
           <label>Overs (per side)</label>
@@ -742,6 +737,7 @@
       </div>
       <div class="setupHint" id="negOutSwapHint" style="margin-top:6px;"></div>
       <div class="setupHint" id="retirementHint" style="margin-top:8px;"></div>
+      </div>
     </div>
 
     <div class="panel">
@@ -768,8 +764,6 @@
       <div class="sbOver" id="sbOverLabel">OVER 1 OF 8</div>
       <div class="sbScore"><span id="sbRuns">0</span>/<span class="wkt" id="sbWkts">0</span></div>
       <div class="sbSub" id="sbOverProgress">0.0 OVERS</div>
-      <div class="sbSub hidden" id="sbFirstInnings" style="color:#5a4400;"></div>
-      <div class="sbSub hidden" id="sbTarget" style="color:#a01f1f;"></div>
       <div class="sbMeta">
         <div class="sbMetaCol">
           <div class="lbl">Bowling</div>
@@ -847,19 +841,13 @@
       <div class="finalHero">
         <div class="trophy">🏆</div>
         <div class="teamsHeaderRow" id="finalTeamsHeaderRow" style="margin-bottom:2px;"></div>
-        <div class="cap" id="finalResultLine" style="color:var(--led); font-size:14px; margin:6px 0;"></div>
-        <div id="finalScoresBlock" style="display:flex; justify-content:center; gap:24px; margin:8px 0;"></div>
+        <div class="cap">Final Score</div>
+        <div class="big" id="finalScore">0/0</div>
         <div class="cap" id="finalOvers">0.0 overs</div>
       </div>
-      <div class="setupHint" id="finalTossLine" style="text-align:center; margin-top:6px;"></div>
     </div>
 
     <button class="btn-ghost" id="exportJpegBtn" style="width:100%; margin-bottom:10px;">⬇️ Export Scorecard as JPEG</button>
-
-    <div class="panel">
-      <h2>🏅 Man of the Match</h2>
-      <div id="manOfMatchBlock"></div>
-    </div>
 
     <div class="panel">
       <h2>🏏 Top Scorer</h2>
@@ -897,19 +885,6 @@ const STORAGE_KEY = 'box-cricket-match-v1';
 const ROSTER_KEY = 'box-cricket-roster-v1';
 const MATCH_HISTORY_KEY = 'box-cricket-history-v1';
 const DEFAULT_ROSTER = ['DEVENDRA','DINESH','DIPPU','KAMLESH','MAHAVIR','NAVIN','PAWAN','PRAMOD','RAJENDRA','RAJESH','SANJAY','SHANKAR','SUBHASH','SURESH','VIBHAW','VISHAL','VISHNU'];
-// Skill levels set for the default roster (1 = weakest, 9 = strongest) — used the first time the
-// app runs with no saved roster yet.
-const DEFAULT_RATINGS = {
-  DEVENDRA: 1, RAJENDRA: 1,
-  VIBHAW: 2, VISHNU: 2,
-  MAHAVIR: 3, SANJAY: 3,
-  PAWAN: 4, PRAMOD: 4,
-  NAVIN: 5, RAJESH: 5,
-  DIPPU: 6, SHANKAR: 6,
-  SUBHASH: 7, VISHAL: 7,
-  DINESH: 8, SURESH: 8,
-  KAMLESH: 9
-};
 
 let state = null;
 let roster = null; // { names: [...], absent: [...] } — persists across matches, separate from the live match state
@@ -962,6 +937,58 @@ function loadState() {
 
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  pushStateToCloud();
+}
+
+// ---------------- REAL-TIME SYNC ACROSS PHONES ----------------
+// Same Firebase project the Flying Disc app already uses (its own collection, so nothing
+// clashes) — whatever anyone scores/changes on their phone pushes here, and every other phone
+// with this page open picks it up automatically within a second, no refresh needed.
+const firebaseConfig = {
+  apiKey: "AIzaSyDDl9nYHaOokHC0Uqk25l0EH__RkNZiVSY",
+  authDomain: "flying-disc-1e8c2.firebaseapp.com",
+  projectId: "flying-disc-1e8c2",
+  storageBucket: "flying-disc-1e8c2.firebasestorage.app",
+  messagingSenderId: "774852929390",
+  appId: "1:774852929390:web:509d7f6e6d85cba5a6037f"
+};
+firebase.initializeApp(firebaseConfig);
+const cricketDb = firebase.firestore();
+const liveMatchRef = cricketDb.collection('box_cricket').doc('live_match');
+
+let applyingRemoteUpdate = false; // true while we're applying someone ELSE's update, so we don't immediately echo it straight back to the cloud
+let pushTimer = null;
+function pushStateToCloud() {
+  if (applyingRemoteUpdate) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    try {
+      // Firestore rejects `undefined` values — a clean JSON round-trip strips those out safely.
+      const clean = JSON.parse(JSON.stringify(state));
+      liveMatchRef.set({ state: clean, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    } catch (e) {}
+  }, 400); // small debounce so a burst of taps doesn't spam the network
+}
+
+let cloudSyncStarted = false;
+function startCloudSync() {
+  liveMatchRef.onSnapshot((doc) => {
+    if (!doc.exists) {
+      // Nothing in the cloud yet (first-ever use) — push whatever we have locally so other
+      // phones have something to sync to.
+      if (cloudSyncStarted) pushStateToCloud();
+      cloudSyncStarted = true;
+      return;
+    }
+    const data = doc.data();
+    if (!data || !data.state) { cloudSyncStarted = true; return; }
+    applyingRemoteUpdate = true;
+    state = data.state;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    render();
+    applyingRemoteUpdate = false;
+    cloudSyncStarted = true;
+  }, () => { /* offline or blocked — the app still works locally on this one phone */ });
 }
 
 function loadRoster() {
@@ -970,12 +997,12 @@ function loadRoster() {
     if (raw) {
       roster = JSON.parse(raw);
       if (!roster.ratings) roster.ratings = {}; // migrate older saved rosters that had no skill ratings
-      roster.names.forEach((n) => { if (!roster.ratings[n]) roster.ratings[n] = DEFAULT_RATINGS[n] || 5; });
+      roster.names.forEach((n) => { if (!roster.ratings[n]) roster.ratings[n] = 5; });
       return;
     }
   } catch (e) {}
   roster = { names: DEFAULT_ROSTER.slice(), absent: [], ratings: {} };
-  DEFAULT_ROSTER.forEach((n) => { roster.ratings[n] = DEFAULT_RATINGS[n] || 5; });
+  DEFAULT_ROSTER.forEach((n) => { roster.ratings[n] = 5; });
 }
 
 function saveRoster() {
@@ -1002,6 +1029,38 @@ const oversInput = document.getElementById('oversInput');
 const rosterChipsEl = document.getElementById('rosterChips');
 const rosterNameInput = document.getElementById('rosterNameInput');
 const addRosterBtn = document.getElementById('addRosterBtn');
+
+// ---------------- ADMIN LOCK for Match Settings ----------------
+// Match Settings (overs, out penalty, strike rotation, retirement rule) are locked by default —
+// any player opening this on their phone can look, but only someone who knows the admin PIN can
+// actually change the match rules. Session-only (not saved), so it re-locks on next open.
+const ADMIN_PIN = '1967';
+let isSettingsAdmin = false;
+function applySettingsLock() {
+  const fields = document.getElementById('matchSettingsFields');
+  const lockBtn = document.getElementById('settingsLockBtn');
+  if (!fields || !lockBtn) return;
+  fields.style.opacity = isSettingsAdmin ? '1' : '0.45';
+  fields.style.pointerEvents = isSettingsAdmin ? '' : 'none';
+  fields.querySelectorAll('input, select').forEach((el) => { el.disabled = !isSettingsAdmin; });
+  lockBtn.textContent = isSettingsAdmin ? '🔓 Admin (unlocked)' : '🔒 Admin';
+}
+document.getElementById('settingsLockBtn').addEventListener('click', () => {
+  if (isSettingsAdmin) {
+    isSettingsAdmin = false;
+    applySettingsLock();
+    return;
+  }
+  const pin = prompt('Enter the admin PIN to change Match Settings:');
+  if (pin === null) return;
+  if (pin.trim() === ADMIN_PIN) {
+    isSettingsAdmin = true;
+    applySettingsLock();
+  } else {
+    alert('Wrong PIN.');
+  }
+});
+applySettingsLock();
 
 let editingRatingName = null; // which roster row's skill number is unlocked for editing right now (null = none)
 let rosterSortMode = 'name'; // 'name' | 'skill'
@@ -1148,14 +1207,9 @@ let teamsState = null; // { name1, name2, team1: [...], team2: [...] }
 function loadTeams() {
   try {
     const raw = localStorage.getItem(TEAMS_KEY);
-    if (raw) {
-      teamsState = JSON.parse(raw);
-      if (teamsState.tossWinnerKey === undefined) teamsState.tossWinnerKey = null;
-      if (teamsState.tossDecision === undefined) teamsState.tossDecision = null;
-      return;
-    }
+    if (raw) { teamsState = JSON.parse(raw); return; }
   } catch (e) {}
-  teamsState = { name1: 'Team A', name2: 'Team B', team1: [], team2: [], tossWinnerKey: null, tossDecision: null };
+  teamsState = { name1: 'Team A', name2: 'Team B', team1: [], team2: [] };
 }
 function saveTeams() {
   try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teamsState)); } catch (e) {}
@@ -1184,31 +1238,24 @@ document.getElementById('makeTwoTeamsBtn').addEventListener('click', () => {
   teamsState = {
     name1: (teamsState && teamsState.name1) || 'Team A',
     name2: (teamsState && teamsState.name2) || 'Team B',
-    team1, team2, tossWinnerKey: null, tossDecision: null
+    team1, team2
   };
   saveTeams();
   renderSetup();
 });
 
-// Groups everyone present by skill level (9 = best down to 1), shuffling within a tier so it's
-// not always the same pairing, then hands players out to the two teams one skill-tier at a time,
-// alternating which team gets the next player. This guarantees that if there are two players
-// rated (say) 8, one goes to each side instead of both landing on the same team — every skill
-// level gets split as evenly as possible, not just the overall total.
+// Same idea as the Flying Disc app's team maker: sort everyone present by skill level (high to
+// low, shuffling players who tie so it's not always the same pairing), then hand each player one
+// at a time to whichever team currently has the lower total skill — keeps both sides as close to
+// even as possible instead of a coin-flip random split.
 function balanceTeamsBySkill(names) {
-  const byRating = {};
-  shuffleArr(names).forEach((name) => {
-    const r = roster.ratings[name] || 5;
-    (byRating[r] = byRating[r] || []).push(name);
-  });
-  const ratingsDesc = Object.keys(byRating).map(Number).sort((a, b) => b - a);
+  const withRating = shuffleArr(names).map((name) => ({ name, rating: roster.ratings[name] || 5 }));
+  withRating.sort((a, b) => b.rating - a.rating);
   const team1 = [], team2 = [];
-  let turn = 0; // keeps alternating across tiers, not just within one, so totals stay close too
-  ratingsDesc.forEach((r) => {
-    byRating[r].forEach((name) => {
-      if (turn % 2 === 0) team1.push(name); else team2.push(name);
-      turn++;
-    });
+  let sum1 = 0, sum2 = 0;
+  withRating.forEach((p) => {
+    if (sum1 <= sum2) { team1.push(p.name); sum1 += p.rating; }
+    else { team2.push(p.name); sum2 += p.rating; }
   });
   return { team1, team2 };
 }
@@ -1252,7 +1299,6 @@ document.getElementById('addToTeam1Btn').addEventListener('click', () => {
   if (!name || teamsState.team1.includes(name)) return;
   teamsState.team2 = teamsState.team2.filter((n) => n !== name);
   teamsState.team1.push(name);
-  resetToss();
   saveTeams();
   renderSetup();
 });
@@ -1261,7 +1307,6 @@ document.getElementById('addToTeam2Btn').addEventListener('click', () => {
   if (!name || teamsState.team2.includes(name)) return;
   teamsState.team1 = teamsState.team1.filter((n) => n !== name);
   teamsState.team2.push(name);
-  resetToss();
   saveTeams();
   renderSetup();
 });
@@ -1273,7 +1318,6 @@ function removeFromTeam(teamNum, idx) {
   if (!teamsState) return;
   const key = teamNum === '1' ? 'team1' : 'team2';
   teamsState[key].splice(idx, 1);
-  resetToss();
   saveTeams();
   renderSetup();
 }
@@ -1295,60 +1339,6 @@ function combinedTeamPlayers() {
   }
   return combined;
 }
-
-// ---------------- TOSS ----------------
-function resetToss() {
-  if (!teamsState) return;
-  teamsState.tossWinnerKey = null;
-  teamsState.tossDecision = null;
-}
-function renderToss() {
-  const statusEl = document.getElementById('tossStatus');
-  const choiceBlock = document.getElementById('tossChoiceBlock');
-  const winnerLabel = document.getElementById('tossWinnerLabel');
-  const doTossBtn = document.getElementById('doTossBtn');
-  if (!statusEl) return;
-  const bothTeamsReady = teamsState.team1.length > 0 && teamsState.team2.length > 0;
-  doTossBtn.disabled = !bothTeamsReady;
-  doTossBtn.style.opacity = bothTeamsReady ? '1' : '0.5';
-  if (!bothTeamsReady) {
-    statusEl.textContent = 'Split into two teams first, then flip the coin to see who bats or bowls first.';
-    choiceBlock.classList.add('hidden');
-    return;
-  }
-  if (!teamsState.tossWinnerKey) {
-    statusEl.textContent = 'Not tossed yet — tap Flip Coin to decide who bats or bowls first.';
-    choiceBlock.classList.add('hidden');
-    return;
-  }
-  const winnerName = teamsState.tossWinnerKey === 'team1' ? teamsState.name1 : teamsState.name2;
-  if (!teamsState.tossDecision) {
-    statusEl.innerHTML = `🪙 <strong>${winnerName}</strong> won the toss!`;
-    winnerLabel.textContent = `${winnerName}, what will you do?`;
-    choiceBlock.classList.remove('hidden');
-  } else {
-    const decisionLabel = teamsState.tossDecision === 'bat' ? 'bat first' : 'bowl first';
-    statusEl.innerHTML = `🪙 <strong>${winnerName}</strong> won the toss and chose to ${decisionLabel}.`;
-    choiceBlock.classList.add('hidden');
-  }
-}
-document.getElementById('doTossBtn').addEventListener('click', () => {
-  if (!teamsState.team1.length || !teamsState.team2.length) { alert('Split into two teams first.'); return; }
-  teamsState.tossWinnerKey = Math.random() < 0.5 ? 'team1' : 'team2';
-  teamsState.tossDecision = null;
-  saveTeams();
-  renderToss();
-});
-document.getElementById('tossBatBtn').addEventListener('click', () => {
-  teamsState.tossDecision = 'bat';
-  saveTeams();
-  renderToss();
-});
-document.getElementById('tossBowlBtn').addEventListener('click', () => {
-  teamsState.tossDecision = 'bowl';
-  saveTeams();
-  renderToss();
-});
 
 const RETIREMENT_HINTS = {
   none: 'Batters stay in until out (or the match ends) — no automatic swaps.',
@@ -1385,7 +1375,6 @@ function renderSetup() {
   }
   renderRoster();
   renderTeams();
-  renderToss();
   renderHistory();
 }
 
@@ -1411,24 +1400,10 @@ startMatchBtn.addEventListener('click', () => {
   const combined = combinedTeamPlayers();
   if (combined.length < 2) { alert('Need at least 2 players across both teams to start.'); return; }
   state.players = combined;
-  // Team 1 = whoever bowls first (Innings 1). Default is the "Team A" box, but if a toss was
-  // done, the winner's bat/bowl choice decides it instead.
-  let bowlFirstIsTeamA = true;
-  if (teamsState.tossWinnerKey && teamsState.tossDecision) {
-    const winnerIsTeamA = teamsState.tossWinnerKey === 'team1';
-    bowlFirstIsTeamA = teamsState.tossDecision === 'bowl' ? winnerIsTeamA : !winnerIsTeamA;
-  }
-  state.team1Name = bowlFirstIsTeamA ? teamsState.name1 : teamsState.name2;
-  state.team2Name = bowlFirstIsTeamA ? teamsState.name2 : teamsState.name1;
-  state.team1Players = (bowlFirstIsTeamA ? teamsState.team1 : teamsState.team2).slice();
-  state.team2Players = (bowlFirstIsTeamA ? teamsState.team2 : teamsState.team1).slice();
-  state.tossInfo = teamsState.tossWinnerKey ? {
-    winnerName: teamsState.tossWinnerKey === 'team1' ? teamsState.name1 : teamsState.name2,
-    decision: teamsState.tossDecision === 'bat' ? 'bat first' : 'bowl first'
-  } : null;
-  state.innings1Runs = 0;
-  state.innings1Wkts = 0;
-  state.innings1Done = false;
+  state.team1Name = teamsState.name1;
+  state.team2Name = teamsState.name2;
+  state.team1Players = teamsState.team1.slice();
+  state.team2Players = teamsState.team2.slice();
   state.screen = 'match';
   // "Overs" is PER INNINGS — each side gets this many overs to bowl (capped at how many
   // players that side actually has, since every bowler only gets one over). The match only
@@ -1575,32 +1550,6 @@ function renderMatch() {
   document.getElementById('sbWkts').textContent = state.totalWkts;
   const oversDisplay = (oIdx) + '.' + state.legalBallsThisOver;
   document.getElementById('sbOverProgress').textContent = `${oversDisplay} OVERS BOWLED`;
-
-  // Innings 1's score stays visible once frozen, and Innings 2 gets a live target/need-to-win
-  // line — the two separate scores the whole match hinges on, always on screen.
-  const firstInningsEl = document.getElementById('sbFirstInnings');
-  const targetEl = document.getElementById('sbTarget');
-  if (state.innings1Done) {
-    firstInningsEl.classList.remove('hidden');
-    firstInningsEl.textContent = `${state.team1Name || 'Team A'}: ${state.innings1Runs}/${state.innings1Wkts}`;
-    const target = state.innings1Runs + 1;
-    const needed = target - state.totalRuns;
-    const inn2Overs = innings2OversCount();
-    const local = localInningsOverIdx(oIdx);
-    const ballsBowledThisInnings = local * 6 + state.legalBallsThisOver;
-    const ballsLeft = Math.max(inn2Overs * 6 - ballsBowledThisInnings, 0);
-    targetEl.classList.remove('hidden');
-    if (needed <= 0) {
-      targetEl.textContent = `🏆 ${state.team2Name || 'Team B'} have reached the target!`;
-    } else if (state.totalWkts >= (state.team2Players ? state.team2Players.length : Infinity) || ballsLeft <= 0) {
-      targetEl.textContent = `Target ${target} · Fell short by ${needed} run${needed === 1 ? '' : 's'}`;
-    } else {
-      targetEl.textContent = `Target ${target} · Need ${needed} run${needed === 1 ? '' : 's'} off ${ballsLeft} ball${ballsLeft === 1 ? '' : 's'}`;
-    }
-  } else {
-    firstInningsEl.classList.add('hidden');
-    targetEl.classList.add('hidden');
-  }
   document.getElementById('sbBowlerName').textContent = state.currentBowler || '—';
   document.getElementById('sbBatterName').textContent = state.striker || '—';
   document.getElementById('sbBowlerFigures').textContent = `${currentOverRunsConceded()} runs · ${currentOverWkts()} wkt`;
@@ -1651,36 +1600,19 @@ function renderMatch() {
   overBadgesEl.innerHTML = inn1Label + state.bowlerOrder.map((p, i) => {
     const done = state.oversLog.find((o) => o.bowler === p);
     const cur = p === state.currentBowler; // whoever is ACTUALLY selected right now, not just "next in the fixed order" — bowler picks are manual, so this can be any player on the bowling side
-    const inTeam1 = state.team1Players ? state.team1Players.includes(p) : true;
-    // If that player's own innings has already finished bowling its overs and they never got a
-    // turn (team had more players than there were overs to bowl), mark them clearly as sat out
-    // instead of leaving them looking like they're still waiting for a turn that isn't coming.
-    const theirInningsOver = inTeam1 ? state.innings1Done : (state.oversLog.length >= totalOvers());
-    const satOut = theirInningsOver && !done && !cur;
     const divider = (i === (state.team1Players ? state.team1Players.length : 0) && i > 0)
       ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin:8px 0 4px;">Innings 2 — ${state.team2Name || 'Team B'} bowling</div>`
       : '';
-    return `${divider}<span class="overBadge ${done ? 'done' : ''} ${satOut ? 'done' : ''}" style="${cur ? 'border-color:var(--amber); color:var(--amber);' : ''}">${p}${done ? ' ✓' : cur ? ' •' : satOut ? ' (sat out)' : ''}</span>`;
+    return `${divider}<span class="overBadge ${done ? 'done' : ''}" style="${cur ? 'border-color:var(--amber); color:var(--amber);' : ''}">${p}${done ? ' ✓' : cur ? ' •' : ''}</span>`;
   }).join('');
 
   const battingRows = Object.keys(state.battingStats)
     .map((name) => ({ name, runs: state.battingStats[name].runs }))
     .filter((r) => r.runs !== 0 || state.battingStats[r.name].faced)
     .sort((a, b) => b.runs - a.runs);
-  // Once a side's innings has actually finished, anyone from that batting line-up who never got
-  // to the crease (team had more players than overs allowed) shows up clearly as "DNB" — a real
-  // place on the scoreboard for extra players, instead of them just quietly vanishing.
-  const dnbRows = [];
-  if (state.innings1Done && state.team2Players) {
-    state.team2Players.forEach((p) => { if (!state.battingStats[p] || !state.battingStats[p].faced) dnbRows.push(p); });
-  }
-  if (state.oversLog.length >= totalOvers() && state.team1Players) {
-    state.team1Players.forEach((p) => { if (!state.battingStats[p] || !state.battingStats[p].faced) dnbRows.push(p); });
-  }
-  battingStatsBody.innerHTML = (battingRows.length
+  battingStatsBody.innerHTML = battingRows.length
     ? battingRows.map((r) => `<tr><td class="rowName">${r.name}</td><td class="num">${r.runs}</td></tr>`).join('')
-    : `<tr><td colspan="2" style="color:var(--muted);">No runs on the board yet</td></tr>`)
-    + dnbRows.map((p) => `<tr><td class="rowName" style="color:var(--muted);">${p}</td><td class="num" style="color:var(--muted);">DNB</td></tr>`).join('');
+    : `<tr><td colspan="2" style="color:var(--muted);">No runs on the board yet</td></tr>`;
 
   const bowlingRows = state.oversLog.map((o) => ({ name: o.bowler, runs: o.runsConceded, wkts: o.wkts }))
     .concat(state.currentBowler && !state.oversLog.find((o) => o.bowler === state.currentBowler)
@@ -1818,20 +1750,6 @@ function finishOver() {
     runsConceded: currentOverRunsConceded(),
     wkts: currentOverWkts()
   });
-  // Innings 1 just finished bowling out its overs — freeze that side's score as the target and
-  // zero the live scoreboard for Innings 2, exactly like switching innings in real cricket. Every
-  // player's own career stats (battingStats/bowlingStats) are untouched, only the shared runs/wkts
-  // counter resets, since that counter is "runs this innings", not "runs this match".
-  const inn1Overs = innings1OversCount();
-  const inningsJustEnded = inn1Overs > 0 && state.oversLog.length === inn1Overs && !state.innings1Done;
-  if (inningsJustEnded) {
-    state.innings1Runs = state.totalRuns;
-    state.innings1Wkts = state.totalWkts;
-    state.innings1Done = true;
-    state.totalRuns = 0;
-    state.totalWkts = 0;
-    state.retiredBatters = []; // fresh side coming in to bat — nobody's retired yet in this innings
-  }
   if (state.oversLog.length >= totalOvers()) {
     goToFinal();
     return;
@@ -1842,12 +1760,7 @@ function finishOver() {
   // two batters carry on facing the next over, only the bowler changes. They're only cleared
   // if the innings itself just switched (new team now batting).
   state.currentBowler = null;
-  if (inningsJustEnded) {
-    // New innings, new batting side — always pick the opening pair by hand, same as the very
-    // first over of the match, regardless of the retirement rule in play.
-    state.striker = null;
-    state.nonStriker = null;
-  } else if (state.retirementRule === 'single1') {
+  if (state.retirementRule === 'single1') {
     // Solo-batting format: a fresh batter takes over every single over (like the bowlers do) —
     // picked automatically in order, no tapping needed.
     retireCurrentBatters();
@@ -1855,14 +1768,14 @@ function finishOver() {
     state.striker = solo;
     state.nonStriker = solo;
   } else if (state.retirementRule === 'pair2') {
-    // A pair bats together for 2 overs, then retires as a pair and a completely fresh pair
-    // comes in — same idea as solo, just two at a time instead of one.
+    // A pair bats together for 2 overs, then retires as a pair and a completely FRESH pair must
+    // be tapped by hand (the old pair's names go disabled in the list so they can't be re-picked)
+    // — the pair itself is chosen manually, only the "no repeats" restriction is automatic.
     const local = localInningsOverIdx(state.currentOverIdx);
     if (local % 2 === 0) {
       retireCurrentBatters();
-      const pair = getFreshPairForOver();
-      state.striker = pair[0];
-      state.nonStriker = pair[1];
+      state.striker = null;
+      state.nonStriker = null;
     }
     // else: second over of this pair's 2-over stint — striker/non-striker carry on unchanged.
   } else {
@@ -1962,52 +1875,15 @@ document.getElementById('endMatchBtn').addEventListener('click', () => {
 });
 
 // ---------------- FINAL SCREEN ----------------
-// Best all-round performance of the match — runs plus a bonus per wicket (a common, simple way
-// box cricket groups rate batting vs bowling contributions on one scale) — used for Man of the
-// Match. Ties go to whoever appears first, which in practice means whoever's better known from
-// their innings order; good enough for a friendly box cricket award.
-function computeManOfMatch(battingStats, bowlingStats) {
-  const scores = {};
-  Object.keys(battingStats || {}).forEach((n) => { scores[n] = (scores[n] || 0) + (battingStats[n].runs || 0); });
-  Object.keys(bowlingStats || {}).forEach((n) => { scores[n] = (scores[n] || 0) + (bowlingStats[n].wkts || 0) * 20; });
-  let best = null, bestScore = -Infinity;
-  Object.keys(scores).forEach((n) => {
-    if (scores[n] > bestScore) { bestScore = scores[n]; best = n; }
-  });
-  if (!best) return null;
-  return {
-    name: best,
-    runs: (battingStats[best] && battingStats[best].runs) || 0,
-    wkts: (bowlingStats[best] && bowlingStats[best].wkts) || 0
-  };
-}
-// Plain-English result line for the completed (or abandoned) match.
-function computeResultText(rec) {
-  if (!rec.innings1Done) return `Match ended before ${rec.team2Name} finished batting — no result.`;
-  if (rec.totalRuns > rec.innings1Runs) {
-    const wktsInHand = Math.max((rec.team2PlayersCount || 0) - rec.totalWkts, 0);
-    return `${rec.team2Name} won by ${wktsInHand} wicket${wktsInHand === 1 ? '' : 's'}`;
-  }
-  if (rec.totalRuns < rec.innings1Runs) {
-    const runMargin = rec.innings1Runs - rec.totalRuns;
-    return `${rec.team1Name} won by ${runMargin} run${runMargin === 1 ? '' : 's'}`;
-  }
-  return 'Match tied!';
-}
 function currentMatchRecord() {
   return {
     date: new Date().toISOString(),
     team1Name: state.team1Name || 'Team A',
     team2Name: state.team2Name || 'Team B',
-    team2PlayersCount: (state.team2Players && state.team2Players.length) || 0,
-    innings1Done: !!state.innings1Done,
-    innings1Runs: state.innings1Runs || 0,
-    innings1Wkts: state.innings1Wkts || 0,
     totalRuns: state.totalRuns,
     totalWkts: state.totalWkts,
     oversBowled: state.oversLog.length,
     totalOvers: totalOvers(),
-    tossInfo: state.tossInfo || null,
     battingStats: state.battingStats,
     bowlingStats: state.bowlingStats
   };
@@ -2046,19 +1922,8 @@ function goToFinal() {
 function renderFinal() {
   const oversBowled = state.oversLog.length;
   renderTeamsHeaderRow('finalTeamsHeaderRow');
-  const rec = currentMatchRecord();
-  document.getElementById('finalResultLine').textContent = computeResultText(rec);
-  document.getElementById('finalScoresBlock').innerHTML = rec.innings1Done
-    ? `<div><div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">${rec.team1Name}</div><div class="big" style="font-size:26px;">${rec.innings1Runs}/${rec.innings1Wkts}</div></div>
-       <div><div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">${rec.team2Name}</div><div class="big" style="font-size:26px;">${rec.totalRuns}/${rec.totalWkts}</div></div>`
-    : `<div><div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">${rec.team1Name}</div><div class="big" style="font-size:26px;">${rec.totalRuns}/${rec.totalWkts}</div></div>`;
+  document.getElementById('finalScore').textContent = `${state.totalRuns}/${state.totalWkts}`;
   document.getElementById('finalOvers').textContent = `${oversBowled} overs`;
-  const tossLineEl = document.getElementById('finalTossLine');
-  tossLineEl.textContent = rec.tossInfo ? `🪙 ${rec.tossInfo.winnerName} won the toss and chose to ${rec.tossInfo.decision}` : '';
-  const mom = computeManOfMatch(state.battingStats, state.bowlingStats);
-  document.getElementById('manOfMatchBlock').innerHTML = mom
-    ? `<div class="rowName" style="font-size:18px;">${mom.name}</div><div class="rowSub">${mom.runs} run${mom.runs === 1 ? '' : 's'}${mom.wkts ? ` · ${mom.wkts} wicket${mom.wkts === 1 ? '' : 's'}` : ''}</div>`
-    : `<div class="rowSub">Not enough play to pick one</div>`;
 
   const battingRows = Object.keys(state.battingStats).map((name) => ({ name, runs: state.battingStats[name].runs })).sort((a, b) => b.runs - a.runs);
   const bowlingRows = state.oversLog.map((o) => ({ name: o.bowler, runs: o.runsConceded, wkts: o.wkts })).sort((a, b) => b.wkts - a.wkts || a.runs - b.runs);
@@ -2104,16 +1969,11 @@ document.getElementById('newMatchBtnMatch').addEventListener('click', () => {
 // ---------------- MATCH HISTORY UI ----------------
 function historyRowHTML(rec) {
   const dateStr = rec.date ? new Date(rec.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-  const scoreLine = rec.innings1Done
-    ? `${rec.innings1Runs}/${rec.innings1Wkts} &amp; ${rec.totalRuns}/${rec.totalWkts}`
-    : `${rec.totalRuns}/${rec.totalWkts}`;
-  const resultLine = rec.innings1Done ? computeResultText(rec) : '';
   return `
     <div class="historyRow">
       <div class="historyRowMain">
         <div class="historyRowTeams">${teamLogoHTML(rec.team1Name, 20)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600;">vs</span> ${teamLogoHTML(rec.team2Name, 20)} ${rec.team2Name}</div>
-        <div class="historyRowScore">${scoreLine} <span class="historyRowOvers">(${rec.oversBowled}/${rec.totalOvers} ov)</span></div>
-        ${resultLine ? `<div class="historyRowOvers" style="margin-top:2px;">${resultLine}</div>` : ''}
+        <div class="historyRowScore">${rec.totalRuns}/${rec.totalWkts} <span class="historyRowOvers">(${rec.oversBowled}/${rec.totalOvers} ov)</span></div>
         <div class="historyRowDate">${dateStr}</div>
       </div>
       <div class="historyRowActions">
@@ -2163,22 +2023,13 @@ function buildExportHTML(rec) {
     .filter((r) => r.wkts > 0 || r.runs > 0)
     .sort((a, b) => b.wkts - a.wkts || a.runs - b.runs);
   const dateStr = rec.date ? new Date(rec.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-  const mom = computeManOfMatch(rec.battingStats, rec.bowlingStats);
-  const scoreBlock = rec.innings1Done
-    ? `<div style="display:flex; justify-content:center; gap:24px;">
-         <div><div style="font-size:10px; color:var(--muted); text-transform:uppercase;">${rec.team1Name}</div><div class="exScore" style="font-size:28px;">${rec.innings1Runs}/${rec.innings1Wkts}</div></div>
-         <div><div style="font-size:10px; color:var(--muted); text-transform:uppercase;">${rec.team2Name}</div><div class="exScore" style="font-size:28px;">${rec.totalRuns}/${rec.totalWkts}</div></div>
-       </div>`
-    : `<div class="exScore">${rec.totalRuns}/${rec.totalWkts}</div>`;
   return `
     <div class="exportCardInner">
       <div class="exTitle">🏏 Box Cricket — Match Scorecard</div>
       <div class="exTeams">${teamLogoHTML(rec.team1Name, 26)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600; font-size:12px;">vs</span> ${teamLogoHTML(rec.team2Name, 26)} ${rec.team2Name}</div>
       <div class="exDate">${dateStr}</div>
-      ${scoreBlock}
-      ${rec.innings1Done ? `<div class="exOvers" style="color:var(--led);">${computeResultText(rec)}</div>` : ''}
+      <div class="exScore">${rec.totalRuns}/${rec.totalWkts}</div>
       <div class="exOvers">${rec.oversBowled} / ${rec.totalOvers} overs</div>
-      ${mom ? `<h3>Man of the Match</h3><div style="text-align:center; font-weight:800; font-size:15px;">${mom.name} — ${mom.runs} run${mom.runs === 1 ? '' : 's'}${mom.wkts ? ` · ${mom.wkts} wkt${mom.wkts === 1 ? '' : 's'}` : ''}</div>` : ''}
       <h3>Batting</h3>
       <table><thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
       <tbody>${battingRows.map((r) => `<tr><td>${r.name}</td><td class="num">${r.runs}</td></tr>`).join('')}</tbody></table>
@@ -2257,6 +2108,7 @@ loadRoster();
 loadTeams();
 loadState();
 render();
+startCloudSync();
 </script>
 </body>
 </html>
