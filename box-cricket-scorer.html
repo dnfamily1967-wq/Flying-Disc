@@ -1123,8 +1123,16 @@ function pushStateToCloud() {
   pushTimer = setTimeout(() => {
     try {
       // Firestore rejects `undefined` values — a clean JSON round-trip strips those out safely.
-      const clean = JSON.parse(JSON.stringify(state));
-      liveMatchRef.set({ state: clean, updatedAt: firebase.firestore.FieldValue.serverTimestamp() })
+      // Roster (master player list) and teamsState (this match's Team A/B split) are synced
+      // alongside the live match itself, so setup screens match on every phone too — not just
+      // the scoring once a match is underway.
+      const payload = {
+        state: JSON.parse(JSON.stringify(state)),
+        roster: JSON.parse(JSON.stringify(roster)),
+        teamsState: JSON.parse(JSON.stringify(teamsState)),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      liveMatchRef.set(payload)
         .catch((err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'blocked by Firestore rules (permission-denied)' : (err.message || 'write failed')));
     } catch (e) {}
   }, 400); // small debounce so a burst of taps doesn't spam the network
@@ -1141,10 +1149,20 @@ function startCloudSync() {
       return;
     }
     const data = doc.data();
-    if (!data || !data.state) { cloudSyncStarted = true; return; }
+    if (!data) { cloudSyncStarted = true; return; }
     applyingRemoteUpdate = true;
-    state = data.state;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    if (data.state) {
+      state = data.state;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+    if (data.roster) {
+      roster = data.roster;
+      try { localStorage.setItem(ROSTER_KEY, JSON.stringify(roster)); } catch (e) {}
+    }
+    if (data.teamsState) {
+      teamsState = data.teamsState;
+      try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teamsState)); } catch (e) {}
+    }
     render();
     applyingRemoteUpdate = false;
     cloudSyncStarted = true;
@@ -1167,6 +1185,7 @@ function loadRoster() {
 
 function saveRoster() {
   try { localStorage.setItem(ROSTER_KEY, JSON.stringify(roster)); } catch (e) {}
+  pushStateToCloud();
 }
 
 function shuffleArr(arr) {
@@ -1343,6 +1362,7 @@ function loadTeams() {
 }
 function saveTeams() {
   try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teamsState)); } catch (e) {}
+  pushStateToCloud();
 }
 
 const twoTeamsBlock = document.getElementById('twoTeamsBlock');
