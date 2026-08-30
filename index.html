@@ -109,35 +109,6 @@
     line-height: 1.15;
     text-align: center;
   }
-  .cricket-btn {
-    position: absolute;
-    bottom: 50px;
-    right: 14px;
-    width: 46px;
-    height: 46px;
-    margin: 0;
-    z-index: 3;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at 35% 30%, #F3C15C 0%, var(--gold) 55%, #A87A16 100%);
-    border: 2px solid rgba(255,255,255,0.5);
-    color: #fff;
-    font-size: 17px;
-    font-weight: 800;
-    letter-spacing: 0.3px;
-    padding: 0;
-    border-radius: 50%;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.25);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-    line-height: 1.1;
-    text-align: center;
-    text-decoration: none;
-    cursor: pointer;
-  }
-  .cricket-btn span { font-size: 7px; margin-top: 1px; }
-  .cricket-btn:active { transform: scale(0.94); }
   .refresh-btn {
     position: absolute;
     bottom: 14px;
@@ -1122,7 +1093,6 @@
 
 <div id="appContent" style="display:none;">
 <div class="hero">
-  <a id="cricketLinkBtn" class="cricket-btn" href="box-cricket-scorer.html" target="_blank" rel="noopener noreferrer" title="Open Box Cricket Scorer">🏏<span>CRICKET</span></a>
   <button id="adminBtn" class="admin-btn">Admin</button>
   <button id="refreshAppBtn" class="refresh-btn" title="Clear cache & refresh app">🔄</button>
   <div class="heroTop">
@@ -1409,9 +1379,11 @@
     </div>
   </div>
 
-  <div class="install-hint">
+  <div class="install-hint" id="installHint">
     📲 TO USE THIS LIKE AN APP ON YOUR PHONE: open your browser menu and tap <b>"Add to Home Screen"</b> or <b>"Install App"</b>.
   </div>
+  <div class="install-hint" id="installWarnBanner" style="display:none; background:#FFF3E0; border:1.5px solid var(--orange); border-radius:12px; padding:10px 14px; margin:12px 10px 0; color:var(--ink); font-weight:600;"></div>
+  <button id="installNowBtn" type="button" style="display:none; margin:12px auto 0; padding:12px 22px; background:var(--green-deep); color:#fff; border:none; border-radius:12px; font-weight:700; font-size:14px;">📲 Install App</button>
 
 </div>
 
@@ -4381,6 +4353,61 @@ document.querySelectorAll('.navBtn').forEach((btn) => {
   if (saved === 'holiday' && !isAdmin) saved = 'home'; // holiday tab is admin-only
   if (saved === 'accounts' && !isAdmin) saved = 'home'; // accounts detail tab is admin-only
   showTab(saved || 'home');
+})();
+
+// ---------------- SMART INSTALL HELP ----------------
+// The generic "open your browser menu" hint doesn't work for everyone: iPhones use a Share
+// icon (not a menu), and links opened inside WhatsApp/Instagram/Facebook's built-in browser
+// often can't install PWAs at all — this is the #1 reason "install nahi ho raha" on many
+// phones. Detect the situation and show the right instructions, or a real Install button
+// where the browser supports it.
+(function () {
+  const ua = navigator.userAgent || '';
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const hintEl = document.getElementById('installHint');
+  const warnEl = document.getElementById('installWarnBanner');
+  const installBtn = document.getElementById('installNowBtn');
+  if (isStandalone) {
+    // Already installed and running as an app — no need to show any install hint.
+    if (hintEl) hintEl.style.display = 'none';
+    return;
+  }
+  const isIOS = /iPhone|iPad|iPod/.test(ua);
+  const isInAppBrowser = /(WhatsApp|FBAN|FBAV|Instagram|Line\/|MicroMessenger)/i.test(ua);
+
+  if (isInAppBrowser) {
+    // WhatsApp / Instagram / Facebook's built-in browser cannot install PWAs — this is almost
+    // always why "install nahi ho raha". The fix is opening the link in the real browser.
+    if (warnEl) {
+      warnEl.style.display = 'block';
+      warnEl.innerHTML = '⚠️ Ye link abhi WhatsApp/Instagram ke andar ke browser mein khula hai — isme "Install" kaam nahi karta. Upar-right corner mein <b>⋮ (3 dots)</b> dabakar <b>"Open in Chrome"</b> ya <b>"Open in browser"</b> chunein, phir wahan se install karein.';
+    }
+    if (hintEl) hintEl.style.display = 'none';
+  } else if (isIOS) {
+    if (hintEl) hintEl.innerHTML = '📲 iPhone par app jaisa use karne ke liye: neeche/upar <b>Share button (□ jisme upar teer ho)</b> dabayein, phir <b>"Add to Home Screen"</b> chunein. (Ye sirf Safari mein kaam karta hai, Chrome mein nahi.)';
+  } else {
+    // Android: try to capture the native install prompt for a proper one-tap Install button.
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (installBtn) installBtn.style.display = 'block';
+      if (hintEl) hintEl.style.display = 'none';
+    });
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      });
+    }
+    window.addEventListener('appinstalled', () => {
+      if (installBtn) installBtn.style.display = 'none';
+      if (hintEl) hintEl.style.display = 'none';
+    });
+  }
 })();
 
 // Offline support: register service worker so the app works without internet after first load.
