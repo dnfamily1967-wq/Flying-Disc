@@ -1673,15 +1673,15 @@ function renderMatch() {
     return `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''} ${used ? 'usedChip' : ''}" data-bowler="${p}" ${used ? 'disabled' : ''}>${p}</button>`;
   }).join('');
 
-  // Batter chips: the team currently BATTING this innings. In "Solo" and "Pair — every 2 overs"
-  // modes, batters who've already had their turn stay visible but greyed out/un-tappable —
-  // nobody bats twice, but the name never disappears from the list.
+  // Batter chips: the team currently BATTING this innings. Anyone already retired — from a
+  // Solo/Pair rotation turn ending, OR simply given out in a normal (real fall-of-wicket) match
+  // — stays visible in the list but greyed out/un-tappable, so nobody already dismissed can
+  // accidentally be brought back to bat.
   const battingCandidates = currentBattingTeamPlayers();
-  const rotationMode = state.retirementRule === 'single1' || state.retirementRule === 'pair2';
   batterChipsEl.innerHTML = battingCandidates.length ? battingCandidates.map((p) => {
     const role = p === state.striker ? 'striker' : (p === state.nonStriker ? 'nonstriker' : '');
     const tag = p === state.striker ? '<span class="roleTag">🟢 STRIKER</span>' : (p === state.nonStriker ? '<span class="roleTag">🔴 NON-STRIKER</span>' : '');
-    const used = rotationMode && isRetiredBatter(p) && p !== state.striker && p !== state.nonStriker;
+    const used = isRetiredBatter(p) && p !== state.striker && p !== state.nonStriker;
     return `<button type="button" class="tapChip ${role} ${used ? 'usedChip' : ''}" data-batter="${p}" ${used ? 'disabled' : ''}>${p}${tag}</button>`;
   }).join('') : '<span style="color:var(--muted); font-size:12px;">No batters available</span>';
 
@@ -1835,8 +1835,11 @@ function recordBall(entry) {
       state.battingStats[state.striker].outs = (state.battingStats[state.striker].outs || 0) + 1;
       if (state.negOutSwapStrike) swapStrike();
     } else {
-      // No penalty configured — real fall of wicket: the batter who's out leaves the crease,
-      // non-striker takes strike. Who comes in next is picked by hand — tap a name below.
+      // No penalty configured — real fall of wicket: the batter who's out leaves the crease for
+      // good (marked retired so they can never be picked again this match), non-striker takes
+      // strike. Who comes in next is picked by hand — tap a name below.
+      if (!state.retiredBatters) state.retiredBatters = [];
+      if (!state.retiredBatters.includes(state.striker)) state.retiredBatters.push(state.striker);
       state.striker = state.nonStriker;
       state.nonStriker = null;
     }
