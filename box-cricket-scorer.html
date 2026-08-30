@@ -53,7 +53,9 @@
   body.onMatch .scoreboard { padding: 10px 12px; margin-bottom: 5px; border-radius: 14px; }
   body.onMatch .scoreboard .teamsHeaderRowIn { margin-bottom: 3px; }
   body.onMatch .sbOver { font-size: 9.5px; margin-bottom: 2px; }
-  body.onMatch .sbScore { font-size: clamp(26px, 8vw, 34px); }
+  body.onMatch .sbScoreBig { font-size: clamp(22px, 8vw, 30px); }
+  body.onMatch .sbScoreColName { font-size: 10px; }
+  body.onMatch .sbScoreColSub { font-size: 9px; }
   body.onMatch .sbSub { font-size: 10px; margin-top: 2px; }
   body.onMatch .sbMeta { margin-top: 7px; padding-top: 7px; }
   body.onMatch #matchScaleWrap .panel { padding: 10px 8px; margin-bottom: 5px; }
@@ -384,6 +386,40 @@
     line-height: 1;
   }
   .sbScore .wkt { color: #a01f1f; }
+  /* ---- Two-column score split: Team A on the left, Team B on the right, each in the same
+         space the single combined score used to take — bigger and bolder, not smaller. ---- */
+  .sbScoreSplit { display: flex; align-items: stretch; margin: 2px 0; }
+  .sbScoreCol { flex: 1 1 0; min-width: 0; }
+  .sbScoreDivider { width: 1px; background: rgba(58,42,4,0.25); margin: 4px 10px; }
+  .sbScoreColName {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(58,42,4,0.7);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sbScoreCol.isBatting .sbScoreColName { color: #3A2A04; }
+  .sbScoreBig {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(26px, 9vw, 40px);
+    font-weight: 800;
+    color: #3A2A04;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+    line-height: 1;
+  }
+  .sbScoreBig .wkt { color: #a01f1f; }
+  .sbScoreCol:not(.isBatting) .sbScoreBig { opacity: 0.55; }
+  .sbScoreColSub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    font-weight: 800;
+    color: rgba(58,42,4,0.65);
+    margin-top: 2px;
+  }
   .sbSub {
     font-family: 'Share Tech Mono', monospace;
     color: rgba(58,42,4,0.75);
@@ -537,6 +573,8 @@
   .finalHero { text-align: center; padding: 10px 0 4px; }
   .finalHero .trophy { font-size: 44px; }
   .finalHero .big { font-family: 'Share Tech Mono', monospace; font-size: 40px; color: var(--led); font-weight: 800; margin: 4px 0; }
+  .finalScoreSplit { display: flex; justify-content: center; gap: 24px; margin: 4px 0; }
+  .finalScoreCol { text-align: center; }
   .finalHero .cap { color: var(--muted); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
 
   /* ---- Auto team logo badge (initials on a deterministic color) ---- */
@@ -761,9 +799,20 @@
 
     <div class="scoreboard">
       <div class="teamsHeaderRow teamsHeaderRowIn" id="matchTeamsHeaderRow"></div>
-      <div class="sbOver" id="sbOverLabel">OVER 1 OF 8</div>
-      <div class="sbScore"><span id="sbRuns">0</span>/<span class="wkt" id="sbWkts">0</span></div>
-      <div class="sbSub" id="sbOverProgress">0.0 OVERS</div>
+      <div class="sbOver" id="sbOverLabel">OVER 1 OF 8 · 0.0 OVERS BOWLED</div>
+      <div class="sbScoreSplit">
+        <div class="sbScoreCol" id="sbScoreColA">
+          <div class="sbScoreColName" id="sbTeamAName">Team A</div>
+          <div class="sbScoreBig"><span id="sbRunsA">0</span>/<span class="wkt" id="sbWktsA">0</span></div>
+          <div class="sbScoreColSub" id="sbTeamASub">Yet to bat</div>
+        </div>
+        <div class="sbScoreDivider"></div>
+        <div class="sbScoreCol" id="sbScoreColB">
+          <div class="sbScoreColName" id="sbTeamBName">Team B</div>
+          <div class="sbScoreBig"><span id="sbRunsB">0</span>/<span class="wkt" id="sbWktsB">0</span></div>
+          <div class="sbScoreColSub" id="sbTeamBSub">Yet to bat</div>
+        </div>
+      </div>
       <div class="sbMeta">
         <div class="sbMetaCol">
           <div class="lbl">Bowling</div>
@@ -841,8 +890,17 @@
       <div class="finalHero">
         <div class="trophy">🏆</div>
         <div class="teamsHeaderRow" id="finalTeamsHeaderRow" style="margin-bottom:2px;"></div>
-        <div class="cap">Final Score</div>
-        <div class="big" id="finalScore">0/0</div>
+        <div class="cap" id="finalResultLine">Match Result</div>
+        <div class="finalScoreSplit">
+          <div class="finalScoreCol">
+            <div class="cap" id="finalTeamBLabel">Team B</div>
+            <div class="big" id="finalScoreB" style="font-size:28px;">0/0</div>
+          </div>
+          <div class="finalScoreCol">
+            <div class="cap" id="finalTeamALabel">Team A</div>
+            <div class="big" id="finalScoreA" style="font-size:28px;">0/0</div>
+          </div>
+        </div>
         <div class="cap" id="finalOvers">0.0 overs</div>
       </div>
     </div>
@@ -1427,6 +1485,8 @@ startMatchBtn.addEventListener('click', () => {
   state.thisOverBalls = [];
   state.totalRuns = 0;
   state.totalWkts = 0;
+  state.firstInningsRuns = undefined;
+  state.firstInningsWkts = undefined;
   state.battingStats = {};
   state.retiredBatters = []; // reset each new match — nobody's had a turn yet
   state.bowlingStats = {};
@@ -1544,12 +1604,50 @@ function renderTeamsHeaderRow(containerId, bowlingIsTeam1) {
 function renderMatch() {
   const oIdx = state.currentOverIdx;
   const teamsHeaderInnings1Len = innings1OversCount();
-  renderTeamsHeaderRow('matchTeamsHeaderRow', oIdx < teamsHeaderInnings1Len);
-  document.getElementById('sbOverLabel').textContent = `OVER ${oIdx + 1} OF ${totalOvers()}`;
-  document.getElementById('sbRuns').textContent = state.totalRuns;
-  document.getElementById('sbWkts').textContent = state.totalWkts;
-  const oversDisplay = (oIdx) + '.' + state.legalBallsThisOver;
-  document.getElementById('sbOverProgress').textContent = `${oversDisplay} OVERS BOWLED`;
+  const isInnings1 = oIdx < teamsHeaderInnings1Len; // true while Team A is bowling (Team B batting)
+  renderTeamsHeaderRow('matchTeamsHeaderRow', isInnings1);
+
+  // "OVER X OF Y" now shows progress through THIS innings specifically (not a combined count
+  // spanning both teams), since that's what's actually meaningful to read mid-over.
+  const localOverForLabel = localInningsOverIdx(oIdx);
+  const thisInningsOvers = isInnings1 ? innings1OversCount() : innings2OversCount();
+  const oversDisplay = localOverForLabel + '.' + state.legalBallsThisOver;
+  document.getElementById('sbOverLabel').textContent = `OVER ${localOverForLabel + 1} OF ${thisInningsOvers} · ${oversDisplay} OVERS BOWLED`;
+
+  // Two separate scoreboards, Team A on the left and Team B on the right — whichever side is
+  // CURRENTLY batting shows their live, updating score; the other side shows either "Yet to
+  // bat" (still to come) or their completed first-innings score (once it's Team A/B's turn to
+  // chase). state.totalRuns/totalWkts always track whichever innings is live right now.
+  const team1Name = state.team1Name || 'Team A';
+  const team2Name = state.team2Name || 'Team B';
+  document.getElementById('sbTeamAName').textContent = team1Name;
+  document.getElementById('sbTeamBName').textContent = team2Name;
+  const colA = document.getElementById('sbScoreColA');
+  const colB = document.getElementById('sbScoreColB');
+  if (isInnings1) {
+    // Team A bowling, Team B batting live. Team A hasn't batted yet.
+    colA.classList.remove('isBatting');
+    colB.classList.add('isBatting');
+    document.getElementById('sbRunsA').textContent = '—';
+    document.getElementById('sbWktsA').textContent = '—';
+    document.getElementById('sbTeamASub').textContent = 'Yet to bat';
+    document.getElementById('sbRunsB').textContent = state.totalRuns;
+    document.getElementById('sbWktsB').textContent = state.totalWkts;
+    document.getElementById('sbTeamBSub').textContent = 'Batting';
+  } else {
+    // Team B's innings is done (frozen) — Team A is now batting live, chasing.
+    colB.classList.remove('isBatting');
+    colA.classList.add('isBatting');
+    const target = (state.firstInningsRuns !== undefined ? state.firstInningsRuns : 0) + 1;
+    document.getElementById('sbRunsB').textContent = state.firstInningsRuns !== undefined ? state.firstInningsRuns : 0;
+    document.getElementById('sbWktsB').textContent = state.firstInningsWkts !== undefined ? state.firstInningsWkts : 0;
+    document.getElementById('sbTeamBSub').textContent = 'Final';
+    document.getElementById('sbRunsA').textContent = state.totalRuns;
+    document.getElementById('sbWktsA').textContent = state.totalWkts;
+    const need = target - state.totalRuns;
+    document.getElementById('sbTeamASub').textContent = need > 0 ? `Need ${need} to win` : 'Target reached!';
+  }
+
   document.getElementById('sbBowlerName').textContent = state.currentBowler || '—';
   document.getElementById('sbBatterName').textContent = state.striker || '—';
   document.getElementById('sbBowlerFigures').textContent = `${currentOverRunsConceded()} runs · ${currentOverWkts()} wkt`;
@@ -1755,6 +1853,15 @@ function finishOver() {
     return;
   }
   state.currentOverIdx += 1;
+  // The moment we cross from Team A's overs into Team B's overs, the first innings is over —
+  // freeze its score (as the target for whoever's chasing) and start the second innings' score
+  // completely fresh from 0/0, since it's a separate scoreboard now.
+  if (state.currentOverIdx === innings1OversCount() && state.firstInningsRuns === undefined) {
+    state.firstInningsRuns = state.totalRuns;
+    state.firstInningsWkts = state.totalWkts;
+    state.totalRuns = 0;
+    state.totalWkts = 0;
+  }
   // Only the bowler needs picking fresh each over — a new bowler always has to be tapped by
   // hand. The batsmen don't get cleared just because the over ended: in real cricket the same
   // two batters carry on facing the next over, only the bowler changes. They're only cleared
@@ -1882,6 +1989,8 @@ function currentMatchRecord() {
     team2Name: state.team2Name || 'Team B',
     totalRuns: state.totalRuns,
     totalWkts: state.totalWkts,
+    firstInningsRuns: state.firstInningsRuns !== undefined ? state.firstInningsRuns : 0,
+    firstInningsWkts: state.firstInningsWkts !== undefined ? state.firstInningsWkts : 0,
     oversBowled: state.oversLog.length,
     totalOvers: totalOvers(),
     battingStats: state.battingStats,
@@ -1922,8 +2031,29 @@ function goToFinal() {
 function renderFinal() {
   const oversBowled = state.oversLog.length;
   renderTeamsHeaderRow('finalTeamsHeaderRow');
-  document.getElementById('finalScore').textContent = `${state.totalRuns}/${state.totalWkts}`;
-  document.getElementById('finalOvers').textContent = `${oversBowled} overs`;
+  // Team B always bats first (Team A bowls first per the fixed bowling order), Team A chases.
+  const teamAName = state.team1Name || 'Team A';
+  const teamBName = state.team2Name || 'Team B';
+  const bRuns = state.firstInningsRuns !== undefined ? state.firstInningsRuns : 0;
+  const bWkts = state.firstInningsWkts !== undefined ? state.firstInningsWkts : 0;
+  const aRuns = state.totalRuns || 0;
+  const aWkts = state.totalWkts || 0;
+  document.getElementById('finalTeamBLabel').textContent = teamBName;
+  document.getElementById('finalTeamALabel').textContent = teamAName;
+  document.getElementById('finalScoreB').textContent = `${bRuns}/${bWkts}`;
+  document.getElementById('finalScoreA').textContent = `${aRuns}/${aWkts}`;
+  document.getElementById('finalOvers').textContent = `${oversBowled} overs bowled`;
+
+  const resultEl = document.getElementById('finalResultLine');
+  if (aRuns > bRuns) {
+    const teamSize = (state.team1Players && state.team1Players.length) || 10;
+    const wktsRemaining = Math.max(teamSize - aWkts, 0);
+    resultEl.textContent = `${teamAName} won by ${wktsRemaining} wicket${wktsRemaining === 1 ? '' : 's'}`;
+  } else if (bRuns > aRuns) {
+    resultEl.textContent = `${teamBName} won by ${bRuns - aRuns} run${(bRuns - aRuns) === 1 ? '' : 's'}`;
+  } else {
+    resultEl.textContent = 'Match tied';
+  }
 
   const battingRows = Object.keys(state.battingStats).map((name) => ({ name, runs: state.battingStats[name].runs })).sort((a, b) => b.runs - a.runs);
   const bowlingRows = state.oversLog.map((o) => ({ name: o.bowler, runs: o.runsConceded, wkts: o.wkts })).sort((a, b) => b.wkts - a.wkts || a.runs - b.runs);
@@ -1973,7 +2103,7 @@ function historyRowHTML(rec) {
     <div class="historyRow">
       <div class="historyRowMain">
         <div class="historyRowTeams">${teamLogoHTML(rec.team1Name, 20)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600;">vs</span> ${teamLogoHTML(rec.team2Name, 20)} ${rec.team2Name}</div>
-        <div class="historyRowScore">${rec.totalRuns}/${rec.totalWkts} <span class="historyRowOvers">(${rec.oversBowled}/${rec.totalOvers} ov)</span></div>
+        <div class="historyRowScore">${rec.team2Name} ${rec.firstInningsRuns || 0}/${rec.firstInningsWkts || 0} <span class="historyRowOvers">·</span> ${rec.team1Name} ${rec.totalRuns}/${rec.totalWkts} <span class="historyRowOvers">(${rec.oversBowled}/${rec.totalOvers} ov)</span></div>
         <div class="historyRowDate">${dateStr}</div>
       </div>
       <div class="historyRowActions">
@@ -2028,7 +2158,7 @@ function buildExportHTML(rec) {
       <div class="exTitle">🏏 Box Cricket — Match Scorecard</div>
       <div class="exTeams">${teamLogoHTML(rec.team1Name, 26)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600; font-size:12px;">vs</span> ${teamLogoHTML(rec.team2Name, 26)} ${rec.team2Name}</div>
       <div class="exDate">${dateStr}</div>
-      <div class="exScore">${rec.totalRuns}/${rec.totalWkts}</div>
+      <div class="exScore">${rec.team2Name} ${rec.firstInningsRuns || 0}/${rec.firstInningsWkts || 0} &nbsp;·&nbsp; ${rec.team1Name} ${rec.totalRuns}/${rec.totalWkts}</div>
       <div class="exOvers">${rec.oversBowled} / ${rec.totalOvers} overs</div>
       <h3>Batting</h3>
       <table><thead><tr><th>Batter</th><th class="num">Runs</th></tr></thead>
