@@ -654,6 +654,23 @@
     letter-spacing: 0.3px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.35);
   }
+  /* Uploadable logo badges in team setup — small camera icon pinned to the corner so it's
+     obvious the badge is tappable, whether it currently shows initials or an uploaded photo. */
+  #team1LogoBadge::after, #team2LogoBadge::after {
+    content: '📷';
+    position: absolute;
+    bottom: -3px;
+    right: -3px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1.5px solid var(--line);
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   .teamNameRow { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .teamNameRow .teamNameInput { margin-bottom: 0; flex: 1; }
 
@@ -805,18 +822,19 @@
         </div>
         <div class="teamBox team1">
           <div class="teamNameRow">
-            <span class="teamLogoBadge" id="team1LogoBadge" style="width:34px;height:34px;font-size:14px;"></span>
+            <span class="teamLogoBadge" id="team1LogoBadge" style="width:34px;height:34px;font-size:14px;position:relative;cursor:pointer;" title="Tap to upload a team logo"></span>
             <input type="text" class="teamNameInput" id="team1NameInput" placeholder="Team A" maxlength="18">
           </div>
           <div class="teamPlayerList" id="team1Chips"></div>
         </div>
         <div class="teamBox team2">
           <div class="teamNameRow">
-            <span class="teamLogoBadge" id="team2LogoBadge" style="width:34px;height:34px;font-size:14px;"></span>
+            <span class="teamLogoBadge" id="team2LogoBadge" style="width:34px;height:34px;font-size:14px;position:relative;cursor:pointer;" title="Tap to upload a team logo"></span>
             <input type="text" class="teamNameInput" id="team2NameInput" placeholder="Team B" maxlength="18">
           </div>
           <div class="teamPlayerList" id="team2Chips"></div>
         </div>
+        <input type="file" id="teamLogoInput" accept="image/*" style="display:none;">
       </div>
     </div>
 
@@ -1362,8 +1380,11 @@ function teamColor(name) {
   const hue = hash % 360;
   return `hsl(${hue}, 62%, 42%)`;
 }
-function teamLogoHTML(name, size) {
+function teamLogoHTML(name, size, logoUrl) {
   size = size || 28;
+  if (logoUrl) {
+    return `<span class="teamLogoBadge" style="width:${size}px;height:${size}px;padding:0;overflow:hidden;"><img src="${logoUrl}" style="width:100%;height:100%;object-fit:cover;display:block;"></span>`;
+  }
   return `<span class="teamLogoBadge" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.4)}px;background:${teamColor(name)};">${teamInitials(name)}</span>`;
 }
 
@@ -1375,7 +1396,7 @@ function loadTeams() {
     const raw = localStorage.getItem(TEAMS_KEY);
     if (raw) { teamsState = JSON.parse(raw); return; }
   } catch (e) {}
-  teamsState = { name1: 'Team A', name2: 'Team B', team1: [], team2: [] };
+  teamsState = { name1: 'Team A', name2: 'Team B', team1: [], team2: [], logo1: '', logo2: '' };
 }
 function saveTeams() {
   try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teamsState)); } catch (e) {}
@@ -1390,13 +1411,50 @@ const team2ChipsEl = document.getElementById('team2Chips');
 const team1LogoBadge = document.getElementById('team1LogoBadge');
 const team2LogoBadge = document.getElementById('team2LogoBadge');
 
-function updateTeamLogoBadge(badgeEl, name) {
-  if (!badgeEl) return;
-  badgeEl.textContent = teamInitials(name);
-  badgeEl.style.background = teamColor(name);
+function compressImageToDataURL(file, maxSize, callback) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height) { if (width > maxSize) { height = Math.round(height * maxSize / width); width = maxSize; } }
+      else { if (height > maxSize) { width = Math.round(width * maxSize / height); height = maxSize; } }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      callback(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
-team1NameInput.addEventListener('input', () => updateTeamLogoBadge(team1LogoBadge, team1NameInput.value));
-team2NameInput.addEventListener('input', () => updateTeamLogoBadge(team2LogoBadge, team2NameInput.value));
+function updateTeamLogoBadge(badgeEl, name, logoUrl) {
+  if (!badgeEl) return;
+  if (logoUrl) {
+    badgeEl.innerHTML = `<img src="${logoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    badgeEl.style.background = 'none';
+  } else {
+    badgeEl.innerHTML = '';
+    badgeEl.textContent = teamInitials(name);
+    badgeEl.style.background = teamColor(name);
+  }
+}
+let pendingLogoTeam = null; // 1 or 2 — which team's logo is being picked
+const teamLogoInput = document.getElementById('teamLogoInput');
+team1LogoBadge.addEventListener('click', () => { pendingLogoTeam = 1; teamLogoInput.click(); });
+team2LogoBadge.addEventListener('click', () => { pendingLogoTeam = 2; teamLogoInput.click(); });
+teamLogoInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file || !pendingLogoTeam) return;
+  compressImageToDataURL(file, 160, (dataUrl) => {
+    if (pendingLogoTeam === 1) teamsState.logo1 = dataUrl; else teamsState.logo2 = dataUrl;
+    saveTeams();
+    renderTeams();
+  });
+});
+team1NameInput.addEventListener('input', () => updateTeamLogoBadge(team1LogoBadge, team1NameInput.value, teamsState.logo1));
+team2NameInput.addEventListener('input', () => updateTeamLogoBadge(team2LogoBadge, team2NameInput.value, teamsState.logo2));
 
 document.getElementById('makeTwoTeamsBtn').addEventListener('click', () => {
   const present = roster.names.filter((n) => !roster.absent.includes(n));
@@ -1431,8 +1489,8 @@ function renderTeams() {
   twoTeamsBlock.classList.remove('hidden');
   team1NameInput.value = teamsState.name1;
   team2NameInput.value = teamsState.name2;
-  updateTeamLogoBadge(team1LogoBadge, teamsState.name1);
-  updateTeamLogoBadge(team2LogoBadge, teamsState.name2);
+  updateTeamLogoBadge(team1LogoBadge, teamsState.name1, teamsState.logo1);
+  updateTeamLogoBadge(team2LogoBadge, teamsState.name2, teamsState.logo2);
   team1ChipsEl.innerHTML = teamsState.team1.map((name, i) => `
     <div class="teamPlayerRow">
       <span class="teamPlayerNum">${i + 1}.</span>
@@ -1589,6 +1647,8 @@ startMatchBtn.addEventListener('click', () => {
   state.team2Name = bTeamBowlsFirst ? teamsState.name1 : teamsState.name2;
   state.team1Players = (bTeamBowlsFirst ? teamsState.team2 : teamsState.team1).slice();
   state.team2Players = (bTeamBowlsFirst ? teamsState.team1 : teamsState.team2).slice();
+  state.team1Logo = (bTeamBowlsFirst ? teamsState.logo2 : teamsState.logo1) || '';
+  state.team2Logo = (bTeamBowlsFirst ? teamsState.logo1 : teamsState.logo2) || '';
   state.screen = 'match';
   // "Overs" is PER INNINGS — each side gets this many overs to bowl (capped at how many
   // players that side actually has, since every bowler only gets one over). The match only
@@ -1722,9 +1782,9 @@ function renderTeamsHeaderRow(containerId, bowlingIsTeam1) {
   const side1Active = bowlingIsTeam1 === undefined ? true : !bowlingIsTeam1; // team1 bats when team2 is bowling
   const side2Active = bowlingIsTeam1 === undefined ? true : bowlingIsTeam1;
   el.innerHTML = `
-    <span class="teamsHeaderSide ${side1Active ? 'active' : ''}">${teamLogoHTML(name1)} ${name1}</span>
+    <span class="teamsHeaderSide ${side1Active ? 'active' : ''}">${teamLogoHTML(name1, undefined, state.team1Logo)} ${name1}</span>
     <span class="teamsHeaderVs">VS</span>
-    <span class="teamsHeaderSide ${side2Active ? 'active' : ''}">${teamLogoHTML(name2)} ${name2}</span>
+    <span class="teamsHeaderSide ${side2Active ? 'active' : ''}">${teamLogoHTML(name2, undefined, state.team2Logo)} ${name2}</span>
   `;
 }
 
@@ -2125,6 +2185,8 @@ function currentMatchRecord() {
     team2Name: state.team2Name || 'Team B',
     team1Players: state.team1Players || [],
     team2Players: state.team2Players || [],
+    team1Logo: state.team1Logo || '',
+    team2Logo: state.team2Logo || '',
     totalRuns: state.totalRuns,
     totalWkts: state.totalWkts,
     firstInningsRuns: state.firstInningsRuns !== undefined ? state.firstInningsRuns : 0,
@@ -2240,7 +2302,7 @@ function historyRowHTML(rec) {
   return `
     <div class="historyRow">
       <div class="historyRowMain">
-        <div class="historyRowTeams">${teamLogoHTML(rec.team1Name, 20)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600;">vs</span> ${teamLogoHTML(rec.team2Name, 20)} ${rec.team2Name}</div>
+        <div class="historyRowTeams">${teamLogoHTML(rec.team1Name, 20, rec.team1Logo)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600;">vs</span> ${teamLogoHTML(rec.team2Name, 20, rec.team2Logo)} ${rec.team2Name}</div>
         <div class="historyRowScore">${rec.team2Name} ${rec.firstInningsRuns || 0}/${rec.firstInningsWkts || 0} <span class="historyRowOvers">·</span> ${rec.team1Name} ${rec.totalRuns}/${rec.totalWkts} <span class="historyRowOvers">(${rec.oversBowled}/${rec.totalOvers} ov)</span></div>
         <div class="historyRowDate">${dateStr}</div>
       </div>
@@ -2308,9 +2370,9 @@ function buildExportHTML(rec) {
     resultText = '🤝 Match tied';
   }
 
-  const teamBlock = (name, logoSeed, runs, wkts, sub, battingPlayers, bowlingPlayers, side) => `
+  const teamBlock = (name, logoUrl, runs, wkts, sub, battingPlayers, bowlingPlayers, side) => `
     <div class="exTeamCol ${side}">
-      <div class="exTeamHead">${teamLogoHTML(logoSeed, 34)}<div class="exTeamHeadText"><div class="exTeamName">${name}</div><div class="exTeamSub">${sub}</div></div></div>
+      <div class="exTeamHead">${teamLogoHTML(name, 34, logoUrl)}<div class="exTeamHeadText"><div class="exTeamName">${name}</div><div class="exTeamSub">${sub}</div></div></div>
       <div class="exTeamScore">${runs}<span class="exWkt">/${wkts}</span></div>
       <div class="exSectionLabel">Batting</div>
       <table><tbody>${battingRowsForTeam(battingPlayers).map((r) => `<tr><td>${r.name}</td><td class="num">${r.runs}</td></tr>`).join('') || '<tr><td colspan="2" class="exEmpty">No batters</td></tr>'}</tbody></table>
@@ -2324,8 +2386,8 @@ function buildExportHTML(rec) {
       <div class="exDate">${dateStr}</div>
       <div class="exResultBanner">${resultText}</div>
       <div class="exTeamsRow">
-        ${teamBlock(rec.team2Name, rec.team2Name, bRuns, bWkts, '1st Innings', team2Players, team1Players, 'left')}
-        ${teamBlock(rec.team1Name, rec.team1Name, aRuns, aWkts, '2nd Innings (chase)', team1Players, team2Players, 'right')}
+        ${teamBlock(rec.team2Name, rec.team2Logo, bRuns, bWkts, '1st Innings', team2Players, team1Players, 'left')}
+        ${teamBlock(rec.team1Name, rec.team1Logo, aRuns, aWkts, '2nd Innings (chase)', team1Players, team2Players, 'right')}
       </div>
       <div class="exOvers">${rec.oversBowled} / ${rec.totalOvers} overs bowled</div>
       <div class="exFoot">GENERATED BY BOX CRICKET SCORER</div>
