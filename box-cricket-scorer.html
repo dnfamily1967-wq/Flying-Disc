@@ -12,26 +12,59 @@
     --pitch: #16a34a;
     --pitch-deep: #0d7a3a;
     --ball: #d32f2f;
-    --amber: #f5a623;
-    --bg: #0b1220;
-    --panel: #121b2e;
-    --panel-2: #182541;
-    --line: #24304a;
-    --led: #7CFF9E;
-    --led-dim: #2f5a3d;
-    --ink: #EAF2EC;
-    --muted: #8B9BB4;
+    --amber: #e8890c;
+    --bg: #EAF4FB;
+    --panel: #FFFFFF;
+    --panel-2: #F0F8FF;
+    --line: #CFE3F5;
+    --led: #189b52;
+    --led-dim: #5a9b7a;
+    --ink: #142E45;
+    --muted: #5B7A93;
+    /* Watercolor-style, distinct pastel palettes so bowler vs batter chips are unmistakable at a
+       glance, and every player card looks colorful rather than monochrome dark. */
+    --bowl-bg: #DCEEFB;
+    --bowl-border: #4F9FDB;
+    --bowl-text: #145A8A;
+    --bat-bg: #F4E9FB;
+    --bat-border: #A671C9;
+    --bat-text: #6B2E93;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     margin: 0;
-    background: radial-gradient(120% 100% at 50% 0%, #142238 0%, var(--bg) 55%);
+    background: radial-gradient(120% 100% at 50% 0%, #F7FBFE 0%, var(--bg) 55%);
     color: var(--ink);
     font-family: 'Rajdhani', sans-serif;
     min-height: 100vh;
     padding-bottom: 40px;
   }
   .wrap { max-width: 480px; margin: 0 auto; padding: 14px 12px 10px; }
+
+  /* ---- Over-complete alert toast ---- */
+  #overToastWrap {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    width: calc(100% - 28px);
+    max-width: 452px;
+  }
+  .overToast {
+    background: linear-gradient(135deg, var(--amber), #b5670a);
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-weight: 800;
+    font-size: 14px;
+    text-align: center;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    animation: overToastIn 0.25s ease-out;
+  }
+  .overToast.fadeOut { animation: overToastOut 0.35s ease-in forwards; }
+  @keyframes overToastIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes overToastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
 
   /* ---- Header ---- */
   .hdr { text-align: center; margin-bottom: 12px; }
@@ -44,9 +77,10 @@
   }
   .hdr h1 {
     font-size: 21px;
-    font-weight: 700;
+    font-weight: 800;
     margin: 3px 0 0;
     letter-spacing: 0.5px;
+    color: var(--ink);
   }
   .hdr h1 span { color: var(--ball); }
 
@@ -57,6 +91,7 @@
     border-radius: 14px;
     padding: 13px;
     margin-bottom: 10px;
+    box-shadow: 0 2px 10px rgba(20,46,69,0.06);
   }
   .panel h2 {
     font-size: 11.5px;
@@ -206,10 +241,9 @@
     background: none;
     border: none;
     color: var(--led);
-    font-weight: 700;
+    font-weight: 800;
     font-size: 15px;
     letter-spacing: 0.3px;
-    text-shadow: 0 0 8px rgba(124,255,158,0.2);
     text-align: left;
     flex: 1;
     padding: 8px 0;
@@ -350,16 +384,16 @@
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-family: 'Share Tech Mono', monospace;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 10.5px;
     background: var(--panel-2);
     border: 1.5px solid var(--line);
     flex-shrink: 0;
   }
-  .ballChip.four { background: rgba(245,166,35,0.18); border-color: var(--amber); color: var(--amber); }
-  .ballChip.six { background: rgba(124,255,158,0.18); border-color: var(--led); color: var(--led); }
-  .ballChip.out { background: rgba(211,47,47,0.2); border-color: var(--ball); color: #ff8a80; }
-  .ballChip.extra { background: rgba(245,166,35,0.1); border-color: var(--amber); color: var(--amber); font-size: 9px; }
+  .ballChip.four { background: rgba(232,137,12,0.14); border-color: var(--amber); color: #8a5306; }
+  .ballChip.six { background: rgba(24,155,82,0.14); border-color: var(--led); color: #0e6a38; }
+  .ballChip.out { background: rgba(211,47,47,0.14); border-color: var(--ball); color: #a01f1f; }
+  .ballChip.extra { background: rgba(232,137,12,0.1); border-color: var(--amber); color: #8a5306; font-size: 9px; }
   .ballChip.dot { color: var(--muted); }
 
   /* ---- Setup screen's out-penalty / wide-ball settings row ---- */
@@ -395,12 +429,27 @@
     padding: 7px 12px;
     font-family: 'Rajdhani', sans-serif;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
   }
   .tapChip:active { transform: scale(0.95); }
-  .tapChip.bowlerActive { background: rgba(245,166,35,0.16); border-color: var(--amber); color: var(--amber); }
-  .tapChip.striker { background: rgba(124,255,158,0.18); border-color: var(--led); color: var(--led); }
-  .tapChip.nonstriker { background: rgba(211,47,47,0.18); border-color: var(--ball); color: #ff8a80; }
+  /* Bowler list = soft watercolor blue, batter list = soft watercolor purple — the two are
+     instantly distinguishable at a glance, even before anything's selected. */
+  #bowlerChips .tapChip { background: var(--bowl-bg); border-color: var(--bowl-border); color: var(--bowl-text); }
+  #batterChips .tapChip { background: var(--bat-bg); border-color: var(--bat-border); color: var(--bat-text); }
+  #bowlerChips .tapChip.bowlerActive { background: #F5C518; border-color: #C99A0A; color: #3a2c00; }
+  #batterChips .tapChip.striker { background: #16a34a; border-color: #0d7a3a; color: #fff; }
+  #batterChips .tapChip.nonstriker { background: #d32f2f; border-color: #a01f1f; color: #fff; }
+  #batterChips .tapChip.striker .roleTag, #batterChips .tapChip.nonstriker .roleTag { color: #fff; opacity: 0.9; }
+  /* Already-used bowler/batter — stays visible in the list (not removed) but greyed out and
+     un-tappable, so the whole roster is always visible at a glance. */
+  #bowlerChips .tapChip.usedChip, #batterChips .tapChip.usedChip {
+    background: #EEF2F5;
+    border-color: #D7E0E8;
+    color: #A9B4BE;
+    text-decoration: line-through;
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
   .tapChip .roleTag { font-size: 8.5px; letter-spacing: 0.5px; display: block; opacity: 0.85; margin-top: 1px; }
 
   /* ---- Scoring pad ---- */
@@ -418,7 +467,7 @@
     padding: 13px 0;
     font-family: 'Share Tech Mono', monospace;
     font-size: 19px;
-    font-weight: 700;
+    font-weight: 800;
   }
   .padBtn:active { transform: scale(0.94); }
   .padBtn.run4 { border-color: var(--amber); color: var(--amber); }
@@ -437,7 +486,7 @@
   table.stats th { color: var(--muted); font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; }
   table.stats td.num { text-align: right; font-family: 'Share Tech Mono', monospace; font-weight: 700; }
   table.stats tr:last-child td { border-bottom: none; }
-  .rowName { font-weight: 700; }
+  .rowName { font-weight: 800; }
   .rowSub { color: var(--muted); font-size: 11px; }
 
   .overBadge {
@@ -451,11 +500,11 @@
     margin-right: 4px;
     margin-bottom: 4px;
   }
-  .overBadge.done { color: var(--led); border-color: var(--led-dim); }
+  .overBadge.done { color: #A9B4BE; border-color: #D7E0E8; background: #F1F5F8; text-decoration: line-through; opacity: 0.75; }
 
   .finalHero { text-align: center; padding: 10px 0 4px; }
   .finalHero .trophy { font-size: 44px; }
-  .finalHero .big { font-family: 'Share Tech Mono', monospace; font-size: 40px; color: var(--led); font-weight: 700; text-shadow: 0 0 16px rgba(124,255,158,0.5); margin: 4px 0; }
+  .finalHero .big { font-family: 'Share Tech Mono', monospace; font-size: 40px; color: var(--led); font-weight: 800; margin: 4px 0; }
   .finalHero .cap { color: var(--muted); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
 
   /* ---- Auto team logo badge (initials on a deterministic color) ---- */
@@ -543,6 +592,7 @@
 </style>
 </head>
 <body>
+<div id="overToastWrap"></div>
 <div class="wrap">
 
   <div class="hdr">
@@ -632,11 +682,11 @@
         </div>
       </div>
       <div class="matchupRow" style="margin-top:12px;">
-        <div class="matchupCol">
-          <label>On Negative Out</label>
+        <div class="matchupCol" id="negOutSwapCol">
+          <label>Strike Rotation</label>
           <select id="negOutSwapInput">
-            <option value="1" selected>Strike swaps</option>
-            <option value="0">Striker stays</option>
+            <option value="1" selected>Rotates (runs &amp; out)</option>
+            <option value="0">Stays with striker</option>
           </select>
         </div>
         <div class="matchupCol">
@@ -644,10 +694,11 @@
           <select id="retirementRuleInput">
             <option value="none" selected>None</option>
             <option value="pair2">Pair — every 2 overs</option>
-            <option value="single1">Single — every over</option>
+            <option value="single1">Solo — 1 batter/over</option>
           </select>
         </div>
       </div>
+      <div class="setupHint" id="negOutSwapHint" style="margin-top:6px;"></div>
       <div class="setupHint" id="retirementHint" style="margin-top:8px;"></div>
     </div>
 
@@ -739,7 +790,8 @@
       </table>
     </div>
 
-    <button class="btn-ghost" id="endMatchBtn" style="width:100%;">🏁 End Match Now</button>
+    <button class="btn-ghost" id="endMatchBtn" style="width:100%; margin-bottom:8px;">🏁 End Match Now</button>
+    <button class="btn-ghost" id="newMatchBtnMatch" style="width:100%; color:var(--ball); border-color:var(--ball);">🔄 Discard &amp; Start New Match</button>
   </div>
 
   <!-- ================= FINAL SCREEN ================= -->
@@ -1166,7 +1218,7 @@ function combinedTeamPlayers() {
 const RETIREMENT_HINTS = {
   none: 'Batters stay in until out (or the match ends) — no automatic swaps.',
   pair2: 'The current pair retires together every 2 overs and the next fresh pair comes in.',
-  single1: 'One fresh batter rotates onto strike every single over.'
+  single1: 'Solo batting: one batter faces the whole over alone (strike never swaps) — best with negative Out Penalty. A fresh batter takes the next over, same as bowlers.'
 };
 
 function renderSetup() {
@@ -1175,6 +1227,18 @@ function renderSetup() {
   outPenaltyInput.value = String(state.outPenalty);
   extraRunsInput.value = String(state.extraRuns);
   negOutSwapInput.value = state.negOutSwapStrike ? '1' : '0';
+  // "Strike Rotation" choice only makes sense when playing with a negative out penalty — hide it
+  // entirely for the normal (0-penalty, real fall-of-wicket) mode.
+  const negOutSwapColEl = document.getElementById('negOutSwapCol');
+  if (negOutSwapColEl) negOutSwapColEl.style.display = state.outPenalty < 0 ? '' : 'none';
+  const negOutSwapHintEl = document.getElementById('negOutSwapHint');
+  if (negOutSwapHintEl) {
+    negOutSwapHintEl.textContent = state.outPenalty < 0
+      ? (state.negOutSwapStrike
+        ? 'Strike rotates normally — odd runs (1/3/5) swap it, and it swaps on a negative out too.'
+        : 'The batter on strike stays there the whole over — runs (even odd ones) and getting out never move the strike to the other end.')
+      : '';
+  }
   retirementRuleInput.value = state.retirementRule || 'none';
   retirementHintEl.textContent = RETIREMENT_HINTS[state.retirementRule || 'none'];
   oversInput.value = String(state.overs || combined.length || '');
@@ -1184,9 +1248,9 @@ function renderSetup() {
   renderHistory();
 }
 
-outPenaltyInput.addEventListener('change', () => { state.outPenalty = Number(outPenaltyInput.value); saveState(); });
+outPenaltyInput.addEventListener('change', () => { state.outPenalty = Number(outPenaltyInput.value); saveState(); renderSetup(); });
 extraRunsInput.addEventListener('change', () => { state.extraRuns = Number(extraRunsInput.value); saveState(); });
-negOutSwapInput.addEventListener('change', () => { state.negOutSwapStrike = negOutSwapInput.value === '1'; saveState(); });
+negOutSwapInput.addEventListener('change', () => { state.negOutSwapStrike = negOutSwapInput.value === '1'; saveState(); renderSetup(); });
 retirementRuleInput.addEventListener('change', () => {
   state.retirementRule = retirementRuleInput.value;
   saveState();
@@ -1218,7 +1282,7 @@ startMatchBtn.addEventListener('click', () => {
   state.bowlerOrder = [...state.team1Players, ...state.team2Players];
   state.currentOverIdx = 0;
   // Nothing is pre-picked — the team taps their own bowler and both batters by hand before
-  // scoring starts, every over.
+  // scoring starts, every over, including the very first one (even in Solo/Pair rotation modes).
   state.currentBowler = null;
   state.striker = null;
   state.nonStriker = null;
@@ -1228,10 +1292,14 @@ startMatchBtn.addEventListener('click', () => {
   state.totalRuns = 0;
   state.totalWkts = 0;
   state.battingStats = {};
+  state.retiredBatters = []; // reset each new match — nobody's had a turn yet
   state.bowlingStats = {};
   state.oversLog = []; // finished overs: [{bowler, runsConceded, wkts}]
   state.history = [];
   state.players.forEach((p) => { state.battingStats[p] = { runs: 0 }; state.bowlingStats[p] = { runsConceded: 0, wkts: 0 }; });
+  // The very first over's batter(s) are always picked by hand, same as the bowler — even in
+  // Solo/Pair rotation modes. Auto-pick only kicks in from the 2nd over onward (see finishOver),
+  // once there's an actual "previous turn" to rotate on from.
   saveState();
   render();
 });
@@ -1340,23 +1408,26 @@ function renderMatch() {
   const batterRuns = (state.striker && state.battingStats[state.striker] && state.battingStats[state.striker].runs) || 0;
   document.getElementById('sbBatterRuns').textContent = `${batterRuns} run${batterRuns === 1 ? '' : 's'}`;
 
-  // Bowler chips: only the CURRENT innings' bowling team, and only players who haven't bowled
-  // yet (plus the current bowler) — tap to switch. Which team is "up to bowl" is worked out from
-  // where we are in the (team-grouped) bowling order, not the whole combined roster.
+  // Bowler chips: the CURRENT innings' bowling team — everyone stays visible, but whoever has
+  // already bowled their over shows up disabled (greyed, un-tappable) instead of disappearing,
+  // so the full roster is always visible at a glance.
   const currentInningsTeam = currentBowlingTeamPlayers();
   const bowledAlready = new Set(state.oversLog.map((o) => o.bowler));
-  const bowlerOptions = currentInningsTeam.filter((p) => !bowledAlready.has(p) || p === state.currentBowler);
-  bowlerChipsEl.innerHTML = bowlerOptions.map((p) =>
-    `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''}" data-bowler="${p}">${p}</button>`
-  ).join('');
+  bowlerChipsEl.innerHTML = currentInningsTeam.map((p) => {
+    const used = bowledAlready.has(p) && p !== state.currentBowler;
+    return `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''} ${used ? 'usedChip' : ''}" data-bowler="${p}" ${used ? 'disabled' : ''}>${p}</button>`;
+  }).join('');
 
-  // Batter chips: the team currently BATTING this innings — always shown, whether or not a
-  // bowler has been tapped yet, so the scorer can pick bowler and batters in any order.
-  const batterOptions = currentBattingTeamPlayers();
-  batterChipsEl.innerHTML = batterOptions.length ? batterOptions.map((p) => {
+  // Batter chips: the team currently BATTING this innings. In "Solo" and "Pair — every 2 overs"
+  // modes, batters who've already had their turn stay visible but greyed out/un-tappable —
+  // nobody bats twice, but the name never disappears from the list.
+  const battingCandidates = currentBattingTeamPlayers();
+  const rotationMode = state.retirementRule === 'single1' || state.retirementRule === 'pair2';
+  batterChipsEl.innerHTML = battingCandidates.length ? battingCandidates.map((p) => {
     const role = p === state.striker ? 'striker' : (p === state.nonStriker ? 'nonstriker' : '');
     const tag = p === state.striker ? '<span class="roleTag">🟢 STRIKER</span>' : (p === state.nonStriker ? '<span class="roleTag">🔴 NON-STRIKER</span>' : '');
-    return `<button type="button" class="tapChip ${role}" data-batter="${p}">${p}${tag}</button>`;
+    const used = rotationMode && isRetiredBatter(p) && p !== state.striker && p !== state.nonStriker;
+    return `<button type="button" class="tapChip ${role} ${used ? 'usedChip' : ''}" data-batter="${p}" ${used ? 'disabled' : ''}>${p}${tag}</button>`;
   }).join('') : '<span style="color:var(--muted); font-size:12px;">No batters available</span>';
 
   const bowlerLabel = document.getElementById('bowlerLabel');
@@ -1380,11 +1451,11 @@ function renderMatch() {
   const inn1Label = innings1Len ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Innings 1 — ${state.team1Name || 'Team A'} bowling</div>` : '';
   overBadgesEl.innerHTML = inn1Label + state.bowlerOrder.map((p, i) => {
     const done = state.oversLog.find((o) => o.bowler === p);
-    const cur = i === oIdx;
+    const cur = p === state.currentBowler; // whoever is ACTUALLY selected right now, not just "next in the fixed order" — bowler picks are manual, so this can be any player on the bowling side
     const divider = (i === innings1Len && i > 0)
       ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin:8px 0 4px;">Innings 2 — ${state.team2Name || 'Team B'} bowling</div>`
       : '';
-    return `${divider}<span class="overBadge ${done ? 'done' : ''}" style="${cur ? 'border-color:var(--amber);' : ''}">${p}${done ? ' ✓' : cur ? ' •' : ''}</span>`;
+    return `${divider}<span class="overBadge ${done ? 'done' : ''}" style="${cur ? 'border-color:var(--amber); color:var(--amber);' : ''}">${p}${done ? ' ✓' : cur ? ' •' : ''}</span>`;
   }).join('');
 
   const battingRows = Object.keys(state.battingStats)
@@ -1402,6 +1473,20 @@ function renderMatch() {
   bowlingStatsBody.innerHTML = bowlingRows.length
     ? bowlingRows.map((r) => `<tr><td class="rowName">${r.name}</td><td class="num">${r.runs}</td><td class="num">${r.wkts}</td></tr>`).join('')
     : `<tr><td colspan="3" style="color:var(--muted);">No overs bowled yet</td></tr>`;
+}
+
+function showOverCompleteAlert() {
+  const wrap = document.getElementById('overToastWrap');
+  if (!wrap) return;
+  const el = document.createElement('div');
+  el.className = 'overToast';
+  el.textContent = '🏏 Over complete! Select the next bowler.';
+  wrap.appendChild(el);
+  if ('vibrate' in navigator) { try { navigator.vibrate(40); } catch (e) {} }
+  setTimeout(() => {
+    el.classList.add('fadeOut');
+    setTimeout(() => el.remove(), 350);
+  }, 2600);
 }
 
 function currentOverRunsConceded() {
@@ -1441,6 +1526,14 @@ batterChipsEl.addEventListener('click', (e) => {
 });
 
 function swapStrike() {
+  // In "Solo — 1 batter/over" mode one batter faces the whole over alone — strike never swaps,
+  // regardless of runs taken or the out setting, since there's no real second batter to swap to.
+  if (state.retirementRule === 'single1') return;
+  // Negative-penalty match with "Striker stays" chosen: that batter holds the strike no matter
+  // what happens — runs taken (even odd ones) or getting out — not just on the out event. This
+  // is what "Striker stays" is understood to mean for the whole over, not only at the moment of
+  // a wicket.
+  if (state.outPenalty < 0 && !state.negOutSwapStrike) return;
   const tmp = state.striker;
   state.striker = state.nonStriker;
   state.nonStriker = tmp;
@@ -1513,13 +1606,83 @@ function finishOver() {
     return;
   }
   state.currentOverIdx += 1;
-  // Fully manual — nothing pre-picked for the new over. The team taps their next bowler and
-  // both batters by hand.
+  // Only the bowler needs picking fresh each over — a new bowler always has to be tapped by
+  // hand. The batsmen don't get cleared just because the over ended: in real cricket the same
+  // two batters carry on facing the next over, only the bowler changes. They're only cleared
+  // if the innings itself just switched (new team now batting).
   state.currentBowler = null;
-  state.striker = null;
-  state.nonStriker = null;
+  if (state.retirementRule === 'single1') {
+    // Solo-batting format: a fresh batter takes over every single over (like the bowlers do) —
+    // picked automatically in order, no tapping needed.
+    retireCurrentBatters();
+    const solo = getSoloBatterForOver();
+    state.striker = solo;
+    state.nonStriker = solo;
+  } else if (state.retirementRule === 'pair2') {
+    // A pair bats together for 2 overs, then retires as a pair and a completely fresh pair
+    // comes in — same idea as solo, just two at a time instead of one.
+    const local = localInningsOverIdx(state.currentOverIdx);
+    if (local % 2 === 0) {
+      retireCurrentBatters();
+      const pair = getFreshPairForOver();
+      state.striker = pair[0];
+      state.nonStriker = pair[1];
+    }
+    // else: second over of this pair's 2-over stint — striker/non-striker carry on unchanged.
+  } else {
+    const stillBatting = currentBattingTeamPlayers();
+    if (!stillBatting.includes(state.striker) || !stillBatting.includes(state.nonStriker)) {
+      state.striker = null;
+      state.nonStriker = null;
+    }
+  }
   state.legalBallsThisOver = 0;
   state.thisOverBalls = [];
+  showOverCompleteAlert();
+}
+
+// Marks the current striker/non-striker as "retired" for this innings — used right before a
+// Solo/Pair auto-rotation picks the next batter(s), so both players are excluded from then on
+// even if the non-striker never actually got to face a ball (e.g. strike never swapped to them
+// under "Stays with striker"). Just checking .faced isn't enough for that reason.
+function retireCurrentBatters() {
+  if (!state.retiredBatters) state.retiredBatters = [];
+  [state.striker, state.nonStriker].forEach((p) => {
+    if (p && !state.retiredBatters.includes(p)) state.retiredBatters.push(p);
+  });
+}
+function isRetiredBatter(p) {
+  return !!(state.retiredBatters && state.retiredBatters.includes(p));
+}
+
+// The one batter facing this whole over, for "Solo — 1 batter/over" matches — picks the next
+// player from the batting side who hasn't had their over yet, in roster order, mirroring how
+// every bowler gets exactly one over too. Falls back to cycling if everyone's already batted
+// (more overs than players on that side).
+function getSoloBatterForOver() {
+  const candidates = currentBattingTeamPlayers();
+  if (!candidates.length) return null;
+  const fresh = candidates.find((p) => !isRetiredBatter(p));
+  if (fresh) return fresh;
+  const local = localInningsOverIdx(state.currentOverIdx);
+  return candidates[local % candidates.length];
+}
+
+// The fresh pair coming in for "Pair — every 2 overs" matches — the next two players from the
+// batting side who haven't had their turn yet, so nobody bats twice. Falls back to cycling if
+// everyone's already had a turn (more overs than pairs available on that side).
+function getFreshPairForOver() {
+  const candidates = currentBattingTeamPlayers();
+  if (!candidates.length) return [null, null];
+  const freshOnes = candidates.filter((p) => !isRetiredBatter(p));
+  if (freshOnes.length >= 2) return [freshOnes[0], freshOnes[1]];
+  if (freshOnes.length === 1) return [freshOnes[0], candidates.find((p) => p !== freshOnes[0]) || freshOnes[0]];
+  const local = localInningsOverIdx(state.currentOverIdx);
+  const idx = Math.floor(local / 2) * 2;
+  const a = candidates[idx % candidates.length];
+  let b = candidates[(idx + 1) % candidates.length];
+  if (b === a) b = candidates[0] === a ? (candidates[1] || a) : candidates[0];
+  return [a, b];
 }
 
 document.querySelectorAll('.padGrid .padBtn[data-run]').forEach((btn) => {
@@ -1639,6 +1802,16 @@ document.getElementById('newMatchBtn').addEventListener('click', () => {
   if (!confirm('Start a brand new match? This clears the current scoreboard and the old team split (roster names and skill levels stay saved).')) return;
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(TEAMS_KEY); // the old 2-team split shouldn't carry over into a new match
+  loadState();
+  loadTeams();
+  render();
+});
+// Same reset, reachable straight from an in-progress match — no need to finish/end it first
+// just to get back to a clean slate (this is what "New Match" on the final screen also does).
+document.getElementById('newMatchBtnMatch').addEventListener('click', () => {
+  if (!confirm('Discard this match completely and start a brand new one? Everything scored so far will be lost (roster names and skill levels stay saved).')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(TEAMS_KEY);
   loadState();
   loadTeams();
   render();
