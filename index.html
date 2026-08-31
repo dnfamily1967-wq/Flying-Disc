@@ -1172,6 +1172,17 @@
     <div class="saved-msg" id="savedAttnMsg">Today's attendance saved ✅</div>
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
   </div>
+
+  <div class="card accent-orange" id="noticePosterAdminCard" style="display:none;">
+    <h2>📢 NOTICE POSTER</h2>
+    <div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Upload a poster/notice image — everyone sees it as a pop-up the next time they log in.</div>
+    <div id="noticePosterPreviewWrap" style="display:none; margin-bottom:10px;">
+      <img id="noticePosterPreview" style="width:100%; border-radius:10px; display:block;">
+    </div>
+    <button class="secondary" id="noticePosterUploadBtn">🖼️ Upload New Poster</button>
+    <button class="secondary" id="noticePosterRemoveBtn" style="display:none; margin-top:8px; border-color:var(--red); color:#8C2E2E;">🗑️ Remove Poster</button>
+    <input type="file" id="noticePosterInput" accept="image/*" style="display:none;">
+  </div>
   </div>
 
   <div class="tabPanel" id="tab-teams" style="display:none;">
@@ -1417,6 +1428,15 @@
   <button id="loginGateBtn" style="width:auto; margin-top:18px; padding:14px 32px; background:var(--orange); border:none; border-radius:13px; color:#fff; font-weight:700; font-size:15px; box-shadow:0 4px 14px rgba(255,107,53,0.28); cursor:pointer;">👋 LOG IN</button>
 </div>
 
+<div class="modalOverlay" id="noticePosterOverlay" style="z-index:9999;">
+  <div style="background:#fff; border-radius:16px; padding:0; max-width:420px; width:92%; margin:auto; overflow:hidden;">
+    <img id="noticePosterModalImg" style="width:100%; display:block;">
+    <div style="padding:16px;">
+      <button id="noticePosterCloseBtn" style="width:100%; padding:12px 0; background:var(--green-deep); color:#fff; border:none; border-radius:11px; font-weight:700; font-size:14px;">Got it 👍</button>
+    </div>
+  </div>
+</div>
+
 <div class="modalOverlay" id="loginOverlay">
   <div class="modalCard">
     <div id="loginStep1">
@@ -1642,6 +1662,8 @@ function applyAdminVisibility() {
     adminBtn.textContent = 'LOGIN';
   }
   document.getElementById('addPlayerBlock').style.display = isFullAdmin ? '' : 'none';
+  const noticePosterAdminCardEl = document.getElementById('noticePosterAdminCard');
+  if (noticePosterAdminCardEl) noticePosterAdminCardEl.style.display = isFullAdmin ? '' : 'none';
   document.getElementById('saveBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('bulkHolidayCard').style.display = isAdmin ? '' : 'none';
   const matchResultsCardEl = document.getElementById('matchResultsCard');
@@ -1802,6 +1824,7 @@ function applyLoginGate() {
   if (currentUser) {
     gate.style.display = 'none';
     content.style.display = '';
+    maybeShowNoticePoster();
   } else {
     gate.style.display = 'flex';
     content.style.display = 'none';
@@ -2596,6 +2619,72 @@ db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
   console.warn('Offline persistence not enabled:', err.code || err.message);
 });
 const playersDocRef = db.collection('disc_team').doc('players');
+// A notice/announcement poster the admin can upload — shown as a pop-up to everyone the next
+// time they log in (once per notice, not every single login).
+const noticePosterDocRef = db.collection('disc_team').doc('noticePoster');
+let noticePoster = null;
+noticePosterDocRef.onSnapshot((doc) => {
+  noticePoster = doc.exists ? doc.data() : null;
+  const previewWrap = document.getElementById('noticePosterPreviewWrap');
+  const preview = document.getElementById('noticePosterPreview');
+  const removeBtn = document.getElementById('noticePosterRemoveBtn');
+  if (noticePoster && noticePoster.imageUrl) {
+    if (preview) preview.src = noticePoster.imageUrl;
+    if (previewWrap) previewWrap.style.display = 'block';
+    if (removeBtn) removeBtn.style.display = 'block';
+  } else {
+    if (previewWrap) previewWrap.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+});
+// Shown once per notice (tracked by its updatedAt "version"), the next time this device logs
+// in — not on every single page load, so it doesn't nag once someone's already seen it.
+function maybeShowNoticePoster() {
+  if (!noticePoster || !noticePoster.imageUrl) return;
+  const seenVersion = localStorage.getItem('notice-poster-seen');
+  if (seenVersion === String(noticePoster.updatedAt)) return;
+  document.getElementById('noticePosterModalImg').src = noticePoster.imageUrl;
+  document.getElementById('noticePosterOverlay').classList.add('show');
+}
+document.getElementById('noticePosterCloseBtn').addEventListener('click', () => {
+  document.getElementById('noticePosterOverlay').classList.remove('show');
+  if (noticePoster) localStorage.setItem('notice-poster-seen', String(noticePoster.updatedAt));
+});
+document.getElementById('noticePosterUploadBtn').addEventListener('click', () => {
+  document.getElementById('noticePosterInput').click();
+});
+document.getElementById('noticePosterInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  // Posters keep their full shape (not cropped to a square like avatars) — just downscaled so
+  // the file stays small.
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 900;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      noticePosterDocRef.set({ imageUrl: dataUrl, updatedAt: Date.now() }).catch((err) => alert('Upload failed: ' + err.message));
+    };
+    img.onerror = () => alert('Could not read that image — please try a different photo.');
+    img.src = evt.target.result;
+  };
+  reader.onerror = () => alert('Could not read that file.');
+  reader.readAsDataURL(file);
+});
+document.getElementById('noticePosterRemoveBtn').addEventListener('click', () => {
+  if (!confirm('Remove the notice poster? Nobody will see a pop-up until a new one is uploaded.')) return;
+  noticePosterDocRef.delete().catch((err) => alert('Remove failed: ' + err.message));
+});
 // Today's team split + in-progress match-winner ticks — saved the moment teams are made (not
 // only once "Save Match Results" is pressed), and live-synced, so closing the app or someone
 // else opening it doesn't lose the teams or show a blank Teams tab.
