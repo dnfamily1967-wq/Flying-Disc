@@ -3526,38 +3526,6 @@ document.getElementById('saveMatchResultsBtn').addEventListener('click', () => {
   });
 });
 
-// Live-restores today's team split (and match-winner ticks) on load, and keeps every phone's
-// Teams tab in sync in real time — so the split shows up the moment ANY phone makes it, and
-// stays put even if this phone closes/reopens before results are saved. A leftover draft from
-// a previous day is ignored (stale), not shown.
-draftTeamsDocRef.onSnapshot((doc) => {
-  if (!doc.exists) return;
-  const data = doc.data();
-  if (!data || data.date !== todayStr()) return;
-  applyingRemoteTeamDraft = true;
-  lastTeamA = data.teamA || [];
-  lastTeamB = data.teamB || [];
-  matchResults = data.matchResults || [];
-  const ratingFor = (name) => {
-    const p = players.find((pl) => pl.name === name);
-    return p ? p.rating : '';
-  };
-  teamAEl.innerHTML = lastTeamA.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
-  teamBEl.innerHTML = lastTeamB.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
-  teamsOut.style.display = 'flex';
-  reshuffleBtn.style.display = 'block';
-  statusEl.style.display = 'block';
-  statusEl.textContent = lastTeamA.length === lastTeamB.length
-    ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
-    : lastTeamA.length + ' vs ' + lastTeamB.length + ' (odd count, 1 extra)';
-  const matchResultsDateEl = document.getElementById('matchResultsDate');
-  if (matchResultsDateEl) matchResultsDateEl.textContent = todayStr();
-  const matchResultsCard = document.getElementById('matchResultsCard');
-  if (matchResultsCard) matchResultsCard.style.display = isAdmin ? '' : 'none';
-  renderMatchRows();
-  applyingRemoteTeamDraft = false;
-});
-
 const matchHistoryDateInput = document.getElementById('matchHistoryDateInput');
 if (matchHistoryDateInput) matchHistoryDateInput.value = todayStr();
 
@@ -3618,6 +3586,40 @@ const playersDocRef = db.collection('disc_team').doc('players');
 // only once "Save Match Results" is pressed), and live-synced, so closing the app or someone
 // else opening it doesn't lose the teams or show a blank Teams tab.
 const draftTeamsDocRef = db.collection('disc_team').doc('todaysTeamDraft');
+
+// Live-restores today's team split (and match-winner ticks) on load, and keeps every phone's
+// Teams tab in sync in real time — so the split shows up the moment ANY phone makes it, and
+// stays put even if this phone closes/reopens before results are saved. A leftover draft from
+// a previous day is ignored (stale), not shown.
+// (Placed here, right after draftTeamsDocRef/db are actually ready — not up near makeTeams(),
+// which runs too early in the script and would throw a "before initialization" error.)
+draftTeamsDocRef.onSnapshot((doc) => {
+  if (!doc.exists) return;
+  const data = doc.data();
+  if (!data || data.date !== todayStr()) return;
+  applyingRemoteTeamDraft = true;
+  lastTeamA = data.teamA || [];
+  lastTeamB = data.teamB || [];
+  matchResults = data.matchResults || [];
+  const ratingFor = (name) => {
+    const p = players.find((pl) => pl.name === name);
+    return p ? p.rating : '';
+  };
+  teamAEl.innerHTML = lastTeamA.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
+  teamBEl.innerHTML = lastTeamB.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
+  teamsOut.style.display = 'flex';
+  reshuffleBtn.style.display = 'block';
+  statusEl.style.display = 'block';
+  statusEl.textContent = lastTeamA.length === lastTeamB.length
+    ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
+    : lastTeamA.length + ' vs ' + lastTeamB.length + ' (odd count, 1 extra)';
+  const matchResultsDateEl = document.getElementById('matchResultsDate');
+  if (matchResultsDateEl) matchResultsDateEl.textContent = todayStr();
+  const matchResultsCard = document.getElementById('matchResultsCard');
+  if (matchResultsCard) matchResultsCard.style.display = isAdmin ? '' : 'none';
+  renderMatchRows();
+  applyingRemoteTeamDraft = false;
+});
 
 // ---- Login log: every login is recorded here so all admins can see who logged in and when.
 // (There's no push-notification server behind this static site, so this is an in-app log rather
