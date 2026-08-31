@@ -1178,6 +1178,7 @@
   <div class="card accent-green" id="resetCard">
     <button id="makeBtn">🏆 MAKE TEAMS</button>
     <button class="secondary" id="reshuffleBtn" style="display:none;">🔀 RESHUFFLE</button>
+    <button class="secondary" id="cancelTeamBtn" style="display:none; border-color:var(--red); color:#8C2E2E; margin-top:8px;">🗑️ CANCEL — MATCH DIDN'T HAPPEN</button>
     <div class="status" id="status" style="display:none;"></div>
   </div>
 
@@ -1895,6 +1896,7 @@ const teamAEl = document.getElementById('teamA');
 const teamBEl = document.getElementById('teamB');
 const statusEl = document.getElementById('status');
 const reshuffleBtn = document.getElementById('reshuffleBtn');
+const cancelTeamBtn = document.getElementById('cancelTeamBtn');
 
 let sortMode = 'name';
 let sortDir = 1; // 1 = ascending, -1 = descending
@@ -2416,6 +2418,7 @@ function makeTeams() {
     errEl.style.display = 'block';
     teamsOut.style.display = 'none';
     reshuffleBtn.style.display = 'none';
+    cancelTeamBtn.style.display = 'none';
     statusEl.style.display = 'none';
     return;
   }
@@ -2433,6 +2436,7 @@ function makeTeams() {
   teamBEl.innerHTML = teamB.map(p => `<li>${p.name} <span>(${p.rating})</span></li>`).join('');
   teamsOut.style.display = 'flex';
   reshuffleBtn.style.display = 'block';
+  cancelTeamBtn.style.display = 'block';
   statusEl.style.display = 'block';
   statusEl.textContent = teamA.length === teamB.length
     ? teamA.length + ' vs ' + teamB.length + ' — even ✅'
@@ -2496,6 +2500,20 @@ document.getElementById('addMatchBtn').addEventListener('click', () => {
   matchResults.push({ match: matchResults.length + 1, winner: null });
   renderMatchRows();
   pushTeamDraft();
+});
+
+document.getElementById('cancelTeamBtn').addEventListener('click', () => {
+  if (!confirm("Cancel today's teams? Use this if the match didn't happen — nothing gets saved to match history, and the split is cleared for everyone.")) return;
+  lastTeamA = [];
+  lastTeamB = [];
+  matchResults = [];
+  teamsOut.style.display = 'none';
+  reshuffleBtn.style.display = 'none';
+  cancelTeamBtn.style.display = 'none';
+  statusEl.style.display = 'none';
+  const matchResultsCard = document.getElementById('matchResultsCard');
+  if (matchResultsCard) matchResultsCard.style.display = 'none';
+  draftTeamsDocRef.delete().catch(() => {});
 });
 
 document.getElementById('saveMatchResultsBtn').addEventListener('click', () => {
@@ -2590,7 +2608,20 @@ const draftTeamsDocRef = db.collection('disc_team').doc('todaysTeamDraft');
 // (Placed here, right after draftTeamsDocRef/db are actually ready — not up near makeTeams(),
 // which runs too early in the script and would throw a "before initialization" error.)
 draftTeamsDocRef.onSnapshot((doc) => {
-  if (!doc.exists) return;
+  if (!doc.exists) {
+    // Draft was cleared (cancelled, or results just got saved) — reflect that everywhere too,
+    // not just on the phone that did it.
+    lastTeamA = [];
+    lastTeamB = [];
+    matchResults = [];
+    teamsOut.style.display = 'none';
+    reshuffleBtn.style.display = 'none';
+    cancelTeamBtn.style.display = 'none';
+    statusEl.style.display = 'none';
+    const matchResultsCardEl = document.getElementById('matchResultsCard');
+    if (matchResultsCardEl) matchResultsCardEl.style.display = 'none';
+    return;
+  }
   const data = doc.data();
   if (!data || data.date !== todayStr()) return;
   applyingRemoteTeamDraft = true;
@@ -2605,6 +2636,7 @@ draftTeamsDocRef.onSnapshot((doc) => {
   teamBEl.innerHTML = lastTeamB.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
   teamsOut.style.display = 'flex';
   reshuffleBtn.style.display = 'block';
+  cancelTeamBtn.style.display = 'block';
   statusEl.style.display = 'block';
   statusEl.textContent = lastTeamA.length === lastTeamB.length
     ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
