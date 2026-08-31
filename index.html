@@ -4582,16 +4582,18 @@ if ('serviceWorker' in navigator) {
 // version even after the auto-update check above (e.g. it was already open when the update landed).
 document.getElementById('refreshAppBtn').addEventListener('click', () => {
   if (!confirm('Clear the app\'s cached data and reload? Use this if you\'re seeing old/stale data.')) return;
-  const tasks = [];
+  // Kick off cache clearing in the background WITHOUT waiting for it — the reload (with a
+  // cache-busting URL) happens immediately so this feels instant, instead of a multi-second
+  // pause while service workers/caches get torn down first.
   if ('serviceWorker' in navigator) {
-    tasks.push(navigator.serviceWorker.getRegistrations().then((regs) => Promise.all(regs.map((r) => r.unregister()))));
+    navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => r.unregister())).catch(() => {});
   }
   if (window.caches && caches.keys) {
-    tasks.push(caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))));
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
   }
-  Promise.all(tasks).catch((err) => console.error('Cache clear error', err)).finally(() => {
-    window.location.reload();
-  });
+  const url = new URL(window.location.href);
+  url.searchParams.set('_r', Date.now());
+  window.location.href = url.toString();
 });
 
 
