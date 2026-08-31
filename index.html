@@ -1403,6 +1403,7 @@
   <button class="navBtn" data-tab="attendance"><span class="navIcon">🗓️</span><span class="navLabel">Attendance</span></button>
   <button class="navBtn" id="navAccountsBtn" data-tab="accounts" style="display:none;"><span class="navIcon">💰</span><span class="navLabel">Accounts</span></button>
   <button class="navBtn" id="navHolidayBtn" data-tab="holiday" style="display:none;"><span class="navIcon">🏖️</span><span class="navLabel">Holiday</span></button>
+  <button class="navBtn" id="navCricketBtn"><span class="navIcon">🏏</span><span class="navLabel">Cricket</span></button>
 </nav>
 </div>
 
@@ -4491,6 +4492,11 @@ function showTab(tab) {
 document.querySelectorAll('.navBtn').forEach((btn) => {
   if (!btn.dataset.tab) return;
   btn.addEventListener('click', () => showTab(btn.dataset.tab));
+});
+// Cricket is a separate app (box-cricket-scorer.html) living alongside this one — opens in a
+// new tab rather than switching an internal tab.
+document.getElementById('navCricketBtn').addEventListener('click', () => {
+  window.open('box-cricket-scorer.html', '_blank');
 });
 
 (function restoreTab() {
