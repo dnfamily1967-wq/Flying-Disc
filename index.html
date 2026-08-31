@@ -2447,7 +2447,6 @@ function makeTeams() {
   const matchSavedStatus = document.getElementById('matchSavedStatus');
   if (matchSavedStatus) matchSavedStatus.style.display = 'none';
   renderMatchRows();
-  pushTeamDraft();
 }
 
 document.getElementById('makeBtn').addEventListener('click', makeTeams);
@@ -2456,18 +2455,6 @@ reshuffleBtn.addEventListener('click', makeTeams);
 // ---- Match results: record who won each match today, saved date-wise ----
 let lastTeamA = [], lastTeamB = [];
 let matchResults = []; // [{ match: 1, winner: null | 'A' | 'B' | 'draw' }]
-let applyingRemoteTeamDraft = false; // true while rendering someone ELSE's draft, so we don't echo it straight back
-
-function pushTeamDraft() {
-  if (applyingRemoteTeamDraft) return;
-  draftTeamsDocRef.set({
-    date: todayStr(),
-    teamA: lastTeamA,
-    teamB: lastTeamB,
-    matchResults,
-    updatedAt: Date.now()
-  }).catch(() => {});
-}
 
 function renderMatchRows() {
   const el = document.getElementById('matchRows');
@@ -2488,13 +2475,11 @@ document.getElementById('matchRows').addEventListener('click', (e) => {
   const winner = btn.dataset.winner;
   matchResults[i].winner = (matchResults[i].winner === winner) ? null : winner;
   renderMatchRows();
-  pushTeamDraft();
 });
 
 document.getElementById('addMatchBtn').addEventListener('click', () => {
   matchResults.push({ match: matchResults.length + 1, winner: null });
   renderMatchRows();
-  pushTeamDraft();
 });
 
 document.getElementById('saveMatchResultsBtn').addEventListener('click', () => {
@@ -2512,45 +2497,10 @@ document.getElementById('saveMatchResultsBtn').addEventListener('click', () => {
     const statusEl2 = document.getElementById('matchSavedStatus');
     statusEl2.style.display = 'block';
     statusEl2.textContent = `Saved ✅ Team A ${winsA} — ${winsB} Team B`;
-    // Now that today's result is safely saved into history, the draft has done its job —
-    // clear it so it doesn't linger and reappear tomorrow before a new team split is made.
-    draftTeamsDocRef.delete().catch(() => {});
   }).catch((err) => {
     console.error('Save match results failed', err);
     alert('Save failed: ' + err.message);
   });
-});
-
-// Live-restores today's team split (and match-winner ticks) on load, and keeps every phone's
-// Teams tab in sync in real time — so the split shows up the moment ANY phone makes it, and
-// stays put even if this phone closes/reopens before results are saved. A leftover draft from
-// a previous day is ignored (stale), not shown.
-draftTeamsDocRef.onSnapshot((doc) => {
-  if (!doc.exists) return;
-  const data = doc.data();
-  if (!data || data.date !== todayStr()) return;
-  applyingRemoteTeamDraft = true;
-  lastTeamA = data.teamA || [];
-  lastTeamB = data.teamB || [];
-  matchResults = data.matchResults || [];
-  const ratingFor = (name) => {
-    const p = players.find((pl) => pl.name === name);
-    return p ? p.rating : '';
-  };
-  teamAEl.innerHTML = lastTeamA.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
-  teamBEl.innerHTML = lastTeamB.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
-  teamsOut.style.display = 'flex';
-  reshuffleBtn.style.display = 'block';
-  statusEl.style.display = 'block';
-  statusEl.textContent = lastTeamA.length === lastTeamB.length
-    ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
-    : lastTeamA.length + ' vs ' + lastTeamB.length + ' (odd count, 1 extra)';
-  const matchResultsDateEl = document.getElementById('matchResultsDate');
-  if (matchResultsDateEl) matchResultsDateEl.textContent = todayStr();
-  const matchResultsCard = document.getElementById('matchResultsCard');
-  if (matchResultsCard) matchResultsCard.style.display = isAdmin ? '' : 'none';
-  renderMatchRows();
-  applyingRemoteTeamDraft = false;
 });
 
 const matchHistoryDateInput = document.getElementById('matchHistoryDateInput');
@@ -2609,10 +2559,6 @@ db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
   console.warn('Offline persistence not enabled:', err.code || err.message);
 });
 const playersDocRef = db.collection('disc_team').doc('players');
-// Today's team split + in-progress match-winner ticks — saved the moment teams are made (not
-// only once "Save Match Results" is pressed), and live-synced, so closing the app or someone
-// else opening it doesn't lose the teams or show a blank Teams tab.
-const draftTeamsDocRef = db.collection('disc_team').doc('todaysTeamDraft');
 
 // ---- Login log: every login is recorded here so all admins can see who logged in and when.
 // (There's no push-notification server behind this static site, so this is an in-app log rather
