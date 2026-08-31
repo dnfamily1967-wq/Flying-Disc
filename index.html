@@ -16,13 +16,16 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="manifest" href="manifest.json">
 
-<!-- Firebase (cloud sync so data is shared across everyone's phones) -->
+<!-- Firebase (cloud sync so data is shared across everyone's phones) — this has to load right
+     away since login/players/passwords all depend on it. -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 
-<!-- SheetJS (reads the Excel accounts file the admin uploads) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- SheetJS (Excel reader) and html2canvas (JPEG export) are NOT loaded here anymore — both are
+     large libraries only needed for a couple of admin-only actions (uploading the accounts file,
+     exporting a summary/scorecard image). Loading them upfront was blocking/slowing down every
+     single page open, including the login screen, for everyone. They're now fetched on-demand
+     the first time they're actually needed — see ensureXLSX()/ensureHtml2Canvas() below. -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1087,6 +1090,7 @@
     .expList { font-size: 12px !important; }
     .expRow { break-inside: avoid; }
   }
+
 </style>
 </head>
 <body>
@@ -1525,6 +1529,39 @@
 </div>
 
 <script>
+// ---- Lazy-load heavy libraries on demand ----
+// xlsx (Excel reader) and html2canvas (image export) are big files only needed for a couple of
+// admin actions. Loading them only when actually used — instead of blocking every page open —
+// is the single biggest fix for the app feeling slow/stuck on open, especially on slow mobile
+// connections. Both helpers de-dupe: calling them again after a successful load resolves
+// immediately without re-fetching anything.
+const XLSX_SRC = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+const HTML2CANVAS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[src="' + src + '"]');
+    if (existing) {
+      if (existing.dataset.loaded === 'true') { resolve(); return; }
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', () => reject(new Error('Failed to load ' + src)));
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => { s.dataset.loaded = 'true'; resolve(); };
+    s.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
+}
+function ensureXLSX() {
+  if (typeof XLSX !== 'undefined') return Promise.resolve();
+  return loadScriptOnce(XLSX_SRC);
+}
+function ensureHtml2Canvas() {
+  if (typeof html2canvas !== 'undefined') return Promise.resolve();
+  return loadScriptOnce(HTML2CANVAS_SRC);
+}
+
 const DEFAULT_NAMES = [
   ['DEVENDRA', 2], ['DINESH', 5], ['DIPPU', 6], ['KAMLESH', 5],
   ['MAHAVIR', 2], ['NAVIN', 2], ['PAWAN', 2],
@@ -2410,6 +2447,7 @@ function makeTeams() {
   const matchSavedStatus = document.getElementById('matchSavedStatus');
   if (matchSavedStatus) matchSavedStatus.style.display = 'none';
   renderMatchRows();
+  pushTeamDraft();
 }
 
 document.getElementById('makeBtn').addEventListener('click', makeTeams);
@@ -2418,6 +2456,18 @@ reshuffleBtn.addEventListener('click', makeTeams);
 // ---- Match results: record who won each match today, saved date-wise ----
 let lastTeamA = [], lastTeamB = [];
 let matchResults = []; // [{ match: 1, winner: null | 'A' | 'B' | 'draw' }]
+let applyingRemoteTeamDraft = false; // true while rendering someone ELSE's draft, so we don't echo it straight back
+
+function pushTeamDraft() {
+  if (applyingRemoteTeamDraft) return;
+  draftTeamsDocRef.set({
+    date: todayStr(),
+    teamA: lastTeamA,
+    teamB: lastTeamB,
+    matchResults,
+    updatedAt: Date.now()
+  }).catch(() => {});
+}
 
 function renderMatchRows() {
   const el = document.getElementById('matchRows');
@@ -2438,11 +2488,13 @@ document.getElementById('matchRows').addEventListener('click', (e) => {
   const winner = btn.dataset.winner;
   matchResults[i].winner = (matchResults[i].winner === winner) ? null : winner;
   renderMatchRows();
+  pushTeamDraft();
 });
 
 document.getElementById('addMatchBtn').addEventListener('click', () => {
   matchResults.push({ match: matchResults.length + 1, winner: null });
   renderMatchRows();
+  pushTeamDraft();
 });
 
 document.getElementById('saveMatchResultsBtn').addEventListener('click', () => {
@@ -2460,10 +2512,45 @@ document.getElementById('saveMatchResultsBtn').addEventListener('click', () => {
     const statusEl2 = document.getElementById('matchSavedStatus');
     statusEl2.style.display = 'block';
     statusEl2.textContent = `Saved ✅ Team A ${winsA} — ${winsB} Team B`;
+    // Now that today's result is safely saved into history, the draft has done its job —
+    // clear it so it doesn't linger and reappear tomorrow before a new team split is made.
+    draftTeamsDocRef.delete().catch(() => {});
   }).catch((err) => {
     console.error('Save match results failed', err);
     alert('Save failed: ' + err.message);
   });
+});
+
+// Live-restores today's team split (and match-winner ticks) on load, and keeps every phone's
+// Teams tab in sync in real time — so the split shows up the moment ANY phone makes it, and
+// stays put even if this phone closes/reopens before results are saved. A leftover draft from
+// a previous day is ignored (stale), not shown.
+draftTeamsDocRef.onSnapshot((doc) => {
+  if (!doc.exists) return;
+  const data = doc.data();
+  if (!data || data.date !== todayStr()) return;
+  applyingRemoteTeamDraft = true;
+  lastTeamA = data.teamA || [];
+  lastTeamB = data.teamB || [];
+  matchResults = data.matchResults || [];
+  const ratingFor = (name) => {
+    const p = players.find((pl) => pl.name === name);
+    return p ? p.rating : '';
+  };
+  teamAEl.innerHTML = lastTeamA.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
+  teamBEl.innerHTML = lastTeamB.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
+  teamsOut.style.display = 'flex';
+  reshuffleBtn.style.display = 'block';
+  statusEl.style.display = 'block';
+  statusEl.textContent = lastTeamA.length === lastTeamB.length
+    ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
+    : lastTeamA.length + ' vs ' + lastTeamB.length + ' (odd count, 1 extra)';
+  const matchResultsDateEl = document.getElementById('matchResultsDate');
+  if (matchResultsDateEl) matchResultsDateEl.textContent = todayStr();
+  const matchResultsCard = document.getElementById('matchResultsCard');
+  if (matchResultsCard) matchResultsCard.style.display = isAdmin ? '' : 'none';
+  renderMatchRows();
+  applyingRemoteTeamDraft = false;
 });
 
 const matchHistoryDateInput = document.getElementById('matchHistoryDateInput');
@@ -2511,7 +2598,21 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+// Cache Firestore data on-device (IndexedDB) so a repeat visit — including login itself, which
+// waits on the players/passwords docs — can load instantly from cache instead of waiting on a
+// fresh network round-trip every single time. This is the main fix for login sometimes feeling
+// stuck/slow, especially on a weak mobile connection. synchronizeTabs lets it work correctly if
+// someone has the app open in more than one tab at once. Safe to ignore if it fails (older
+// in-app browsers like WhatsApp's sometimes don't support it) — the app just falls back to
+// network-only, same as before.
+db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+  console.warn('Offline persistence not enabled:', err.code || err.message);
+});
 const playersDocRef = db.collection('disc_team').doc('players');
+// Today's team split + in-progress match-winner ticks — saved the moment teams are made (not
+// only once "Save Match Results" is pressed), and live-synced, so closing the app or someone
+// else opening it doesn't lose the teams or show a blank Teams tab.
+const draftTeamsDocRef = db.collection('disc_team').doc('todaysTeamDraft');
 
 // ---- Login log: every login is recorded here so all admins can see who logged in and when.
 // (There's no push-notification server behind this static site, so this is an in-app log rather
@@ -4007,8 +4108,10 @@ document.getElementById('exportPreviewCloseBtn').addEventListener('click', () =>
 
 document.getElementById('exportPreviewDownloadBtn').addEventListener('click', async () => {
   if (typeof html2canvas === 'undefined') {
-    alert('Image generator isn\'t ready yet — please try again in a moment.');
-    return;
+    try { await ensureHtml2Canvas(); } catch (e) {
+      alert('Image generator needs an internet connection the first time — please check your connection and try again.');
+      return;
+    }
   }
   const btn = document.getElementById('exportPreviewDownloadBtn');
   const originalLabel = btn.textContent;
@@ -4297,10 +4400,20 @@ document.getElementById('expenseModalSaveBtn').addEventListener('click', () => {
     .catch((err) => { console.error('Save expense entry failed', err); alert('Save failed: ' + err.message); });
 });
 
-document.getElementById('accountsFileInput').addEventListener('change', (e) => {
+document.getElementById('accountsFileInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   accountsStatusEl.style.display = 'block';
+  accountsStatusEl.textContent = 'Loading reader…';
+  try {
+    await ensureXLSX();
+  } catch (err) {
+    console.error('XLSX load failed', err);
+    accountsStatusEl.style.display = 'none';
+    alert('Could not load the Excel reader — please check your internet connection and try again.');
+    e.target.value = '';
+    return;
+  }
   accountsStatusEl.textContent = 'Reading file…';
   const reader = new FileReader();
   reader.onload = (evt) => {
@@ -4483,6 +4596,7 @@ document.getElementById('refreshAppBtn').addEventListener('click', () => {
     window.location.reload();
   });
 });
+
 </script>
 </body>
 </html>
