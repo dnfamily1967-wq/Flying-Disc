@@ -2688,7 +2688,23 @@ noticePosterDocRef.onSnapshot((doc) => {
     if (previewWrap) previewWrap.style.display = 'none';
     if (removeBtn) removeBtn.style.display = 'none';
   }
+  updateAppBadge();
 });
+// Puts a small red dot/count badge on the app's home-screen icon (installed PWA) whenever there's
+// a notice the user hasn't seen yet on THIS device — but only while the app is actually running
+// somewhere (open tab or backgrounded PWA). A fully force-closed app can't be woken up to show
+// this without a real push-notification backend, which this static site doesn't have.
+function updateAppBadge() {
+  if (!('setAppBadge' in navigator)) return;
+  const hasUnseenNotice = noticePoster && noticePoster.imageUrl &&
+    localStorage.getItem('notice-poster-seen') !== String(noticePoster.updatedAt);
+  if (hasUnseenNotice) {
+    navigator.setAppBadge(1).catch(() => {});
+  } else if ('clearAppBadge' in navigator) {
+    navigator.clearAppBadge().catch(() => {});
+  }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) updateAppBadge(); });
 // Shown once per notice (tracked by its updatedAt "version"), the next time this device logs
 // in — not on every single page load, so it doesn't nag once someone's already seen it.
 function maybeShowNoticePoster() {
@@ -2701,6 +2717,7 @@ function maybeShowNoticePoster() {
 document.getElementById('noticePosterCloseBtn').addEventListener('click', () => {
   document.getElementById('noticePosterOverlay').classList.remove('show');
   if (noticePoster) localStorage.setItem('notice-poster-seen', String(noticePoster.updatedAt));
+  updateAppBadge();
 });
 document.getElementById('noticePosterUploadBtn').addEventListener('click', () => {
   document.getElementById('noticePosterInput').click();
