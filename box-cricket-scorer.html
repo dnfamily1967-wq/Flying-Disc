@@ -1469,29 +1469,33 @@ document.getElementById('makeTwoTeamsBtn').addEventListener('click', () => {
   renderSetup();
 });
 
-// Same idea as the Flying Disc app's team maker: sort everyone present by skill level (high to
-// low, shuffling players who tie so it's not always the same pairing), then go down the list
-// TWO AT A TIME — each pair of similarly-skilled players splits one to each side. That way rank
-// 1 & 2 are one-each, rank 3 & 4 are one-each, and so on, instead of a running-total balance
-// that can sometimes stack two high-skill players onto the same side early on.
+// Same idea as the Flying Disc app's team maker: group everyone present by their EXACT skill
+// number, then within each number split evenly one-to-each-side (shuffling who's picked first
+// so it's not always the same person/side). This guarantees two players with the same number
+// never both land on the same team — grouping by fixed list position instead of the actual
+// number could let that happen when a number's count didn't line up with the pairing boundary.
 function balanceTeamsBySkill(names) {
-  const withRating = shuffleArr(names).map((name) => ({ name, rating: roster.ratings[name] || 5 }));
-  withRating.sort((a, b) => b.rating - a.rating);
+  const withRating = names.map((name) => ({ name, rating: roster.ratings[name] || 5 }));
+  const byRating = {};
+  withRating.forEach((p) => { (byRating[p.rating] = byRating[p.rating] || []).push(p.name); });
+  const ratingsDesc = Object.keys(byRating).map(Number).sort((a, b) => b - a);
   const team1 = [], team2 = [];
-  for (let i = 0; i < withRating.length; i += 2) {
-    const a = withRating[i];
-    const b = withRating[i + 1];
-    // Which side gets the higher-ranked one of this pair alternates, so it's not always Team A
-    // that ends up with the stronger half of every pair.
-    const aFirst = (i / 2) % 2 === 0;
-    if (b) {
-      if (aFirst) { team1.push(a.name); team2.push(b.name); }
-      else { team1.push(b.name); team2.push(a.name); }
-    } else {
-      // Odd player left over at the end — goes to whichever side is currently smaller.
-      (team1.length <= team2.length ? team1 : team2).push(a.name);
+  let pairIdx = 0;
+  ratingsDesc.forEach((rating) => {
+    const group = shuffleArr(byRating[rating]);
+    for (let i = 0; i < group.length; i += 2) {
+      if (i + 1 < group.length) {
+        // Alternate which side gets picked first within each pair, so it's not always Team A
+        // that ends up with the "first" player of every tied group.
+        if (pairIdx % 2 === 0) { team1.push(group[i]); team2.push(group[i + 1]); }
+        else { team1.push(group[i + 1]); team2.push(group[i]); }
+        pairIdx++;
+      } else {
+        // Odd one left in this rating group — goes to whichever side is currently smaller.
+        (team1.length <= team2.length ? team1 : team2).push(group[i]);
+      }
     }
-  }
+  });
   return { team1, team2 };
 }
 
