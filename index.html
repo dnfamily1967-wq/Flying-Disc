@@ -752,8 +752,18 @@
     margin-top: 16px;
     box-shadow: 0 2px 10px rgba(30,30,20,0.05);
   }
-  .duesCard.hasDue { background: linear-gradient(135deg, #FDF1F1 0%, var(--red-soft) 100%); border-color: var(--red); }
-  .duesCard.allPaid { background: linear-gradient(135deg, #F1FBF4 0%, #E4F0E7 100%); border-color: var(--green-deep); }
+  .duesCard.hasDue {
+    background: linear-gradient(135deg, #FBDCDC 0%, #F3B8B8 100%);
+    border: 2px solid #B92D2D;
+    box-shadow: 0 4px 16px rgba(185,45,45,0.18), inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+  .duesCard.allPaid {
+    background: linear-gradient(135deg, #D7F0DD 0%, #B7E2C4 100%);
+    border: 2px solid #1D7A44;
+    box-shadow: 0 4px 16px rgba(29,122,68,0.18), inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+  .duesCard.hasDue h2 { color: #8C1F1F; }
+  .duesCard.allPaid h2 { color: #145C34; }
   .duesCard h2 {
     font-family: 'Outfit', sans-serif;
     font-size: 15px;
@@ -841,17 +851,24 @@
     padding-right: 5px;
     background: linear-gradient(135deg, #ffffff 0%, #E4F0E7 100%);
   }
+  /* Inside the (now darker, more premium) Dues card specifically, use a translucent "frosted
+     glass" row instead — the row backgrounds above are tuned for a plain white card and would
+     look washed out on the deeper red/green Dues card background. */
+  .duesCard .fineRow.fined, .duesCard .fineRow.rowPaidUp {
+    background: rgba(255,255,255,0.55);
+  }
   .fineName { width: 118px; flex-shrink: 0; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fineCounts { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; letter-spacing: -0.1px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fineCounts.paidUp { color: var(--green-deep); font-weight: 700; }
+  .fineCounts.paidUp { color: #145C34; font-weight: 800; }
   .fineCounts.dueRed {
-    color: #8C2E2E;
+    color: #fff;
     font-weight: 800;
     font-size: 14.5px;
     padding: 4px 9px;
     border-radius: 8px;
-    border: 1px solid rgba(209,69,69,0.35);
-    background: var(--red-soft);
+    border: 1px solid rgba(140,31,31,0.4);
+    background: linear-gradient(135deg, #C43A3A 0%, #9B2323 100%);
+    box-shadow: 0 1px 4px rgba(140,31,31,0.35);
     animation: bbNameBlink 1s step-start infinite;
   }
   @media (prefers-reduced-motion: reduce) {
