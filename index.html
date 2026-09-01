@@ -810,7 +810,20 @@
     border-bottom: 1px solid #F2EFE4;
   }
   .fineRow:last-child { border-bottom: none; }
-  .fineRow.fined { background: rgba(209,69,69,0.05); border-radius: 8px; padding-left: 5px; padding-right: 5px; }
+  .fineRow.fined {
+    border-radius: 8px;
+    padding-left: 5px;
+    padding-right: 5px;
+    background:
+      repeating-linear-gradient(135deg, rgba(209,69,69,0.10) 0px, rgba(209,69,69,0.10) 8px, rgba(209,69,69,0.03) 8px, rgba(209,69,69,0.03) 16px);
+  }
+  .fineRow.rowPaidUp {
+    border-radius: 8px;
+    padding-left: 5px;
+    padding-right: 5px;
+    background:
+      repeating-linear-gradient(135deg, rgba(34,139,87,0.10) 0px, rgba(34,139,87,0.10) 8px, rgba(34,139,87,0.03) 8px, rgba(34,139,87,0.03) 16px);
+  }
   .fineName { width: 118px; flex-shrink: 0; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fineCounts { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; letter-spacing: -0.1px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fineCounts.paidUp { color: var(--green-deep); font-weight: 700; }
@@ -3950,7 +3963,7 @@ function renderAccountsDues(contribution) {
     const paid = pending.length === 0;
     const amt = pending.length * MONTHLY_DUE_AMOUNT;
     const paidLabel = paid ? personPaidThroughLabel(contribution, p, curIdx) : monthLabel;
-    return `<div class="fineRow ${paid ? '' : 'fined'}">
+    return `<div class="fineRow ${paid ? 'rowPaidUp' : 'fined'}">
       <span class="fineName">${p.name}</span>
       <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
     </div>`;
@@ -4138,7 +4151,7 @@ function renderMyDuesAndBalance() {
   const amt = pending.length * MONTHLY_DUE_AMOUNT;
   const paidLabel = paid ? personPaidThroughLabel(contribution, me, curIdx) : monthLabel;
   myDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}`;
-  myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? '' : 'fined'}">
+  myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? 'rowPaidUp' : 'fined'}">
     <span class="fineName">${me.name}</span>
     <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
   </div>`;
