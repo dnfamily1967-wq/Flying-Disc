@@ -752,6 +752,8 @@
     margin-top: 16px;
     box-shadow: 0 2px 10px rgba(30,30,20,0.05);
   }
+  .duesCard.hasDue { background: linear-gradient(135deg, #FDF1F1 0%, var(--red-soft) 100%); border-color: var(--red); }
+  .duesCard.allPaid { background: linear-gradient(135deg, #F1FBF4 0%, #E4F0E7 100%); border-color: var(--green-deep); }
   .duesCard h2 {
     font-family: 'Outfit', sans-serif;
     font-size: 15px;
@@ -3987,6 +3989,8 @@ function renderAccountsDues(contribution) {
   const duePeople = contribution.people.filter((p) => pendingMonthsFor(contribution, p, curIdx).length > 0);
   const totalDue = duePeople.reduce((sum, p) => sum + pendingMonthsFor(contribution, p, curIdx).length * MONTHLY_DUE_AMOUNT, 0);
   accountsDuesCard.style.display = '';
+  accountsDuesCard.classList.toggle('hasDue', duePeople.length > 0);
+  accountsDuesCard.classList.toggle('allPaid', duePeople.length === 0);
   accountsDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}${duePeople.length ? ' (' + duePeople.length + ' pending · ₹' + totalDue + ')' : ' — all paid ✅'}`;
   accountsDuesResultEl.innerHTML = rows;
 }
@@ -4167,6 +4171,8 @@ function renderMyDuesAndBalance() {
   const amt = pending.length * MONTHLY_DUE_AMOUNT;
   const paidLabel = paid ? personPaidThroughLabel(contribution, me, curIdx) : monthLabel;
   myDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}`;
+  myDuesCard.classList.toggle('hasDue', !paid);
+  myDuesCard.classList.toggle('allPaid', paid);
   myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? 'rowPaidUp' : 'fined'}">
     <span class="fineName">${me.name}</span>
     <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
