@@ -823,6 +823,10 @@
     border: 1px solid rgba(209,69,69,0.35);
     background:
       repeating-linear-gradient(135deg, rgba(209,69,69,0.14) 0px, rgba(209,69,69,0.14) 7px, rgba(209,69,69,0.05) 7px, rgba(209,69,69,0.05) 14px);
+    animation: bbNameBlink 1s step-start infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fineCounts.dueRed { animation: none; }
   }
   .countNum {
     display: inline-flex;
