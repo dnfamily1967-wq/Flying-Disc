@@ -744,6 +744,23 @@
     box-shadow: 0 2px 10px rgba(30,30,20,0.05);
   }
   .bdayBanner.today { border-color: var(--pink); background: linear-gradient(135deg, #FDF1F8 0%, #F8C6E3 100%); }
+  .duesCard {
+    background: linear-gradient(135deg, #EFF5FF 0%, #DCE9FF 100%);
+    border: 1.5px solid var(--blue);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-top: 16px;
+    box-shadow: 0 2px 10px rgba(30,30,20,0.05);
+  }
+  .duesCard h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    margin: 0 0 12px;
+    color: var(--green-deep);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
   .bdayBanner .bbTitle { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
   .bdayBanner .bbRow { font-size: 13.5px; font-weight: 700; color: var(--ink); padding: 3px 0; }
   .bdayBanner .bbRow .bbWhen { font-weight: 600; color: var(--muted); }
@@ -901,6 +918,8 @@
   .sub { font-size: 15.5px; }
   .card { padding: 16px 12px; border-radius: 18px; }
   .card h2 { font-size: 16px; margin-bottom: 8px; }
+  .duesCard { padding: 16px 12px; border-radius: 18px; }
+  .duesCard h2 { font-size: 16px; margin-bottom: 8px; }
   .addRow { gap: 6px; }
   .addRow input { font-size: 15px; padding: 11px 12px; border-radius: 11px; min-width: 0; }
   .addRow button { padding: 0 14px; border-radius: 11px; font-size: 14px; }
@@ -1011,13 +1030,13 @@
   .navBtn:active { transform: scale(0.96); }
 
   /* ===== ALL-CAPS, LOGICAL, COLORFUL STYLING ===== */
-  h1, .card h2, .team h3, button, .navLabel, .modalCard h2,
+  h1, .card h2, .duesCard h2, .team h3, button, .navLabel, .modalCard h2,
   .modalLabel, .sortLabel, .sortBtn, .mfTitle, .badge, .chip,
   .fineVerdict, .mfVerdict, .attnGroup b, .admin-btn {
     text-transform: uppercase;
     letter-spacing: 0.3px;
   }
-  .card h2 { letter-spacing: 0.4px; }
+  .card h2, .duesCard h2 { letter-spacing: 0.4px; }
 
   /* Color-coded card accents so each section reads at a glance */
   .card.accent-orange { border-top: 4px solid var(--orange); }
@@ -1142,7 +1161,7 @@
     <div class="abValue" id="homeBalanceValue">—</div>
   </div>
 
-  <div class="card accent-blue" id="myDuesCard" style="display:none;">
+  <div class="duesCard" id="myDuesCard" style="display:none;">
     <h2 id="myDuesTitle">📋 YOUR DUES</h2>
     <div id="myDuesResult"></div>
   </div>
@@ -1319,7 +1338,7 @@
 
   <button class="secondary" id="exportSummaryBtn" style="display:none; margin-bottom:16px;">📸 EXPORT SUMMARY (JPEG)</button>
 
-  <div class="card accent-blue" id="accountsDuesCard" style="display:none;">
+  <div class="duesCard" id="accountsDuesCard" style="display:none;">
     <h2 id="accountsDuesTitle">📋 DUES</h2>
     <div id="accountsDuesResult"></div>
   </div>
