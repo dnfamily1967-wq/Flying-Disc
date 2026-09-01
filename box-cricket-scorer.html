@@ -1470,18 +1470,28 @@ document.getElementById('makeTwoTeamsBtn').addEventListener('click', () => {
 });
 
 // Same idea as the Flying Disc app's team maker: sort everyone present by skill level (high to
-// low, shuffling players who tie so it's not always the same pairing), then hand each player one
-// at a time to whichever team currently has the lower total skill — keeps both sides as close to
-// even as possible instead of a coin-flip random split.
+// low, shuffling players who tie so it's not always the same pairing), then go down the list
+// TWO AT A TIME — each pair of similarly-skilled players splits one to each side. That way rank
+// 1 & 2 are one-each, rank 3 & 4 are one-each, and so on, instead of a running-total balance
+// that can sometimes stack two high-skill players onto the same side early on.
 function balanceTeamsBySkill(names) {
   const withRating = shuffleArr(names).map((name) => ({ name, rating: roster.ratings[name] || 5 }));
   withRating.sort((a, b) => b.rating - a.rating);
   const team1 = [], team2 = [];
-  let sum1 = 0, sum2 = 0;
-  withRating.forEach((p) => {
-    if (sum1 <= sum2) { team1.push(p.name); sum1 += p.rating; }
-    else { team2.push(p.name); sum2 += p.rating; }
-  });
+  for (let i = 0; i < withRating.length; i += 2) {
+    const a = withRating[i];
+    const b = withRating[i + 1];
+    // Which side gets the higher-ranked one of this pair alternates, so it's not always Team A
+    // that ends up with the stronger half of every pair.
+    const aFirst = (i / 2) % 2 === 0;
+    if (b) {
+      if (aFirst) { team1.push(a.name); team2.push(b.name); }
+      else { team1.push(b.name); team2.push(a.name); }
+    } else {
+      // Odd player left over at the end — goes to whichever side is currently smaller.
+      (team1.length <= team2.length ? team1 : team2).push(a.name);
+    }
+  }
   return { team1, team2 };
 }
 
