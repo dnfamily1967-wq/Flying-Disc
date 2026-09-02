@@ -1677,7 +1677,9 @@ function normalizePlayers(list) {
   const mapped = list.map(p => {
     const bday = p.bday || BIRTHDAY_MAP[String(p.name || '').toUpperCase()] || null;
     if (p.status) return { ...p, bday };
-    return { name: p.name, rating: p.rating, status: p.absent ? 'absent' : 'present', bday };
+    // Older-schema record (no status field yet) — keep every existing field (photo included)
+    // and just fill in the status this schema expects, instead of rebuilding from scratch.
+    return { ...p, status: p.absent ? 'absent' : 'present', bday };
   });
   // Guard against duplicate names ever ending up in the roster (keeps the first occurrence) —
   // a duplicate here would otherwise get double-counted every time attendance is saved.
