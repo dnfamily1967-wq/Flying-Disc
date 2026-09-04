@@ -2050,7 +2050,9 @@ function render() {
         ${bdayHtml}
       </div>`;
     if (isFullAdmin) {
-      const locked = todayAttendanceSaved;
+      const advanceLocked = advanceHolidayNamesToday.has(p.name);
+      const locked = todayAttendanceSaved || advanceLocked;
+      const lockTitle = advanceLocked ? 'title="Scheduled in advance — change it from the Holiday tab instead"' : '';
       const ratingHtml = (editingRatingIdx === i)
         ? `<input class="rating" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="9" value="${p.rating}" data-i="${i}" autofocus />`
         : `<span class="rating ratingLocked" data-i="${i}">${p.rating}</span><button class="edit ratingEditBtn" data-i="${i}" title="Edit skill level">✏️</button>`;
@@ -2063,15 +2065,17 @@ function render() {
       <div class="ratingMid">
         ${ratingHtml}
       </div>
-      <div class="actrow">
+      <div class="actrow" ${lockTitle}>
         <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent" ${locked ? 'disabled' : ''}>absent</button>
-        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday</button>
+        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday${advanceLocked ? ' 🔒' : ''}</button>
         <button class="del" data-i="${i}" data-act="del">&times;</button>
       </div>
     </li>`;
     }
     if (isAttendanceAdmin) {
-      const locked = todayAttendanceSaved;
+      const advanceLocked = advanceHolidayNamesToday.has(p.name);
+      const locked = todayAttendanceSaved || advanceLocked;
+      const lockTitle = advanceLocked ? 'title="Scheduled in advance — change it from the Holiday tab instead"' : '';
       return `
     <li style="background:${bg}; border-left:4px solid ${border};">
       <div class="pinfo">
@@ -2081,9 +2085,9 @@ function render() {
       <div class="ratingMid">
         <span class="rating">${p.rating}</span>
       </div>
-      <div class="actrow">
+      <div class="actrow" ${lockTitle}>
         <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent" ${locked ? 'disabled' : ''}>absent</button>
-        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday</button>
+        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday${advanceLocked ? ' 🔒' : ''}</button>
       </div>
     </li>`;
     }
@@ -3012,10 +3016,20 @@ function todayStr() {
 // further change has to go through the Attendance tab's deliberate "Edit this day's attendance"
 // flow instead, so it can't get silently overwritten by ordinary roster use for the rest of the day.
 let todayAttendanceSaved = false;
+// Names whose HOLIDAY status for today was set in advance (via the Holiday tab's Bulk Holiday
+// feature), not toggled directly in this list — their absent/holiday chips lock here so an
+// accidental tap can't undo a holiday that was deliberately scheduled ahead of time; changing it
+// has to go back through the Holiday tab.
+let advanceHolidayNamesToday = new Set();
 db.collection('disc_team').doc(`attendance_${todayStr()}`).onSnapshot((doc) => {
   // Only a deliberate save (the "Save today's attendance" button, or a reviewed correction) locks
   // the day — a same-day Bulk Holiday write must never lock everyone else out by itself.
   todayAttendanceSaved = doc.exists && doc.data().deliberate === true;
+  advanceHolidayNamesToday = new Set(
+    (doc.exists && Array.isArray(doc.data().players) ? doc.data().players : [])
+      .filter((p) => normalizeAttnStatus(p) === 'holiday' && p.source === 'advance')
+      .map((p) => p.name)
+  );
   const btn = document.getElementById('saveAttnBtn');
   const note = document.getElementById('attnLockedNote');
   if (btn) btn.style.display = todayAttendanceSaved ? 'none' : '';
@@ -3510,16 +3524,16 @@ async function bulkSetHoliday(name, startStr, endStr) {
       let record;
       let deliberate = false; // preserve an existing deliberate save; never let Bulk Holiday itself lock the day
       if (doc.exists && Array.isArray(doc.data().players)) {
-        record = doc.data().players.map(p => ({ name: p.name, status: normalizeAttnStatus(p) }));
+        record = doc.data().players.map(p => ({ name: p.name, status: normalizeAttnStatus(p), source: p.source }));
         deliberate = !!doc.data().deliberate;
         const i = record.findIndex(p => p.name === name);
-        if (i >= 0) record[i].status = 'holiday';
-        else record.push({ name, status: 'holiday' });
+        if (i >= 0) record[i] = { name, status: 'holiday', source: 'advance' };
+        else record.push({ name, status: 'holiday', source: 'advance' });
       } else {
         // No real attendance exists for this day — only record this one person's holiday.
         // Fabricating "present" for everyone else here was exactly what inflated attendance
         // counts on days (including future ones) that were never actually played.
-        record = [{ name, status: 'holiday' }];
+        record = [{ name, status: 'holiday', source: 'advance' }];
       }
       await ref.set({ date: dateStr, players: record, savedAt: Date.now(), deliberate });
     } catch (e) {
