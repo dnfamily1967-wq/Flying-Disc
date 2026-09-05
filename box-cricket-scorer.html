@@ -1529,7 +1529,7 @@ function renderTeams() {
   const unassigned = present.filter((n) => !assigned.has(n));
   const sel = document.getElementById('unassignedSelect');
   sel.innerHTML = unassigned.length
-    ? unassigned.map((n) => `<option value="${n}">${n}</option>`).join('')
+    ? `<option value="" selected disabled>— Select player —</option>` + unassigned.map((n) => `<option value="${n}">${n}</option>`).join('')
     : '<option value="">Everyone present is already on a team</option>';
 }
 
