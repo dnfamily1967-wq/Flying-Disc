@@ -4177,21 +4177,35 @@ function computeBalanceChain(contribution, expenses, openingBalance) {
 // the admin's editing tool for entering who paid what). A month's contribution total is always
 // placed before that month's dated expenses, so the running balance lands on exactly the same
 // number as the OLD BALANCE/TOTAL/EXP/BALANCE chain above — this just breaks it out entry by
-// entry instead of month by month. A rare "received" value directly on an expense-ledger entry is
-// still shown in the Credit column for visibility, but — matching how the summary chain above has
-// always worked — it isn't added into the running balance itself, only an entry's own "exp" is.
+// entry instead of month by month. Any month that's already fully covered by individual
+// auto-added Dep entries (see below) gets no separate monthly total line at all — only the
+// leftover (e.g. from bulk-imported data with no individual entries) shows up here, so nothing is
+// ever counted twice. A rare "received" value directly on an ordinary (non-Dep) expense-ledger
+// entry is still shown in the Credit column for visibility, but — matching how the summary chain
+// above has always worked — it isn't added into the running balance itself, only an entry's own
+// "exp" is.
 function buildCombinedLedgerRows(contribution, expensePairs, openingBalance) {
   const rows = [];
+  // How much of each month's total contribution is already represented by individual per-person
+  // Dep entries (auto-added when a name is marked paid in the CONTRIBUTIONS grid) — so the
+  // monthly total below only adds whatever ISN'T already shown individually.
+  const linkedSumByYm = {};
+  expensePairs.forEach(({ e }) => {
+    if (!e.linkedContribution) return;
+    const ym = expenseDateToYYYYMM(e.date);
+    linkedSumByYm[ym] = (linkedSumByYm[ym] || 0) + (parseFloat(e.received) || 0);
+  });
   contribution.months.forEach((m, i) => {
     const total = monthlyContributionTotal(contribution, i);
-    if (total > 0) {
-      const ym = monthLabelToYYYYMM(m);
+    const ym = monthLabelToYYYYMM(m);
+    const remaining = total - (linkedSumByYm[ym] || 0);
+    if (Math.round(remaining * 100) !== 0) {
       rows.push({
         sortKey: (ym || 0) * 100, // the 1st of the month — sorts ahead of that month's dated expenses
         ym,
         date: monthLabelToDisplay(m),
         particulars: 'Dep',
-        debit: 0, credit: total, isContribution: true
+        debit: 0, credit: remaining, isContribution: true
       });
     }
   });
@@ -4211,13 +4225,17 @@ function buildCombinedLedgerRows(contribution, expensePairs, openingBalance) {
       remark: remarkText,
       debit: parseFloat(e.exp) || 0,
       credit: parseFloat(e.received) || 0,
+      isLinkedDep: !!e.linkedContribution,
       idx
     });
   });
   rows.sort((a, b) => a.sortKey - b.sortKey);
   let running = Number(openingBalance) || 0;
   const withBalance = rows.map((r) => {
-    running += (r.isContribution ? r.credit : 0) - (r.debit || 0);
+    // A Dep entry's own credit — whether it's the monthly total or one person's individual
+    // entry — always moves the balance forward; an ordinary expense entry's stray "received"
+    // value (rare) does not, same as before.
+    running += ((r.isContribution || r.isLinkedDep) ? r.credit : 0) - (r.debit || 0);
     return { ...r, balance: running };
   });
   withBalance.unshift({ date: 'Opening Balance', particulars: '', debit: 0, credit: 0, balance: Number(openingBalance) || 0, isOpening: true });
