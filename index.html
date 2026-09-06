@@ -4198,12 +4198,17 @@ function buildCombinedLedgerRows(contribution, expensePairs, openingBalance) {
   expensePairs.forEach(({ e, idx }) => {
     const d = parseFlexibleDate(e.date);
     const ym = expenseDateToYYYYMM(e.date);
+    // Display-only cleanup: older entries saved before the label was shortened still say
+    // "Contribution" in their stored text — swap it for "Dep" on screen (without touching the
+    // saved data) so every entry, old or new, shows the short label consistently.
+    const headText = (e.head || '(no description)').replace(/^Contribution\b/, 'Dep');
+    const remarkText = (e.remark || '').replace(/\bContributions\b/, 'Dep');
     rows.push({
       sortKey: (ym || 999999) * 100 + (d ? d.d : 1),
       ym,
       date: formatDateForDisplay(e.date),
-      particulars: e.head || '(no description)',
-      remark: e.remark || '',
+      particulars: headText,
+      remark: remarkText,
       debit: parseFloat(e.exp) || 0,
       credit: parseFloat(e.received) || 0,
       idx
