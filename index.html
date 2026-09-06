@@ -1110,18 +1110,27 @@
   table.acctTable.expTable thead th { background: var(--red-soft); color: #8C2E2E; }
   table.acctTable.expTable th:not(:first-child), table.acctTable.expTable td:not(:first-child) { text-align: left; }
   table.acctTable.expTable td.num { text-align: right; }
-  /* Expense Ledger: a flexbox list instead of a table, so every entry fits on one line with no
-     left-right scrolling on mobile — Head/Remark truncate with an ellipsis instead of overflowing. */
-  .expList { margin-top: 10px; }
+  /* Accounts Ledger: a flexbox list instead of a table, so every entry fits on one line with no
+     left-right scrolling on mobile — Particulars/Remark flex to fill the space and truncate with
+     an ellipsis instead of forcing the row to overflow sideways. */
+  .expList { margin-top: 4px; }
   .expRow { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
   .expRow:last-child { border-bottom: none; }
+  .expRow.acctSummary { background: #FBFAF4; }
+  .expRow.acctSummary .expHead, .expRow.acctSummary .expBal { font-weight: 800; }
   .expSelect { width: auto; margin: 0; flex-shrink: 0; accent-color: var(--red); }
-  .expDate { flex-shrink: 0; width: 46px; color: var(--muted); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
-  .expHead { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .expDate { flex-shrink: 0; width: 42px; color: var(--muted); font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .expHead { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   .expHead .expRemark, .expRemark { color: var(--muted); font-weight: 400; }
-  .expAmt { flex-shrink: 0; font-weight: 800; font-size: 12.5px; white-space: nowrap; }
+  .expRight { flex-shrink: 0; text-align: right; }
+  .expAmt { font-weight: 800; font-size: 12.5px; white-space: nowrap; }
   .expAmt.credit { color: var(--green-deep); }
   .expAmt.debit { color: #8C2E2E; }
+  .expAmt.zero { color: var(--muted); font-weight: 600; }
+  .expBal { font-size: 10px; color: var(--muted); white-space: nowrap; margin-top: 1px; }
+  .ledgerFilterRow { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .ledgerFilterRow label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; }
+  .ledgerFilterRow select { flex: 1; min-width: 0; margin: 0; }
 
   /* Printing (Ctrl+P / browser print) — go wide (landscape) and drop all the app chrome (nav,
      buttons, hero) so only the actual data prints, using the full page width instead of the
@@ -1131,7 +1140,7 @@
     body { padding: 0 !important; background: #fff !important; }
     .hero, .bottomNav, #loginGate, .admin-btn, .refresh-btn,
     button, .addRow, .sortRow, #accountsFileInput, .legend#accountsUploadStatus,
-    #accountsContribAddRow, #accountsExpAddRow, .rowActions, .expSelect,
+    #accountsContribAddRow, #accountsExpAddRow, .rowActions, .expSelect, .ledgerFilterRow,
     .install-hint, #exportTemplate, .modalOverlay {
       display: none !important;
     }
@@ -1371,6 +1380,10 @@
     <div id="accountsExpAddRow" style="display:none;">
       <button class="secondary" id="addExpenseBtn">➕ ADD ENTRY</button>
       <button class="secondary" id="bulkDeleteExpBtn" style="display:none; margin-top:8px; border-color:var(--red); color:#8C2E2E;">🗑️ DELETE SELECTED (<span id="bulkDeleteCount">0</span>)</button>
+    </div>
+    <div class="ledgerFilterRow" id="ledgerFilterRow" style="display:none;">
+      <label for="ledgerMonthFilter">Month</label>
+      <select id="ledgerMonthFilter"></select>
     </div>
     <div id="accountsExpResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
   </div>
@@ -3636,8 +3649,16 @@ const accountsDuesTitleEl = document.getElementById('accountsDuesTitle');
 const accountsDuesResultEl = document.getElementById('accountsDuesResult');
 const accountsContribAddRow = document.getElementById('accountsContribAddRow');
 const accountsExpAddRow = document.getElementById('accountsExpAddRow');
+const ledgerFilterRowEl = document.getElementById('ledgerFilterRow');
+const ledgerMonthFilterEl = document.getElementById('ledgerMonthFilter');
 let accountsData = null;
 let lastContributionKeepIdx = []; // filtered-column-position -> real index in accountsData.contribution.months
+let lastLedgerRows = []; // full ascending ledger rows (incl. the opening-balance pseudo-row) from the last render
+let ledgerFilterYm = null; // YYYYMM currently selected in the ledger's month filter; null = "not chosen yet, default to current month"
+ledgerMonthFilterEl.addEventListener('change', () => {
+  ledgerFilterYm = Number(ledgerMonthFilterEl.value) || null;
+  renderLedgerList();
+});
 
 function sheetToRows(ws) {
   return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
@@ -3666,6 +3687,13 @@ function monthLabelToDisplay(label) {
   const y = Math.floor(ym / 100), mo = ym % 100;
   return `${MONTH_NAMES_3[mo - 1]} ${y}`;
 }
+// YYYYMM number (e.g. 202609) -> "Sep 2026", for the ledger's month filter dropdown.
+function ymToLabel(ym) {
+  const y = Math.floor(ym / 100), mo = ym % 100;
+  const MONTH_TITLE_3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${MONTH_TITLE_3[mo - 1]} ${y}`;
+}
+function currentYm(d = new Date()) { return d.getFullYear() * 100 + (d.getMonth() + 1); }
 
 // Turns a ledger date string (various formats seen from Excel exports, plus free-typed entries)
 // into {y, mo, d}, or null if it can't be confidently parsed. A date with no year (Excel often
@@ -4160,6 +4188,7 @@ function buildCombinedLedgerRows(contribution, expensePairs, openingBalance) {
       const ym = monthLabelToYYYYMM(m);
       rows.push({
         sortKey: (ym || 0) * 100, // the 1st of the month — sorts ahead of that month's dated expenses
+        ym,
         date: monthLabelToDisplay(m),
         particulars: 'Monthly Contributions',
         debit: 0, credit: total, isContribution: true
@@ -4171,6 +4200,7 @@ function buildCombinedLedgerRows(contribution, expensePairs, openingBalance) {
     const ym = expenseDateToYYYYMM(e.date);
     rows.push({
       sortKey: (ym || 999999) * 100 + (d ? d.d : 1),
+      ym,
       date: formatDateForDisplay(e.date),
       particulars: e.head || '(no description)',
       remark: e.remark || '',
@@ -4250,27 +4280,62 @@ function renderAccounts() {
   if (expTitleEl) expTitleEl.textContent = '📒 ACCOUNTS LEDGER';
   selectedExpenseIdxs.clear(); // indices can shift meaning after any data change, so drop any old selection
   updateBulkDeleteBtn();
-  const escHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const ledgerRows = buildCombinedLedgerRows(contribution, expensePairs, openingBalance);
-  if (ledgerRows.length) {
-    // Newest entry on top — .slice() first so this reverse doesn't mutate the ascending array
-    // buildCombinedLedgerRows returns (its order is what the running-balance math depends on).
-    const rowsHtml = ledgerRows.slice().reverse().map((r) => {
-      const debitHtml = r.debit ? `<span style="color:#8C2E2E;">₹${r.debit}</span>` : '—';
-      const creditHtml = r.credit ? `<span style="color:var(--green-deep);">₹${r.credit}</span>` : '—';
-      const particularsText = escHtml(r.particulars) + (r.remark ? ` <span class="expRemark">— ${escHtml(r.remark)}</span>` : '');
-      const rowClass = r.isOpening ? ' class="acctSummary"' : (r.isContribution ? ' class="acctSummary"' : '');
-      const actionsHtml = (isFullAdmin && !r.isOpening && !r.isContribution)
-        ? `<td><div class="rowActions"><input type="checkbox" class="expSelect" data-idx="${r.idx}"><button class="edit rowEditBtn" data-idx="${r.idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${r.idx}" title="Delete this entry">&times;</button></div></td>`
-        : (isFullAdmin ? '<td></td>' : '');
-      return `<tr${rowClass}><td>${r.date}</td><td>${particularsText || '—'}</td><td class="num">${debitHtml}</td><td class="num">${creditHtml}</td><td class="num">₹${r.balance}</td>${actionsHtml}</tr>`;
-    }).join('');
-    const headCells = '<th>Date</th><th>Particulars</th><th>Debit</th><th>Credit</th><th>Balance</th>' + (isFullAdmin ? '<th></th>' : '');
-    accountsExpResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable expTable"><thead><tr>${headCells}</tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
-  } else {
-    accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No ledger entries yet.</div>';
-  }
+  lastLedgerRows = buildCombinedLedgerRows(contribution, expensePairs, openingBalance);
+  renderLedgerList();
   renderMyDuesAndBalance();
+}
+
+// ---- Accounts Ledger list: renders as a single-column flexbox list (no left-right scrolling,
+// each entry stays on one line — Particulars/Remark flex to fill the row and ellipsis instead of
+// overflowing) and is filtered down to one month at a time via the Month dropdown above it.
+// Defaults to the real current calendar month so that's what's on screen without picking anything;
+// switching the dropdown reveals any other month's entries, each still opening/closing against the
+// correct carried-forward balance for that month (same chain the CONTRIBUTIONS table above uses).
+function renderLedgerList() {
+  const dataRows = lastLedgerRows.filter((r) => !r.isOpening);
+  if (!dataRows.length) {
+    ledgerFilterRowEl.style.display = 'none';
+    accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No ledger entries yet.</div>';
+    return;
+  }
+  const availableYms = [...new Set(dataRows.map((r) => r.ym).filter((ym) => ym != null))].sort((a, b) => a - b);
+  if (!availableYms.length) {
+    ledgerFilterRowEl.style.display = 'none';
+    accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No ledger entries yet.</div>';
+    return;
+  }
+  if (ledgerFilterYm == null || !availableYms.includes(ledgerFilterYm)) {
+    // Default to the real current month if it has entries, else fall back to the latest month that does.
+    const nowYm = currentYm();
+    ledgerFilterYm = availableYms.includes(nowYm) ? nowYm : availableYms[availableYms.length - 1];
+  }
+  ledgerFilterRowEl.style.display = '';
+  ledgerMonthFilterEl.innerHTML = availableYms.slice().reverse()
+    .map((ym) => `<option value="${ym}" ${ym === ledgerFilterYm ? 'selected' : ''}>${ymToLabel(ym)}</option>`).join('');
+
+  const firstIdx = dataRows.findIndex((r) => r.ym === ledgerFilterYm);
+  const openingBal = firstIdx > 0 ? dataRows[firstIdx - 1].balance : lastLedgerRows[0].balance;
+  const filteredRows = dataRows.filter((r) => r.ym === ledgerFilterYm);
+  const openingRow = { date: '', particulars: 'Opening Balance', debit: 0, credit: 0, balance: openingBal, isOpening: true };
+
+  const escHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  // Newest entry on top, Opening Balance pinned at the bottom as the starting reference point.
+  const rowsHtml = [...filteredRows].reverse().concat(openingRow).map((r) => {
+    const amtHtml = r.credit ? `<div class="expAmt credit">+₹${r.credit}</div>`
+      : r.debit ? `<div class="expAmt debit">-₹${r.debit}</div>`
+      : `<div class="expAmt zero">—</div>`;
+    const particularsText = escHtml(r.particulars) + (r.remark ? `<span class="expRemark"> — ${escHtml(r.remark)}</span>` : '');
+    const rowClass = (r.isOpening || r.isContribution) ? ' acctSummary' : '';
+    const canEdit = isFullAdmin && !r.isOpening && !r.isContribution;
+    return `<div class="expRow${rowClass}">
+      ${canEdit ? `<input type="checkbox" class="expSelect" data-idx="${r.idx}">` : ''}
+      <div class="expDate">${r.date || '—'}</div>
+      <div class="expHead">${particularsText || '—'}</div>
+      <div class="expRight">${amtHtml}<div class="expBal">₹${r.balance}</div></div>
+      ${canEdit ? `<div class="rowActions"><button class="edit rowEditBtn" data-idx="${r.idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${r.idx}" title="Delete this entry">&times;</button></div>` : ''}
+    </div>`;
+  }).join('');
+  accountsExpResultEl.innerHTML = `<div class="expList">${rowsHtml}</div>`;
 }
 
 // ---- Home dashboard: every player (not just admin) sees the team balance and their own
