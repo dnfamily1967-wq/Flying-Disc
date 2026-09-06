@@ -1218,10 +1218,8 @@
       <button class="sortBtn" id="sortStatusBtn" data-mode="status">ABSENT <span id="statusArrow">↕</span></button>
     </div>
     <ul class="plist" id="plist"></ul>
-    <button class="secondary" id="saveBtn" style="margin-top:14px;">💾 SAVE</button>
+    <button id="saveBtn" style="margin-top:14px; background:var(--green-deep);">💾 SAVE &amp; MARK ATTENDANCE</button>
     <div class="saved-msg" id="savedMsg">Saved ✅</div>
-    <button id="saveAttnBtn" style="margin-top:10px; background:var(--green-deep);">✅ SAVE TODAY'S ATTENDANCE</button>
-    <div class="saved-msg" id="savedAttnMsg">Today's attendance saved ✅</div>
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
   </div>
 
@@ -3030,10 +3028,8 @@ db.collection('disc_team').doc(`attendance_${todayStr()}`).onSnapshot((doc) => {
       .filter((p) => normalizeAttnStatus(p) === 'holiday' && p.source === 'advance')
       .map((p) => p.name)
   );
-  const btn = document.getElementById('saveAttnBtn');
-  const note = document.getElementById('attnLockedNote');
-  if (btn) btn.style.display = todayAttendanceSaved ? 'none' : '';
-  if (note) note.style.display = todayAttendanceSaved ? '' : 'none';
+  const btn = document.getElementById('saveBtn');
+  if (btn) btn.textContent = todayAttendanceSaved ? '💾 SAVE' : '💾 SAVE & MARK ATTENDANCE';
   render();
 }, (err) => console.error('Today-attendance lock check failed', err));
 
@@ -3115,19 +3111,21 @@ function saveTodayAttendance() {
   refreshMyFineCard();
   if (monthlySheetInput && monthlySheetInput.value === monthStr()) loadMonthlySheet(monthStr());
   refreshPlayerListPHA();
-  showSavedAttn();
 }
 
-let savedAttnTimer;
-function showSavedAttn() {
-  const el = document.getElementById('savedAttnMsg');
-  el.style.display = 'block';
-  clearTimeout(savedAttnTimer);
-  savedAttnTimer = setTimeout(() => { el.style.display = 'none'; }, 1500);
+// Single combined "Save" button: always saves the roster, and additionally locks in today's
+// attendance snapshot too — but only the first time each day (once attendance is already saved
+// for today, further roster-only saves must not silently re-lock/overwrite it; that has to go
+// through the deliberate "Edit this day's attendance" flow instead).
+function saveBtnClick() {
+  if (!cloudReady) {
+    alert('Data is still loading — please wait and try again (2-3 seconds).');
+    return;
+  }
+  save();
+  if (!todayAttendanceSaved) saveTodayAttendance();
 }
-document.getElementById('saveAttnBtn').addEventListener('click', saveTodayAttendance);
-
-document.getElementById('saveBtn').addEventListener('click', save);
+document.getElementById('saveBtn').addEventListener('click', saveBtnClick);
 
 function load() {
   // Fast local render first (works offline), then live cloud listener keeps everyone in sync
