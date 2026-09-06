@@ -4196,6 +4196,10 @@ function buildCombinedLedgerRows(contribution, expensePairs, openingBalance) {
     }
   });
   expensePairs.forEach(({ e, idx }) => {
+    // Skip the legacy per-person entries that get auto-added when a name is marked paid in the
+    // CONTRIBUTIONS grid — the "Dep" row above already represents that whole month's total, so
+    // showing these too would double-list the same money (once per person, once as the total).
+    if (e.linkedContribution) return;
     const d = parseFlexibleDate(e.date);
     const ym = expenseDateToYYYYMM(e.date);
     rows.push({
