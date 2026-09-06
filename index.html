@@ -1124,8 +1124,8 @@
   .expHead .expRemark, .expRemark { color: var(--muted); font-weight: 400; }
   .expRight { flex-shrink: 0; text-align: right; }
   .expAmt { font-weight: 800; font-size: 12.5px; white-space: nowrap; }
-  .expAmt.credit { color: var(--green-deep); }
-  .expAmt.debit { color: #8C2E2E; }
+  .expAmt.credit { color: #189B4E; }
+  .expAmt.debit { color: #D9251C; }
   .expAmt.zero { color: var(--muted); font-weight: 600; }
   .expBal { font-size: 10px; color: var(--muted); white-space: nowrap; margin-top: 1px; }
   .ledgerFilterRow { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
@@ -1415,13 +1415,13 @@
             <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">+</div>
             <div style="flex:1; min-width:0; box-sizing:border-box; background:#EAF4EC; border-radius:12px; padding:12px 8px; text-align:center;">
               <div style="font-size:10px; font-weight:800; color:#4C7A5A; text-transform:uppercase; white-space:nowrap;">Collected</div>
-              <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#1F5C3F; margin-top:4px; white-space:nowrap;">₹0</div>
+              <div id="exportTotalCollected" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#189B4E; margin-top:4px; white-space:nowrap;">₹0</div>
               <div id="exportCollectedAdvanceNote" style="font-size:9.5px; color:#4C7A5A; margin-top:3px; display:none; font-weight:700;"></div>
             </div>
             <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">−</div>
             <div style="flex:1; min-width:0; box-sizing:border-box; background:#FBECEC; border-radius:12px; padding:12px 8px; text-align:center;">
               <div style="font-size:10px; font-weight:800; color:#A15252; text-transform:uppercase; white-space:nowrap;">Expenses</div>
-              <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#8C2E2E; margin-top:4px; white-space:nowrap;">₹0</div>
+              <div id="exportTotalExp" style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:800; color:#D9251C; margin-top:4px; white-space:nowrap;">₹0</div>
             </div>
             <div style="flex-shrink:0; font-size:18px; font-weight:800; color:#B8B090;">=</div>
             <div style="flex:1; min-width:0; box-sizing:border-box; background:#FCF3DC; border-radius:12px; padding:10px 8px; text-align:center; border:2px solid #E0A62B;">
@@ -1437,9 +1437,9 @@
 
           <div style="display:flex; gap:24px; align-items:flex-start;">
             <div style="flex:1; min-width:0;">
-              <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:8px;">💰 COLLECTIONS THIS MONTH</div>
+              <div style="font-size:14px; font-weight:800; color:#189B4E; margin-bottom:8px;">💰 COLLECTIONS THIS MONTH</div>
               <div id="exportCollectionsList" style="font-size:13px;"></div>
-              <div id="exportCollectionsTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #1F5C3F; font-weight:800; font-size:13.5px; color:#1F5C3F;"></div>
+              <div id="exportCollectionsTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #189B4E; font-weight:800; font-size:13.5px; color:#189B4E;"></div>
               <div id="exportAdvanceSection" style="display:none; margin-top:16px;">
                 <div style="font-size:14px; font-weight:800; color:#8A6D1F; margin-bottom:8px;">🔜 ADVANCE PAYMENTS (PAID AHEAD)</div>
                 <div id="exportAdvanceList" style="font-size:13px;"></div>
@@ -1447,9 +1447,9 @@
             </div>
             <div style="width:1px; align-self:stretch; background:#E9E4D6;"></div>
             <div style="flex:1; min-width:0;">
-              <div style="font-size:14px; font-weight:800; color:#8C2E2E; margin-bottom:8px;">🧾 EXPENSES THIS MONTH</div>
+              <div style="font-size:14px; font-weight:800; color:#D9251C; margin-bottom:8px;">🧾 EXPENSES THIS MONTH</div>
               <div id="exportExpensesList" style="font-size:13px;"></div>
-              <div id="exportExpensesTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #8C2E2E; font-weight:800; font-size:13.5px; color:#8C2E2E;"></div>
+              <div id="exportExpensesTotal" style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:4px; border-top:2px solid #D9251C; font-weight:800; font-size:13.5px; color:#D9251C;"></div>
             </div>
           </div>
 
@@ -4501,7 +4501,7 @@ document.getElementById('exportSummaryBtn').addEventListener('click', () => {
   const collectionsRows = curIdx >= 0
     ? contribution.people.filter((p) => isMonthPaid(p.values[curIdx])).map((p) => `
       <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
-        <span>${p.name}</span><span style="font-weight:800; color:#1F5C3F;">₹${p.values[curIdx]}</span>
+        <span>${p.name}</span><span style="font-weight:800; color:#189B4E;">₹${p.values[curIdx]}</span>
       </div>`).join('')
     : '';
   document.getElementById('exportCollectionsList').innerHTML = collectionsRows || '<div style="color:#A8A38C;">No collections recorded this month.</div>';
@@ -4524,7 +4524,7 @@ document.getElementById('exportSummaryBtn').addEventListener('click', () => {
   const monthExpenses = filterExpensePairsToMonth(expensePairs, monthYM).map((p) => p.e).filter((e) => Number(e.exp) > 0);
   const expensesRows = monthExpenses.map((e) => `
     <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
-      <span>${formatDateForDisplay(e.date)} — ${e.head || ''}</span><span style="font-weight:800; color:#8C2E2E;">₹${e.exp}</span>
+      <span>${formatDateForDisplay(e.date)} — ${e.head || ''}</span><span style="font-weight:800; color:#D9251C;">₹${e.exp}</span>
     </div>`).join('');
   document.getElementById('exportExpensesList').innerHTML = expensesRows || '<div style="color:#A8A38C;">No expenses recorded this month.</div>';
   document.getElementById('exportExpensesTotal').innerHTML = `<span>TOTAL</span><span>₹${totalExp}</span>`;
