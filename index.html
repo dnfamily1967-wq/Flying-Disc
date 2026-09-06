@@ -4196,10 +4196,6 @@ function buildCombinedLedgerRows(contribution, expensePairs, openingBalance) {
     }
   });
   expensePairs.forEach(({ e, idx }) => {
-    // Skip the legacy per-person entries that get auto-added when a name is marked paid in the
-    // CONTRIBUTIONS grid — the "Dep" row above already represents that whole month's total, so
-    // showing these too would double-list the same money (once per person, once as the total).
-    if (e.linkedContribution) return;
     const d = parseFlexibleDate(e.date);
     const ym = expenseDateToYYYYMM(e.date);
     rows.push({
@@ -4730,9 +4726,9 @@ document.getElementById('personModalSaveBtn').addEventListener('click', () => {
     } else {
       runningBalance += Number(values[i]) || 0;
       expenses.push({
-        date: todayDateISO(), head: `Contribution — ${name} (${monthLabel})`,
+        date: todayDateISO(), head: `Dep — ${name} (${monthLabel})`,
         received: String(values[i]).trim(), exp: '', balance: String(runningBalance),
-        remark: 'Auto-added from Contributions', linkedContribution: linkTag
+        remark: 'Auto-added from Dep', linkedContribution: linkTag
       });
     }
   });
