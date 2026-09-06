@@ -1362,7 +1362,11 @@
     <div class="acctMeta" id="accountsMeta"></div>
   </div>
 
-  <button class="secondary" id="exportSummaryBtn" style="display:none; margin-bottom:16px;">📸 EXPORT SUMMARY (JPEG)</button>
+  <button class="secondary" id="exportSummaryBtn" style="display:none; margin-bottom:8px;">📸 EXPORT SUMMARY (JPEG)</button>
+  <div class="ledgerFilterRow" id="exportMonthFilterRow" style="display:none; margin-bottom:16px;">
+    <label for="exportMonthSelect">Month</label>
+    <select id="exportMonthSelect"></select>
+  </div>
 
   <div class="duesCard" id="accountsDuesCard" style="display:none;">
     <h2 id="accountsDuesTitle">📋 DUES</h2>
@@ -3655,9 +3659,13 @@ let accountsData = null;
 let lastContributionKeepIdx = []; // filtered-column-position -> real index in accountsData.contribution.months
 let lastLedgerRows = []; // full ascending ledger rows (incl. the opening-balance pseudo-row) from the last render
 let ledgerFilterYm = null; // YYYYMM currently selected in the ledger's month filter; null = "not chosen yet, default to current month"
+let exportSelectedMonthLabel = null; // contribution.months label currently chosen in the Export Summary month picker; null = "not chosen yet, default to current month"
 ledgerMonthFilterEl.addEventListener('change', () => {
   ledgerFilterYm = Number(ledgerMonthFilterEl.value) || null;
   renderLedgerList();
+});
+document.getElementById('exportMonthSelect').addEventListener('change', (e) => {
+  exportSelectedMonthLabel = e.target.value || null;
 });
 
 function sheetToRows(ws) {
@@ -3926,15 +3934,13 @@ function filterExpensesByCutoff(expenses) {
   });
 }
 
-// The Expense Ledger is shown one month at a time (the real current month) — this narrows an
-// already cutoff-filtered [{e, idx}] list down further, purely for display. Balance is still
-// computed from the full cutoff-filtered list (below), so it stays correct even on a day with
-// no entries yet this month.
-function filterExpensePairsToCurrentMonth(pairs) {
-  const curYM = monthLabelToYYYYMM(currentMonthLabelFor());
+// Narrows an already cutoff-filtered [{e, idx}] list down to one target month (by YYYYMM),
+// purely for display in the Export Summary. Balance is still computed from the full
+// cutoff-filtered list (below), so it stays correct regardless of which month is being exported.
+function filterExpensePairsToMonth(pairs, targetYM) {
   return pairs.filter(({ e }) => {
     const ym = expenseDateToYYYYMM(e.date);
-    return ym === null || ym === curYM;
+    return ym === null || ym === targetYM;
   });
 }
 
@@ -4248,6 +4254,8 @@ function renderAccounts() {
   accountsExpAddRow.style.display = isFullAdmin ? '' : 'none';
   const exportBtnEl = document.getElementById('exportSummaryBtn');
   if (exportBtnEl) exportBtnEl.style.display = (isAdmin && accountsData) ? '' : 'none';
+  const exportMonthFilterRowEl = document.getElementById('exportMonthFilterRow');
+  const exportMonthSelectEl = document.getElementById('exportMonthSelect');
   if (!accountsData) {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
     accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No accounts file loaded yet.</div>';
@@ -4260,6 +4268,19 @@ function renderAccounts() {
   const contribution = filterContributionByCutoff(accountsData.contribution);
   lastContributionKeepIdx = contribution.keepIdx;
   renderAccountsDues(contribution);
+  // Export Summary: month picker defaults to the real current month, but any month with data can
+  // be picked instead — same "default current, pick another if you want" pattern as the ledger.
+  if (isAdmin && contribution.months.length) {
+    exportMonthFilterRowEl.style.display = '';
+    if (exportSelectedMonthLabel == null || !contribution.months.includes(exportSelectedMonthLabel)) {
+      const curIdxForExport = currentMonthIndex(contribution);
+      exportSelectedMonthLabel = curIdxForExport >= 0 ? contribution.months[curIdxForExport] : contribution.months[contribution.months.length - 1];
+    }
+    exportMonthSelectEl.innerHTML = contribution.months.slice().reverse()
+      .map((m) => `<option value="${m}" ${m === exportSelectedMonthLabel ? 'selected' : ''}>${monthLabelToDisplay(m)}</option>`).join('');
+  } else {
+    exportMonthFilterRowEl.style.display = 'none';
+  }
   const expensePairs = filterExpensesByCutoff(accountsData.expenses); // [{ e, idx }], idx = real position for delete
   const openingBalance = getOpeningBalance(accountsData.contribution);
   const chain = computeBalanceChain(contribution, accountsData.expenses, openingBalance);
@@ -4432,7 +4453,11 @@ document.getElementById('exportSummaryBtn').addEventListener('click', () => {
   const contribution = filterContributionByCutoff(accountsData.contribution);
   const openingBalance = getOpeningBalance(accountsData.contribution);
   const chain = computeBalanceChain(contribution, accountsData.expenses, openingBalance);
-  const curIdx = currentMonthIndex(contribution);
+  // Use whatever month is chosen in the Export Summary's own month picker — defaulting to the
+  // real current month when nothing's been picked yet — instead of always the current month.
+  const curIdx = (exportSelectedMonthLabel != null && contribution.months.includes(exportSelectedMonthLabel))
+    ? contribution.months.indexOf(exportSelectedMonthLabel)
+    : currentMonthIndex(contribution);
   const monthLabel = curIdx >= 0 ? contribution.months[curIdx] : currentMonthLabelFor();
   exportMonthLabel = monthLabel;
   const oldBalance = curIdx >= 0 ? chain.oldBalances[curIdx] : (Number(openingBalance) || 0);
@@ -4495,7 +4520,8 @@ document.getElementById('exportSummaryBtn').addEventListener('click', () => {
   }
 
   const expensePairs = filterExpensesByCutoff(accountsData.expenses);
-  const monthExpenses = filterExpensePairsToCurrentMonth(expensePairs).map((p) => p.e).filter((e) => Number(e.exp) > 0);
+  const monthYM = monthLabelToYYYYMM(monthLabel);
+  const monthExpenses = filterExpensePairsToMonth(expensePairs, monthYM).map((p) => p.e).filter((e) => Number(e.exp) > 0);
   const expensesRows = monthExpenses.map((e) => `
     <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
       <span>${formatDateForDisplay(e.date)} — ${e.head || ''}</span><span style="font-weight:800; color:#8C2E2E;">₹${e.exp}</span>
