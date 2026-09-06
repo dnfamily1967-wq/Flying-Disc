@@ -3051,22 +3051,44 @@ function monthStr(d = new Date()) {
 function saveAttendanceSnapshot() {
   const dateStr = todayStr();
   const seen = new Set(); // guard: the roster shouldn't have duplicate names, but never save two rows for one if it does
-  const record = [];
+  const baseRecord = [];
   players.forEach((p) => {
     if (seen.has(p.name)) return;
     seen.add(p.name);
-    record.push({ name: p.name, status: p.status || (p.absent ? 'absent' : 'present') });
+    baseRecord.push({ name: p.name, status: p.status || (p.absent ? 'absent' : 'present') });
   });
-  attendanceDocRef(dateStr).set({
-    date: dateStr,
-    players: record,
-    savedAt: Date.now(),
-    deliberate: true // a full, on-purpose save via "Save today's attendance" — this is what locks the day
-  }).then(() => {
-    console.log('Attendance saved for', dateStr);
+  const ref = attendanceDocRef(dateStr);
+  // Read what's already saved for today first — an advance-scheduled holiday (set from the
+  // Holiday tab) carries a source:'advance' tag that the Home page uses to lock that chip. This
+  // routine save must not silently drop that tag just because it wasn't part of the payload above.
+  ref.get().then((doc) => {
+    const existingSourceByName = {};
+    if (doc.exists && Array.isArray(doc.data().players)) {
+      doc.data().players.forEach((p) => { if (p.source) existingSourceByName[p.name] = p.source; });
+    }
+    const record = baseRecord.map((r) => (
+      r.status === 'holiday' && existingSourceByName[r.name] === 'advance'
+        ? { ...r, source: 'advance' }
+        : r
+    ));
+    ref.set({
+      date: dateStr,
+      players: record,
+      savedAt: Date.now(),
+      deliberate: true // a full, on-purpose save via "Save today's attendance" — this is what locks the day
+    }).then(() => {
+      console.log('Attendance saved for', dateStr);
+    }).catch((e) => {
+      console.error('Attendance save failed', e);
+      alert('Attendance failed to save to the cloud: ' + e.message);
+    });
   }).catch((e) => {
-    console.error('Attendance save failed', e);
-    alert('Attendance failed to save to the cloud: ' + e.message);
+    console.error('Could not read existing attendance before saving — saving without advance-tag lookup', e);
+    ref.set({ date: dateStr, players: baseRecord, savedAt: Date.now(), deliberate: true })
+      .catch((e2) => {
+        console.error('Attendance save failed', e2);
+        alert('Attendance failed to save to the cloud: ' + e2.message);
+      });
   });
 }
 
@@ -3292,6 +3314,8 @@ document.getElementById('clearOldAttnBtn').addEventListener('click', () => {
 const editAttnPanel = document.getElementById('editAttnPanel');
 const editAttnListEl = document.getElementById('editAttnList');
 let editAttnRecord = null; // { name: 'present' | 'absent' | 'holiday' } for the date currently open for editing
+let editAttnSourceByName = {}; // name -> 'advance' for anyone whose holiday was scheduled via the Holiday tab — kept
+                                // aside so a correction here doesn't silently strip that tag off an untouched player
 
 function renderEditAttnList() {
   const names = Object.keys(editAttnRecord).sort();
@@ -3313,13 +3337,18 @@ document.getElementById('editAttnDayBtn').addEventListener('click', () => {
   attendanceDocRef(dateStr).get().then((doc) => {
     const saved = (doc.exists && Array.isArray(doc.data().players)) ? doc.data().players : [];
     const byName = {};
-    saved.forEach((p) => { byName[p.name] = normalizeAttnStatus(p); });
+    const sourceByName = {};
+    saved.forEach((p) => {
+      byName[p.name] = normalizeAttnStatus(p);
+      if (p.source) sourceByName[p.name] = p.source;
+    });
     // Include everyone currently on the roster (so a mistake can be corrected even for someone
     // who wasn't recorded that day) as well as anyone in the saved record (in case they've since
     // left the roster) — defaulting anyone not explicitly marked to "present".
     const rosterNames = players.map((p) => p.name);
     const allNames = Array.from(new Set([...rosterNames, ...Object.keys(byName)]));
     editAttnRecord = {};
+    editAttnSourceByName = sourceByName;
     allNames.forEach((name) => { editAttnRecord[name] = byName[name] || 'present'; });
     renderEditAttnList();
     editAttnPanel.style.display = '';
@@ -3341,7 +3370,14 @@ editAttnListEl.addEventListener('click', (e) => {
 document.getElementById('saveEditAttnBtn').addEventListener('click', () => {
   const dateStr = attnDateInput.value;
   if (!dateStr || !editAttnRecord) return;
-  const record = Object.keys(editAttnRecord).map((name) => ({ name, status: editAttnRecord[name] }));
+  const record = Object.keys(editAttnRecord).map((name) => {
+    const entry = { name, status: editAttnRecord[name] };
+    // Preserve the "scheduled via Holiday tab" tag for anyone left on holiday — otherwise a
+    // correction to someone else's status on the same day would silently unlock their holiday
+    // back to editable on the Home page, which defeats the whole point of that lock.
+    if (editAttnRecord[name] === 'holiday' && editAttnSourceByName[name] === 'advance') entry.source = 'advance';
+    return entry;
+  });
   attendanceDocRef(dateStr).set({ date: dateStr, players: record, savedAt: Date.now(), correctedAt: Date.now(), deliberate: true })
     .then(() => {
       // If today itself was just corrected, sync the live roster to match — otherwise the
