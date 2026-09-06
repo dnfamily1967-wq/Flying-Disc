@@ -1118,7 +1118,7 @@
   .expSelect { width: auto; margin: 0; flex-shrink: 0; accent-color: var(--red); }
   .expDate { flex-shrink: 0; width: 46px; color: var(--muted); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
   .expHead { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .expHead .expRemark { color: var(--muted); font-weight: 400; }
+  .expHead .expRemark, .expRemark { color: var(--muted); font-weight: 400; }
   .expAmt { flex-shrink: 0; font-weight: 800; font-size: 12.5px; white-space: nowrap; }
   .expAmt.credit { color: var(--green-deep); }
   .expAmt.debit { color: #8C2E2E; }
@@ -1743,8 +1743,9 @@ function applyAdminVisibility() {
   }
   const navAccountsBtn = document.getElementById('navAccountsBtn');
   if (navAccountsBtn) {
-    navAccountsBtn.style.display = isAdmin ? '' : 'none';
-    if (!isAdmin && navAccountsBtn.classList.contains('active')) showTab('home');
+    // Accounts is a shared, read-only-for-most view — everyone logged in can see where the
+    // team's money stands, only the upload/edit controls inside stay admin-only.
+    navAccountsBtn.style.display = currentUser ? '' : 'none';
   }
   const loginStatusEl = document.getElementById('loginStatus');
   if (loginStatusEl) {
@@ -3657,6 +3658,14 @@ function monthLabelToYYYYMM(label) {
   const y = m[2].length === 2 ? 2000 + Number(m[2]) : Number(m[2]);
   return y * 100 + (mi + 1);
 }
+// "Aug-25" -> "Aug 2025", for the combined ledger's contribution-total rows (which only have a
+// month, not an exact day, so they can't use formatDateForDisplay).
+function monthLabelToDisplay(label) {
+  const ym = monthLabelToYYYYMM(label);
+  if (!ym) return String(label || '—');
+  const y = Math.floor(ym / 100), mo = ym % 100;
+  return `${MONTH_NAMES_3[mo - 1]} ${y}`;
+}
 
 // Turns a ledger date string (various formats seen from Excel exports, plus free-typed entries)
 // into {y, mo, d}, or null if it can't be confidently parsed. A date with no year (Excel often
@@ -4134,6 +4143,53 @@ function computeBalanceChain(contribution, expenses, openingBalance) {
   return { oldBalances, totals, exps, balances };
 }
 
+// ---- Combined ledger: one line per month's total contributions plus one line per individual
+// expense entry, all in one chronological list — the everyday "accounting book" view everyone
+// (not just admins) sees, as opposed to the per-person CONTRIBUTIONS grid above it (which stays
+// the admin's editing tool for entering who paid what). A month's contribution total is always
+// placed before that month's dated expenses, so the running balance lands on exactly the same
+// number as the OLD BALANCE/TOTAL/EXP/BALANCE chain above — this just breaks it out entry by
+// entry instead of month by month. A rare "received" value directly on an expense-ledger entry is
+// still shown in the Credit column for visibility, but — matching how the summary chain above has
+// always worked — it isn't added into the running balance itself, only an entry's own "exp" is.
+function buildCombinedLedgerRows(contribution, expensePairs, openingBalance) {
+  const rows = [];
+  contribution.months.forEach((m, i) => {
+    const total = monthlyContributionTotal(contribution, i);
+    if (total > 0) {
+      const ym = monthLabelToYYYYMM(m);
+      rows.push({
+        sortKey: (ym || 0) * 100, // the 1st of the month — sorts ahead of that month's dated expenses
+        date: monthLabelToDisplay(m),
+        particulars: 'Monthly Contributions',
+        debit: 0, credit: total, isContribution: true
+      });
+    }
+  });
+  expensePairs.forEach(({ e, idx }) => {
+    const d = parseFlexibleDate(e.date);
+    const ym = expenseDateToYYYYMM(e.date);
+    rows.push({
+      sortKey: (ym || 999999) * 100 + (d ? d.d : 1),
+      date: formatDateForDisplay(e.date),
+      particulars: e.head || '(no description)',
+      remark: e.remark || '',
+      debit: parseFloat(e.exp) || 0,
+      credit: parseFloat(e.received) || 0,
+      idx
+    });
+  });
+  rows.sort((a, b) => a.sortKey - b.sortKey);
+  let running = Number(openingBalance) || 0;
+  const withBalance = rows.map((r) => {
+    running += (r.isContribution ? r.credit : 0) - (r.debit || 0);
+    return { ...r, balance: running };
+  });
+  withBalance.unshift({ date: 'Opening Balance', particulars: '', debit: 0, credit: 0, balance: Number(openingBalance) || 0, isOpening: true });
+  return withBalance; // ascending chronological order — oldest (Opening Balance) first
+}
+
+
 function renderAccounts() {
   accountsContribAddRow.style.display = isFullAdmin ? '' : 'none';
   accountsExpAddRow.style.display = isFullAdmin ? '' : 'none';
@@ -4152,7 +4208,6 @@ function renderAccounts() {
   lastContributionKeepIdx = contribution.keepIdx;
   renderAccountsDues(contribution);
   const expensePairs = filterExpensesByCutoff(accountsData.expenses); // [{ e, idx }], idx = real position for delete
-  const displayExpensePairs = filterExpensePairsToCurrentMonth(expensePairs); // what's actually shown in the ledger table
   const openingBalance = getOpeningBalance(accountsData.contribution);
   const chain = computeBalanceChain(contribution, accountsData.expenses, openingBalance);
 
@@ -4185,28 +4240,28 @@ function renderAccounts() {
   }
 
   const expTitleEl = document.getElementById('accountsExpTitle');
-  if (expTitleEl) expTitleEl.textContent = `🧾 EXPENSE LEDGER — ${currentMonthLabelFor()}`;
+  if (expTitleEl) expTitleEl.textContent = '📒 ACCOUNTS LEDGER';
   selectedExpenseIdxs.clear(); // indices can shift meaning after any data change, so drop any old selection
   updateBulkDeleteBtn();
   const escHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  if (displayExpensePairs.length) {
-    const rows = displayExpensePairs.slice().reverse().map(({ e, idx }) => {
-      const received = String(e.received || '').trim();
-      const exp = String(e.exp || '').trim();
-      const amtHtml = received ? `<span class="expAmt credit">+₹${received}</span>` : (exp ? `<span class="expAmt debit">-₹${exp}</span>` : '<span class="expAmt">—</span>');
-      const headText = escHtml(e.head || '—') + (e.remark ? ` <span class="expRemark">— ${escHtml(e.remark)}</span>` : '');
-      return `
-      <div class="expRow">
-        ${isFullAdmin ? `<input type="checkbox" class="expSelect" data-idx="${idx}">` : ''}
-        <span class="expDate">${formatDateForDisplay(e.date)}</span>
-        <span class="expHead" title="${escHtml(e.head || '')}${e.remark ? ' — ' + escHtml(e.remark) : ''}">${headText}</span>
-        ${amtHtml}
-        ${isFullAdmin ? `<div class="rowActions"><button class="edit rowEditBtn" data-idx="${idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${idx}" title="Delete this entry">&times;</button></div>` : ''}
-      </div>`;
+  const ledgerRows = buildCombinedLedgerRows(contribution, expensePairs, openingBalance);
+  if (ledgerRows.length) {
+    // Newest entry on top — .slice() first so this reverse doesn't mutate the ascending array
+    // buildCombinedLedgerRows returns (its order is what the running-balance math depends on).
+    const rowsHtml = ledgerRows.slice().reverse().map((r) => {
+      const debitHtml = r.debit ? `<span style="color:#8C2E2E;">₹${r.debit}</span>` : '—';
+      const creditHtml = r.credit ? `<span style="color:var(--green-deep);">₹${r.credit}</span>` : '—';
+      const particularsText = escHtml(r.particulars) + (r.remark ? ` <span class="expRemark">— ${escHtml(r.remark)}</span>` : '');
+      const rowClass = r.isOpening ? ' class="acctSummary"' : (r.isContribution ? ' class="acctSummary"' : '');
+      const actionsHtml = (isFullAdmin && !r.isOpening && !r.isContribution)
+        ? `<td><div class="rowActions"><input type="checkbox" class="expSelect" data-idx="${r.idx}"><button class="edit rowEditBtn" data-idx="${r.idx}" title="Edit this entry">✏️</button><button class="del rowDeleteBtn" data-idx="${r.idx}" title="Delete this entry">&times;</button></div></td>`
+        : (isFullAdmin ? '<td></td>' : '');
+      return `<tr${rowClass}><td>${r.date}</td><td>${particularsText || '—'}</td><td class="num">${debitHtml}</td><td class="num">${creditHtml}</td><td class="num">₹${r.balance}</td>${actionsHtml}</tr>`;
     }).join('');
-    accountsExpResultEl.innerHTML = `<div class="expList">${rows}</div>`;
+    const headCells = '<th>Date</th><th>Particulars</th><th>Debit</th><th>Credit</th><th>Balance</th>' + (isFullAdmin ? '<th></th>' : '');
+    accountsExpResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable expTable"><thead><tr>${headCells}</tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
   } else {
-    accountsExpResultEl.innerHTML = `<div class="legend" style="margin-top:0;">No expense entries for ${currentMonthLabelFor()} yet.</div>`;
+    accountsExpResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No ledger entries yet.</div>';
   }
   renderMyDuesAndBalance();
 }
