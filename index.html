@@ -4235,6 +4235,13 @@ function renderAccounts() {
     const expRow = `<tr class="acctSummary"><td>EXP</td>${chain.exps.map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
     const balRow = `<tr class="acctSummary balance"><td>BALANCE</td>${chain.balances.map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
     accountsResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable"><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}${oldBalRow}${totalRow}${expRow}${balRow}</tbody></table></div>`;
+    // Months run oldest -> newest left to right, so the current month is the right-most column.
+    // Auto-scroll the table all the way right on render so it opens showing the current month
+    // without the user needing to scroll — scrolling left still reveals earlier months.
+    const acctScrollEl = accountsResultEl.querySelector('.acctScroll');
+    if (acctScrollEl) {
+      requestAnimationFrame(() => { acctScrollEl.scrollLeft = acctScrollEl.scrollWidth; });
+    }
   } else {
     accountsResultEl.innerHTML = '<div class="legend" style="margin-top:0;">No contribution data found in the uploaded file.</div>';
   }
