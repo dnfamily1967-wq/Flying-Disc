@@ -3711,7 +3711,9 @@ async function bulkSetHoliday(name, startStr, endStr) {
       let record;
       let deliberate = false; // preserve an existing deliberate save; never let Bulk Holiday itself lock the day
       if (doc.exists && Array.isArray(doc.data().players)) {
-        record = doc.data().players.map(p => ({ name: p.name, status: normalizeAttnStatus(p), source: p.source }));
+        // p.source can be missing on older/regular attendance rows — Firestore's set() rejects
+        // `undefined` field values outright and fails the WHOLE save, so default it to null.
+        record = doc.data().players.map(p => ({ name: p.name, status: normalizeAttnStatus(p), source: p.source || null }));
         deliberate = !!doc.data().deliberate;
         const i = record.findIndex(p => p.name === name);
         if (i >= 0) record[i] = { name, status: 'holiday', source: 'advance' };
