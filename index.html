@@ -348,8 +348,8 @@
     white-space: nowrap;
   }
   .badge-present { background: #E4F5E7; color: #2E7D42; }
-  .badge-absent { background: #B3261E; color: #fff; }
-  .badge-holiday { background: #A67C00; color: #fff; }
+  .badge-absent { background: var(--red-soft); color: #8C2E2E; }
+  .badge-holiday { background: var(--blue-soft); color: #1E4FAE; }
   .ratingMid { display: flex; align-items: center; justify-content: center; flex: 1; gap: 4px; }
   .actrow { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
@@ -380,10 +380,9 @@
     transition: all 0.15s ease;
     white-space: nowrap;
   }
-  .chip.absent.on { background: #B3261E; border-color: #B3261E; color: #fff; font-weight: 800; box-shadow: 0 1px 4px rgba(179,38,30,0.4); }
-  .chip.holiday.on { background: #A67C00; border-color: #A67C00; color: #fff; font-weight: 800; box-shadow: 0 1px 4px rgba(166,124,0,0.4); }
+  .chip.absent.on { background: var(--red-soft); border-color: var(--red); color: #8C2E2E; }
+  .chip.holiday.on { background: var(--blue-soft); border-color: var(--blue); color: #1E4FAE; }
   .chip:disabled { opacity: 0.55; cursor: not-allowed; }
-  .chip.on:disabled { opacity: 1; cursor: not-allowed; }
   .chip.teamA.on { background: #E4F5E7; border-color: #2E7D42; color: #2E7D42; }
   .chip.teamB.on { background: var(--orange-soft); border-color: var(--orange); color: #C6491C; }
   .chip.draw.on { background: #EFEBDC; border-color: var(--muted); color: var(--ink); }
@@ -1404,13 +1403,8 @@
       <input type="month" id="monthlySheetInput">
       <button class="secondary" id="loadMonthlySheetBtn">👁️ VIEW</button>
     </div>
-    <div id="fineRateRow" style="display:none; align-items:center; gap:8px; margin-top:10px;">
-      <label for="fineRateInput" style="font-size:12.5px; color:var(--muted); white-space:nowrap;">₹ per absent (beyond 10):</label>
-      <input type="number" id="fineRateInput" min="0" step="1" style="width:80px; border:1.5px solid var(--line); border-radius:9px; padding:6px 8px; font-size:13px;">
-      <button class="secondary" id="fineRateSaveBtn" style="padding:6px 12px; font-size:12px;">💾 SAVE RATE</button>
-    </div>
     <div id="monthlySheetResult" style="margin-top:12px;"></div>
-    <div class="legend">Rule: a fine applies only if <b>❌ unexcused absences</b> exceed 10 days in the month — then it's ₹<span id="fineRateLegendVal">10</span> for every absence beyond 10 (e.g. 13 absences at ₹<span id="fineRateLegendVal2">10</span> = ₹<span id="fineRateLegendEx">30</span>). 🏖️ Holidays never cause a fine. This fine amount is tracked separately here and is NOT part of the monthly Accounts/Dues balance.</div>
+    <div class="legend">Rule: a fine applies only if <b>❌ unexcused absences</b> exceed 10 days in the month. Being present 20 days, or present + holiday covering the whole month (fewer absences), means no fine at all. 🏖️ Holidays never cause a fine.</div>
   </div>
   </div>
 
@@ -1856,8 +1850,6 @@ function applyAdminVisibility() {
   const editAttnDayBtn = document.getElementById('editAttnDayBtn');
   if (editAttnDayBtn) editAttnDayBtn.style.display = isAdmin ? '' : 'none';
   if (!isAdmin) { const p = document.getElementById('editAttnPanel'); if (p) p.style.display = 'none'; }
-  const fineRateRowEl = document.getElementById('fineRateRow');
-  if (fineRateRowEl) fineRateRowEl.style.display = isAdmin ? 'flex' : 'none';
   const accountsUploadCard = document.getElementById('accountsUploadCard');
   if (accountsUploadCard) accountsUploadCard.style.display = isFullAdmin ? '' : 'none';
   const navHolidayBtn = document.getElementById('navHolidayBtn');
@@ -3200,64 +3192,6 @@ db.collection('disc_team').doc(`attendance_${todayStr()}`).onSnapshot((doc) => {
 // Being present 20 days, or (holiday + present) covering the full month — as long as the absent
 // count stays within this limit, there's NO fine. Holidays never cause a fine.
 const FINE_ABSENT_THRESHOLD = 10;
-// ₹ charged for EACH unexcused absence beyond the free 10 (so 13 absences = 3 × this amount).
-// DEFAULT_FINE_AMOUNT_PER_ABSENT is only the starting value — admins can change the live rate
-// from the Monthly Fine Sheet card in the app itself (stored in finesDocRef.rate below), so this
-// constant is just what's used the very first time, before any rate has ever been saved.
-const DEFAULT_FINE_AMOUNT_PER_ABSENT = 10;
-let finePerAbsentAmount = DEFAULT_FINE_AMOUNT_PER_ABSENT;
-
-function fineAmountFor(t) {
-  if (!isFined(t)) return 0;
-  return (t.absent - FINE_ABSENT_THRESHOLD) * finePerAbsentAmount;
-}
-
-// ---- Fine ledger: kept in its OWN doc, completely separate from the Accounts/Contribution
-// balance chain — this tracks which (month, name) fines have been marked paid, plus the current
-// ₹-per-absence rate. It never touches accountsDocRef, so it can't affect the monthly
-// contribution/expense/balance numbers.
-const finesDocRef = db.collection('disc_team').doc('fines');
-let finesPaidMap = {}; // key "YYYY-MM|NAME" -> true
-function fineKey(month, name) { return month + '|' + name; }
-function isFinePaid(month, name) { return !!finesPaidMap[fineKey(month, name)]; }
-function setFinePaid(month, name, paid) {
-  const update = { updatedAt: Date.now() };
-  update['paid.' + fineKey(month, name)] = paid ? true : firebase.firestore.FieldValue.delete();
-  finesDocRef.set(update, { merge: true }).catch((e) => {
-    console.error('Fine paid toggle failed', e);
-    alert('Could not update fine status: ' + e.message);
-  });
-}
-function setFineRate(newRate) {
-  const rate = Number(newRate);
-  if (!isFinite(rate) || rate < 0) { alert('Please enter a valid ₹ amount (0 or more).'); return; }
-  finesDocRef.set({ rate, updatedAt: Date.now() }, { merge: true }).catch((e) => {
-    console.error('Fine rate save failed', e);
-    alert('Could not save the new rate: ' + e.message);
-  });
-}
-function updateFineRateDisplay() {
-  const rateInput = document.getElementById('fineRateInput');
-  if (rateInput && document.activeElement !== rateInput) rateInput.value = finePerAbsentAmount;
-  const legendVal = document.getElementById('fineRateLegendVal');
-  const legendVal2 = document.getElementById('fineRateLegendVal2');
-  const legendEx = document.getElementById('fineRateLegendEx');
-  if (legendVal) legendVal.textContent = finePerAbsentAmount;
-  if (legendVal2) legendVal2.textContent = finePerAbsentAmount;
-  if (legendEx) legendEx.textContent = 3 * finePerAbsentAmount;
-}
-finesDocRef.onSnapshot((doc) => {
-  finesPaidMap = (doc.exists && doc.data().paid) || {};
-  finePerAbsentAmount = (doc.exists && typeof doc.data().rate === 'number') ? doc.data().rate : DEFAULT_FINE_AMOUNT_PER_ABSENT;
-  updateFineRateDisplay();
-  // Re-render whatever fine views are currently on screen so a mark-paid or rate change from
-  // another phone (or admin) shows up live here too, without needing a reload.
-  refreshMyFineCard();
-  if (monthlySheetInput && monthlySheetInput.value) loadMonthlySheet(monthlySheetInput.value);
-}, (err) => console.error('Fines ledger sync error', err));
-document.getElementById('fineRateSaveBtn').addEventListener('click', () => {
-  setFineRate(document.getElementById('fineRateInput').value);
-});
 
 
 function monthStr(d = new Date()) {
@@ -3377,7 +3311,6 @@ function load() {
   } catch (e) { /* ignore */ }
   render();
   refreshBdayBanner();
-  updateLoginAvatar(); // login modal may already be open (it's shown before this data loads) — refresh it now that photos are available
 
   playersDocRef.onSnapshot((doc) => {
     cloudReady = true;
@@ -3399,7 +3332,6 @@ function load() {
           try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
           render();
           refreshBdayBanner();
-          updateLoginAvatar();
           suppressNextSnapshot = true;
           playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e) => {
             console.error('Day-rollover save failed', e);
@@ -3410,7 +3342,6 @@ function load() {
           try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e2) {}
           render();
           refreshBdayBanner();
-          updateLoginAvatar();
           suppressNextSnapshot = true;
           playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e2) => {
             console.error('Day-rollover save failed', e2);
@@ -3422,7 +3353,6 @@ function load() {
       render();
       refreshBdayBanner();
       renderHeroAvatar(); // someone's photo (including a remote change from another phone) must refresh here too, not just in the roster list
-      updateLoginAvatar(); // and the login screen's avatar too, if that modal happens to be open right now
     }
   }, (err) => {
     console.error('Cloud sync error (using local data):', err);
@@ -3682,38 +3612,18 @@ function renderMonthlySheet(month, totals, daysCounted) {
     monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">No attendance record found for this month (${month}).</div>`;
     return;
   }
-  let totalPending = 0;
   const rows = names.map((name) => {
     const t = totals[name];
     const fined = isFined(t);
-    const amt = fineAmountFor(t);
-    const paid = fined && isFinePaid(month, name);
-    if (fined && !paid) totalPending += amt;
     const crown = ADMIN_NAMES.includes(name.toUpperCase()) ? '👑 ' : '';
-    const verdict = !fined
-      ? `<span class="fineVerdict good">✅ OK</span>`
-      : paid
-        ? `<span class="fineVerdict good">✅ PAID ₹${amt}</span>`
-        : `<span class="fineVerdict bad">⚠️ ₹${amt} DUE</span>`;
-    const payBtn = (fined && isAdmin)
-      ? `<button class="secondary fineToggleBtn" data-month="${month}" data-name="${name}" data-paid="${paid ? '1' : '0'}" style="margin-left:6px; padding:2px 8px; font-size:10px;">${paid ? '↩️ Unmark' : '💰 Mark Paid'}</button>`
-      : '';
     return `
     <div class="fineRow ${fined ? 'fined' : ''}">
       <span class="fineName">${crown}${name}</span>
       <span class="circleRow"><span class="miniCircle mc-green">${t.present}</span><span class="miniCircle mc-yellow">${t.holiday}</span><span class="miniCircle mc-red">${t.absent}</span></span>
-      ${verdict}${payBtn}
+      <span class="fineVerdict ${fined ? 'bad' : 'good'}">${fined ? '⚠️ FINE' : '✅ OK'}</span>
     </div>`;
   }).join('');
-  const summaryLine = totalPending > 0 ? ` · <b>₹${totalPending} fine pending</b>` : '';
-  monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${daysCounted} days of full detail found for ${month}${summaryLine}.</div>` + rows;
-  if (isAdmin) {
-    monthlySheetResultEl.querySelectorAll('.fineToggleBtn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        setFinePaid(btn.dataset.month, btn.dataset.name, btn.dataset.paid === '0');
-      });
-    });
-  }
+  monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${daysCounted} days of full detail found for ${month}.</div>` + rows;
 }
 
 function loadMonthlySheet(month) {
@@ -3742,18 +3652,15 @@ function refreshMyFineCard() {
   computeMonthlyTotals(m, (totals) => {
     const t = totals[currentUser] || { present: 0, absent: 0, holiday: 0, total: 0 };
     const fined = isFined(t);
-    const amt = fineAmountFor(t);
-    const paid = fined && isFinePaid(m, currentUser);
-    card.className = 'myFineCard' + (fined && !paid ? ' fined' : '');
+    card.className = 'myFineCard' + (fined ? ' fined' : '');
     card.style.display = 'flex';
-    const verdictText = !fined ? '✅ No Fine' : (paid ? `✅ Paid ₹${amt}` : `⚠️ ₹${amt} Due`);
     card.innerHTML = `
       <div>
         <div class="mfTitle">THIS MONTH'S (${m}) ATTENDANCE</div>
         <div class="mfName">👋 ${currentUser}</div>
         <div class="mfCounts">✅ ${t.present} present · 🏖️ ${t.holiday} holiday · ❌ ${t.absent} absent</div>
       </div>
-      <div class="mfVerdict ${fined && !paid ? 'bad' : 'good'}">${verdictText}</div>
+      <div class="mfVerdict ${fined ? 'bad' : 'good'}">${fined ? '⚠️ FINE' : '✅ No Fine'}</div>
     `;
   }, (e) => {
     console.error('My fine card load failed', e);
