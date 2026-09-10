@@ -3352,6 +3352,7 @@ function load() {
       try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
       render();
       refreshBdayBanner();
+      renderHeroAvatar(); // someone's photo (including a remote change from another phone) must refresh here too, not just in the roster list
     }
   }, (err) => {
     console.error('Cloud sync error (using local data):', err);
