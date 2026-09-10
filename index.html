@@ -1315,6 +1315,7 @@
       <button class="sortBtn" id="sortStatusBtn" data-mode="status">ABSENT <span id="statusArrow">↕</span></button>
     </div>
     <ul class="plist" id="plist"></ul>
+    <input type="file" id="adminPhotoInput" accept="image/*" style="display:none;">
     <button id="saveBtn" style="margin-top:14px; background:var(--green-deep);">💾 SAVE &amp; MARK ATTENDANCE</button>
     <div class="saved-msg" id="savedMsg">Saved ✅</div>
     <div class="err" id="err">You need at least 2 present players to make teams.</div>
@@ -2166,11 +2167,18 @@ function render() {
     const phaHtml = `<span class="circleRow"><span class="miniCircle mc-green">${pha.present}</span><span class="miniCircle mc-yellow">${pha.holiday}</span><span class="miniCircle mc-red">${pha.absent}</span></span>`;
     const bdayHtml = p.bday ? `<span class="pbday">🎂${formatBdayShort(p.bday)}</span>` : '';
     const avatarHtml = p.photo ? `<img class="miniAvatar" src="${p.photo}" alt="">` : '';
+    // Full admin gets a small camera button next to every row so they can add/replace ANY
+    // player's photo from inside the app itself — not just whatever name someone happens to
+    // pick for themselves on the pre-login screen.
+    const adminPhotoBtnHtml = isFullAdmin
+      ? `<button class="adminPhotoBtn" data-i="${i}" title="Add/change ${p.name}'s photo" style="width:20px; height:20px; flex-shrink:0; border-radius:50%; border:1px solid var(--line); background:var(--gold-soft); color:#8A6512; font-size:10px; padding:0; display:flex; align-items:center; justify-content:center;">📷</button>`
+      : '';
     const nameRowHtml = `
       <div class="pnameRow">
         ${avatarHtml}
         <span class="pname ${p.status === 'absent' ? 'absent' : ''} ${p.status === 'holiday' ? 'holiday' : ''}">${crown}${p.name}</span>
         ${bdayHtml}
+        ${adminPhotoBtnHtml}
       </div>`;
     if (isFullAdmin) {
       const advanceLocked = advanceHolidayNamesToday.has(p.name);
@@ -2502,6 +2510,25 @@ document.getElementById('loginPhotoInput').addEventListener('change', (e) => {
   });
 });
 
+// Admin (full admin only) can add/replace ANY player's photo from the roster list itself,
+// without needing to know that player's password or go through the pre-login picker.
+let adminPhotoTargetIdx = null;
+document.getElementById('adminPhotoInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  const i = adminPhotoTargetIdx;
+  adminPhotoTargetIdx = null;
+  if (!file || i === null || !players[i]) return;
+  const name = players[i].name;
+  compressImageFile(file, (dataUrl) => {
+    players[i].photo = dataUrl;
+    render();
+    savePhotoChange(name, dataUrl);
+    renderHeroAvatar();
+    updateLoginAvatar();
+  });
+});
+
 document.getElementById('loginPhotoDelBtn').addEventListener('click', () => {
   const name = loginNameSelect.value;
   if (!name) return;
@@ -2559,6 +2586,11 @@ plistEl.addEventListener('click', (e) => {
   if (btn.classList.contains('ratingEditBtn')) {
     editingRatingIdx = Number(btn.dataset.i);
     render();
+    return;
+  }
+  if (btn.classList.contains('adminPhotoBtn')) {
+    adminPhotoTargetIdx = Number(btn.dataset.i);
+    document.getElementById('adminPhotoInput').click();
     return;
   }
   const i = Number(btn.dataset.i);
@@ -3322,8 +3354,23 @@ function save() {
   } catch (e) {
     console.error('Local save failed', e);
   }
-  suppressNextSnapshot = true;
-  playersDocRef.set({ list: players, statusDate: todayStr(), updatedAt: Date.now() })
+  // Someone else (another phone, or the admin adding a photo for someone) may have set a photo
+  // on the server after this device last synced. An ordinary roster save (rating tweak,
+  // attendance tick, add/remove player, etc.) writes the FULL local `players` list, so without
+  // this check a slightly-stale in-memory copy would silently overwrite/erase a photo that was
+  // just added elsewhere — which is why photos were disappearing repeatedly. Fetch the latest
+  // server copy first and borrow any photo this device doesn't already have before writing.
+  playersDocRef.get().then((doc) => {
+    const serverList = (doc.exists && Array.isArray(doc.data().list)) ? doc.data().list : [];
+    const serverPhotoByName = {};
+    serverList.forEach((p) => { if (p && p.photo) serverPhotoByName[p.name] = p.photo; });
+    players = players.map((p) => (p.photo || !serverPhotoByName[p.name]) ? p : { ...p, photo: serverPhotoByName[p.name] });
+    try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
+    render();
+    renderHeroAvatar();
+    suppressNextSnapshot = true;
+    return playersDocRef.set({ list: players, statusDate: todayStr(), updatedAt: Date.now() });
+  })
     .then(() => showSaved())
     .catch((e) => {
       console.error('Cloud save failed', e);
