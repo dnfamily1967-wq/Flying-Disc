@@ -347,7 +347,7 @@
     border-radius: 20px;
     white-space: nowrap;
   }
-  .badge-present { background: #E4F5E7; color: #2E7D42; }
+  .badge-present { background: #2E7D42; color: #fff; }
   .badge-absent { background: #B3261E; color: #fff; }
   .badge-holiday { background: #A67C00; color: #fff; }
   .ratingMid { display: flex; align-items: center; justify-content: center; flex: 1; gap: 4px; }
@@ -2209,6 +2209,7 @@ function render() {
         ${ratingHtml}
       </div>
       <div class="actrow" ${lockTitle}>
+        ${(locked && p.status === 'present') ? '<span class="badge badge-present" style="margin-right:4px;">Present</span>' : ''}
         <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent" ${locked ? 'disabled' : ''}>absent</button>
         <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday${advanceLocked ? ' 🔒' : ''}</button>
         <button class="del" data-i="${i}" data-act="del">&times;</button>
@@ -2229,6 +2230,7 @@ function render() {
         <span class="rating">${p.rating}</span>
       </div>
       <div class="actrow" ${lockTitle}>
+        ${(locked && p.status === 'present') ? '<span class="badge badge-present" style="margin-right:4px;">Present</span>' : ''}
         <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent" ${locked ? 'disabled' : ''}>absent</button>
         <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday${advanceLocked ? ' 🔒' : ''}</button>
       </div>
