@@ -2209,9 +2209,10 @@ function render() {
         ${ratingHtml}
       </div>
       <div class="actrow" ${lockTitle}>
-        ${(locked && p.status === 'present') ? '<span class="badge badge-present" style="margin-right:4px;">Present</span>' : ''}
-        <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent" ${locked ? 'disabled' : ''}>absent</button>
-        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday${advanceLocked ? ' 🔒' : ''}</button>
+        ${locked
+          ? `<span class="badge badge-${p.status}">${p.status === 'absent' ? 'Absent' : p.status === 'holiday' ? 'Holiday' : 'Present'}</span>`
+          : `<button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
+        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday">holiday</button>`}
         <button class="del" data-i="${i}" data-act="del">&times;</button>
       </div>
     </li>`;
@@ -2230,9 +2231,10 @@ function render() {
         <span class="rating">${p.rating}</span>
       </div>
       <div class="actrow" ${lockTitle}>
-        ${(locked && p.status === 'present') ? '<span class="badge badge-present" style="margin-right:4px;">Present</span>' : ''}
-        <button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent" ${locked ? 'disabled' : ''}>absent</button>
-        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday" ${locked ? 'disabled' : ''}>holiday${advanceLocked ? ' 🔒' : ''}</button>
+        ${locked
+          ? `<span class="badge badge-${p.status}">${p.status === 'absent' ? 'Absent' : p.status === 'holiday' ? 'Holiday' : 'Present'}</span>`
+          : `<button class="chip absent ${p.status === 'absent' ? 'on' : ''}" data-i="${i}" data-act="absent">absent</button>
+        <button class="chip holiday ${p.status === 'holiday' ? 'on' : ''}" data-i="${i}" data-act="holiday">holiday</button>`}
       </div>
     </li>`;
     }
