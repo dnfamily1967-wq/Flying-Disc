@@ -3730,18 +3730,20 @@ function renderMonthlySheet(month, totals, daysCounted) {
     return;
   }
   let totalPending = 0;
+  let totalPaid = 0;
   const rows = names.map((name) => {
     const t = totals[name];
     const fined = isFined(t);
     const amt = fineAmountFor(t);
     const paid = fined && isFinePaid(month, name);
     if (fined && !paid) totalPending += amt;
+    if (fined && paid) totalPaid += amt;
     const crown = ADMIN_NAMES.includes(name.toUpperCase()) ? '👑 ' : '';
     const verdict = !fined
-      ? `<span class="fineVerdict good">✅ OK</span>`
+      ? `<span class="fineVerdict good">✅ PAID ₹0</span>`
       : paid
         ? `<span class="fineVerdict good">✅ PAID ₹${amt}</span>`
-        : `<span class="fineVerdict bad">⚠️ ₹${amt} DUE</span>`;
+        : `<span class="fineVerdict bad">⚠️ UNPAID ₹${amt}</span>`;
     const payBtn = (fined && isAdmin)
       ? `<button class="secondary fineToggleBtn" data-month="${month}" data-name="${name}" data-paid="${paid ? '1' : '0'}" style="margin-left:6px; padding:2px 8px; font-size:10px;">${paid ? '↩️ Unmark' : '💰 Mark Paid'}</button>`
       : '';
@@ -3752,8 +3754,13 @@ function renderMonthlySheet(month, totals, daysCounted) {
       ${verdict}${payBtn}
     </div>`;
   }).join('');
-  const summaryLine = totalPending > 0 ? ` · <b>₹${totalPending} fine pending</b>` : '';
-  monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${daysCounted} days of full detail found for ${month}${summaryLine}.</div>` + rows;
+  const summaryLine = ` · <b style="color:#1f8a45;">₹${totalPaid} paid</b> · <b style="color:#c0392b;">₹${totalPending} unpaid</b>`;
+  monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${daysCounted} days of full detail found for ${month}${summaryLine}.</div>` + rows
+    + `<div class="fineRow" style="border-top:2px solid #ddd; margin-top:8px; padding-top:10px; font-weight:700;">
+         <span class="fineName">TOTAL</span>
+         <span style="color:#1f8a45;">✅ Paid: ₹${totalPaid}</span>
+         <span style="margin-left:12px; color:#c0392b;">⚠️ Unpaid: ₹${totalPending}</span>
+       </div>`;
   if (isAdmin) {
     monthlySheetResultEl.querySelectorAll('.fineToggleBtn').forEach((btn) => {
       btn.addEventListener('click', () => {
