@@ -348,8 +348,8 @@
     white-space: nowrap;
   }
   .badge-present { background: #E4F5E7; color: #2E7D42; }
-  .badge-absent { background: #8C2E2E; color: #fff; }
-  .badge-holiday { background: #B8860B; color: #fff; }
+  .badge-absent { background: #B3261E; color: #fff; }
+  .badge-holiday { background: #A67C00; color: #fff; }
   .ratingMid { display: flex; align-items: center; justify-content: center; flex: 1; gap: 4px; }
   .actrow { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
@@ -380,9 +380,10 @@
     transition: all 0.15s ease;
     white-space: nowrap;
   }
-  .chip.absent.on { background: #8C2E2E; border-color: #8C2E2E; color: #fff; }
-  .chip.holiday.on { background: #B8860B; border-color: #B8860B; color: #fff; }
+  .chip.absent.on { background: #B3261E; border-color: #B3261E; color: #fff; font-weight: 800; box-shadow: 0 1px 4px rgba(179,38,30,0.4); }
+  .chip.holiday.on { background: #A67C00; border-color: #A67C00; color: #fff; font-weight: 800; box-shadow: 0 1px 4px rgba(166,124,0,0.4); }
   .chip:disabled { opacity: 0.55; cursor: not-allowed; }
+  .chip.on:disabled { opacity: 1; cursor: not-allowed; }
   .chip.teamA.on { background: #E4F5E7; border-color: #2E7D42; color: #2E7D42; }
   .chip.teamB.on { background: var(--orange-soft); border-color: var(--orange); color: #C6491C; }
   .chip.draw.on { background: #EFEBDC; border-color: var(--muted); color: var(--ink); }
