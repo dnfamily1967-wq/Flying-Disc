@@ -1471,6 +1471,15 @@
   <div class="card accent-green">
     <h2>💰 CONTRIBUTIONS</h2>
     <div id="accountsContribAddRow" style="display:none;"><button class="secondary" id="addPersonBtn">➕ ADD / EDIT PERSON</button></div>
+    <div class="ledgerFilterRow" id="contribMonthFilterRow" style="display:none; margin-bottom:12px;">
+      <label for="contribMonthRangeSelect">Show</label>
+      <select id="contribMonthRangeSelect">
+        <option value="2">Last 2 Months</option>
+        <option value="3">Last 3 Months</option>
+        <option value="6">Last 6 Months</option>
+        <option value="all">All Months</option>
+      </select>
+    </div>
     <div id="accountsContribResult"><div class="legend" style="margin-top:0;">No accounts file loaded yet.</div></div>
   </div>
 
@@ -4031,6 +4040,19 @@ document.getElementById('resetPassBtn').addEventListener('click', () => {
 // resulting summary is saved to the cloud so every player sees the same live Accounts tab.
 const accountsDocRef = db.collection('disc_team').doc('accounts');
 const accountsResultEl = document.getElementById('accountsContribResult');
+// ---- CONTRIBUTIONS table month window: as more months get added the table would keep growing
+// sideways and squeeze/hide the NAME column on small screens, so instead we only render the last
+// N months' columns at a time (default 2), with a dropdown to widen it or show everything.
+let contribMonthsView = localStorage.getItem('contrib-months-view') || '2';
+const contribMonthRangeSelectEl = document.getElementById('contribMonthRangeSelect');
+if (contribMonthRangeSelectEl) {
+  contribMonthRangeSelectEl.value = contribMonthsView;
+  contribMonthRangeSelectEl.addEventListener('change', () => {
+    contribMonthsView = contribMonthRangeSelectEl.value;
+    try { localStorage.setItem('contrib-months-view', contribMonthsView); } catch (e) {}
+    renderAccounts();
+  });
+}
 const accountsExpResultEl = document.getElementById('accountsExpResult');
 const accountsStatusEl = document.getElementById('accountsUploadStatus');
 const accountsMetaEl = document.getElementById('accountsMeta');
@@ -4688,14 +4710,23 @@ function renderAccounts() {
   }
 
   if (contribution && contribution.people) {
+    const contribMonthFilterRowEl = document.getElementById('contribMonthFilterRow');
+    const totalMonths = contribution.months.length;
+    if (contribMonthFilterRowEl) contribMonthFilterRowEl.style.display = totalMonths > 1 ? '' : 'none';
+    // Slice every parallel array (months, each person's values, and the OLD BALANCE/TOTAL/EXP/BALANCE
+    // summary rows) down to the same window of months, so the NAME column never gets squeezed off
+    // by an ever-growing number of month columns. "All Months" (or too few months to trim) shows everything.
+    const windowSize = contribMonthsView === 'all' ? totalMonths : Math.min(parseInt(contribMonthsView, 10) || 2, totalMonths);
+    const startIdx = totalMonths - windowSize;
+    const shownMonths = contribution.months.slice(startIdx);
     const escName = (n) => String(n).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-    const headCells = ['NAME', ...contribution.months].map((h) => `<th>${h}</th>`).join('') + (isFullAdmin ? '<th></th>' : '');
+    const headCells = ['NAME', ...shownMonths].map((h) => `<th>${h}</th>`).join('') + (isFullAdmin ? '<th></th>' : '');
     const bodyRows = contribution.people.map((p) => `
-      <tr><td>${p.name}</td>${p.values.map((v) => `<td>${v || '—'}</td>`).join('')}${isFullAdmin ? `<td><div class="rowActions"><button class="edit rowEditBtn" data-name="${escName(p.name)}" title="Edit ${escName(p.name)}'s row">✏️</button><button class="del rowDeleteBtn" data-name="${escName(p.name)}" title="Delete ${escName(p.name)}'s row">&times;</button></div></td>` : ''}</tr>`).join('');
-    const oldBalRow = `<tr class="acctSummary"><td>OLD BALANCE</td>${chain.oldBalances.map((v, i) => `<td>${i === 0 ? `${v}${isFullAdmin ? ' <button class="edit editOpeningBalBtn" title="Edit opening balance">✏️</button>' : ''}` : v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
-    const totalRow = `<tr class="acctSummary"><td>TOTAL</td>${chain.totals.map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
-    const expRow = `<tr class="acctSummary"><td>EXP</td>${chain.exps.map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
-    const balRow = `<tr class="acctSummary balance"><td>BALANCE</td>${chain.balances.map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
+      <tr><td>${p.name}</td>${p.values.slice(startIdx).map((v) => `<td>${v || '—'}</td>`).join('')}${isFullAdmin ? `<td><div class="rowActions"><button class="edit rowEditBtn" data-name="${escName(p.name)}" title="Edit ${escName(p.name)}'s row">✏️</button><button class="del rowDeleteBtn" data-name="${escName(p.name)}" title="Delete ${escName(p.name)}'s row">&times;</button></div></td>` : ''}</tr>`).join('');
+    const oldBalRow = `<tr class="acctSummary"><td>OLD BALANCE</td>${chain.oldBalances.slice(startIdx).map((v, i) => `<td>${(startIdx + i) === 0 ? `${v}${isFullAdmin ? ' <button class="edit editOpeningBalBtn" title="Edit opening balance">✏️</button>' : ''}` : v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
+    const totalRow = `<tr class="acctSummary"><td>TOTAL</td>${chain.totals.slice(startIdx).map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
+    const expRow = `<tr class="acctSummary"><td>EXP</td>${chain.exps.slice(startIdx).map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
+    const balRow = `<tr class="acctSummary balance"><td>BALANCE</td>${chain.balances.slice(startIdx).map((v) => `<td>${v}</td>`).join('')}${isFullAdmin ? '<td></td>' : ''}</tr>`;
     accountsResultEl.innerHTML = `<div class="acctScroll"><table class="acctTable"><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}${oldBalRow}${totalRow}${expRow}${balRow}</tbody></table></div>`;
     // Months run oldest -> newest left to right, so the current month is the right-most column.
     // Auto-scroll the table all the way right on render so it opens showing the current month
