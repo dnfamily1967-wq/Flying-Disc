@@ -1404,7 +1404,7 @@
       <button class="secondary" id="loadMonthlySheetBtn">👁️ VIEW</button>
     </div>
     <div id="monthlySheetResult" style="margin-top:12px;"></div>
-    <div class="legend">Rule: a fine applies only if <b>❌ unexcused absences</b> exceed 10 days in the month. Being present 20 days, or present + holiday covering the whole month (fewer absences), means no fine at all. 🏖️ Holidays never cause a fine.</div>
+    <div class="legend">Rule: a fine applies only if <b>❌ unexcused absences</b> exceed 10 days in the month — then it's <b>₹10 for every absence beyond 10</b> (e.g. 13 absences = ₹30). 🏖️ Holidays never cause a fine. This fine amount is tracked separately here and is NOT part of the monthly Accounts/Dues balance.</div>
   </div>
   </div>
 
@@ -3192,6 +3192,37 @@ db.collection('disc_team').doc(`attendance_${todayStr()}`).onSnapshot((doc) => {
 // Being present 20 days, or (holiday + present) covering the full month — as long as the absent
 // count stays within this limit, there's NO fine. Holidays never cause a fine.
 const FINE_ABSENT_THRESHOLD = 10;
+// ₹ charged for EACH unexcused absence beyond the free 10 (so 13 absences = 3 × this amount).
+// Change just this one number to change the rate for everyone.
+const FINE_AMOUNT_PER_ABSENT = 10;
+
+function fineAmountFor(t) {
+  if (!isFined(t)) return 0;
+  return (t.absent - FINE_ABSENT_THRESHOLD) * FINE_AMOUNT_PER_ABSENT;
+}
+
+// ---- Fine ledger: kept in its OWN doc, completely separate from the Accounts/Contribution
+// balance chain — this only ever tracks which (month, name) fines have been marked paid. It never
+// touches accountsDocRef, so it can't affect the monthly contribution/expense/balance numbers.
+const finesDocRef = db.collection('disc_team').doc('fines');
+let finesPaidMap = {}; // key "YYYY-MM|NAME" -> true
+function fineKey(month, name) { return month + '|' + name; }
+function isFinePaid(month, name) { return !!finesPaidMap[fineKey(month, name)]; }
+function setFinePaid(month, name, paid) {
+  const update = { updatedAt: Date.now() };
+  update['paid.' + fineKey(month, name)] = paid ? true : firebase.firestore.FieldValue.delete();
+  finesDocRef.set(update, { merge: true }).catch((e) => {
+    console.error('Fine paid toggle failed', e);
+    alert('Could not update fine status: ' + e.message);
+  });
+}
+finesDocRef.onSnapshot((doc) => {
+  finesPaidMap = (doc.exists && doc.data().paid) || {};
+  // Re-render whatever fine views are currently on screen so a mark-paid from another phone
+  // (or admin) shows up live here too, without needing a reload.
+  refreshMyFineCard();
+  if (monthlySheetInput && monthlySheetInput.value) loadMonthlySheet(monthlySheetInput.value);
+}, (err) => console.error('Fines ledger sync error', err));
 
 
 function monthStr(d = new Date()) {
@@ -3616,18 +3647,38 @@ function renderMonthlySheet(month, totals, daysCounted) {
     monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">No attendance record found for this month (${month}).</div>`;
     return;
   }
+  let totalPending = 0;
   const rows = names.map((name) => {
     const t = totals[name];
     const fined = isFined(t);
+    const amt = fineAmountFor(t);
+    const paid = fined && isFinePaid(month, name);
+    if (fined && !paid) totalPending += amt;
     const crown = ADMIN_NAMES.includes(name.toUpperCase()) ? '👑 ' : '';
+    const verdict = !fined
+      ? `<span class="fineVerdict good">✅ OK</span>`
+      : paid
+        ? `<span class="fineVerdict good">✅ PAID ₹${amt}</span>`
+        : `<span class="fineVerdict bad">⚠️ ₹${amt} DUE</span>`;
+    const payBtn = (fined && isAdmin)
+      ? `<button class="secondary fineToggleBtn" data-month="${month}" data-name="${name}" data-paid="${paid ? '1' : '0'}" style="margin-left:6px; padding:2px 8px; font-size:10px;">${paid ? '↩️ Unmark' : '💰 Mark Paid'}</button>`
+      : '';
     return `
     <div class="fineRow ${fined ? 'fined' : ''}">
       <span class="fineName">${crown}${name}</span>
       <span class="circleRow"><span class="miniCircle mc-green">${t.present}</span><span class="miniCircle mc-yellow">${t.holiday}</span><span class="miniCircle mc-red">${t.absent}</span></span>
-      <span class="fineVerdict ${fined ? 'bad' : 'good'}">${fined ? '⚠️ FINE' : '✅ OK'}</span>
+      ${verdict}${payBtn}
     </div>`;
   }).join('');
-  monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${daysCounted} days of full detail found for ${month}.</div>` + rows;
+  const summaryLine = totalPending > 0 ? ` · <b>₹${totalPending} fine pending</b>` : '';
+  monthlySheetResultEl.innerHTML = `<div class="legend" style="margin-top:0;">${daysCounted} days of full detail found for ${month}${summaryLine}.</div>` + rows;
+  if (isAdmin) {
+    monthlySheetResultEl.querySelectorAll('.fineToggleBtn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setFinePaid(btn.dataset.month, btn.dataset.name, btn.dataset.paid === '0');
+      });
+    });
+  }
 }
 
 function loadMonthlySheet(month) {
@@ -3656,15 +3707,18 @@ function refreshMyFineCard() {
   computeMonthlyTotals(m, (totals) => {
     const t = totals[currentUser] || { present: 0, absent: 0, holiday: 0, total: 0 };
     const fined = isFined(t);
-    card.className = 'myFineCard' + (fined ? ' fined' : '');
+    const amt = fineAmountFor(t);
+    const paid = fined && isFinePaid(m, currentUser);
+    card.className = 'myFineCard' + (fined && !paid ? ' fined' : '');
     card.style.display = 'flex';
+    const verdictText = !fined ? '✅ No Fine' : (paid ? `✅ Paid ₹${amt}` : `⚠️ ₹${amt} Due`);
     card.innerHTML = `
       <div>
         <div class="mfTitle">THIS MONTH'S (${m}) ATTENDANCE</div>
         <div class="mfName">👋 ${currentUser}</div>
         <div class="mfCounts">✅ ${t.present} present · 🏖️ ${t.holiday} holiday · ❌ ${t.absent} absent</div>
       </div>
-      <div class="mfVerdict ${fined ? 'bad' : 'good'}">${fined ? '⚠️ FINE' : '✅ No Fine'}</div>
+      <div class="mfVerdict ${fined && !paid ? 'bad' : 'good'}">${verdictText}</div>
     `;
   }, (e) => {
     console.error('My fine card load failed', e);
