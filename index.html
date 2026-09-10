@@ -1417,6 +1417,7 @@
       <input type="date" id="bulkHolidayEnd">
     </div>
     <button id="bulkHolidaySaveBtn">💾 SAVE HOLIDAY RANGE</button>
+    <button id="bulkHolidayCancelBtn" class="secondary" style="margin-top:8px; border-color:var(--red); color:#8C2E2E;">✖ CANCEL HOLIDAY RANGE</button>
     <div class="legend" id="bulkHolidayStatus" style="display:none;"></div>
   </div>
 
@@ -2228,8 +2229,9 @@ function populateBulkHolidaySelect() {
   const sel = document.getElementById('bulkHolidayName');
   if (!sel) return;
   const current = sel.value;
-  sel.innerHTML = players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+  sel.innerHTML = '<option value="" selected disabled>Select a player…</option>' + players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
   if (current && players.some(p => p.name === current)) sel.value = current;
+  else sel.value = '';
   populateResetPassSelect();
 }
 
@@ -3759,6 +3761,71 @@ document.getElementById('bulkHolidaySaveBtn').addEventListener('click', () => {
     return;
   }
   bulkSetHoliday(name, startStr, endStr);
+});
+
+// Undoes a Bulk Holiday range — only removes the days that were actually set THIS way (source
+// 'advance'), so it never touches a day someone toggled directly on the roster or in Edit
+// Attendance. Cancelled days just go back to having no record for that player, same as before
+// the range was ever scheduled.
+async function bulkCancelHoliday(name, startStr, endStr) {
+  const dates = dateRangeList(startStr, endStr);
+  if (dates.length === 0) {
+    alert('Please choose a valid date range (end date must be on or after the start date).');
+    return;
+  }
+  if (!confirm(`Cancel ${name}'s advance holiday for ${dates.length} day(s) (${dates[0]} to ${dates[dates.length - 1]})? Only the days actually scheduled this way will be cleared — nothing else is touched.`)) return;
+
+  const btn = document.getElementById('bulkHolidayCancelBtn');
+  btn.disabled = true;
+  bulkStatusEl.style.display = 'block';
+  let clearedCount = 0;
+
+  for (let idx = 0; idx < dates.length; idx++) {
+    const dateStr = dates[idx];
+    bulkStatusEl.textContent = `Checking ${idx + 1}/${dates.length} (${dateStr})…`;
+    try {
+      const ref = attendanceDocRef(dateStr);
+      const doc = await ref.get();
+      if (!doc.exists || !Array.isArray(doc.data().players)) continue;
+      const record = doc.data().players.map(p => ({ name: p.name, status: normalizeAttnStatus(p), source: p.source || null }));
+      const i = record.findIndex(p => p.name === name && p.status === 'holiday' && p.source === 'advance');
+      if (i === -1) continue; // not an advance-scheduled holiday on this day — leave it alone
+      record.splice(i, 1);
+      const deliberate = !!doc.data().deliberate;
+      await ref.set({ date: dateStr, players: record, savedAt: Date.now(), deliberate });
+      clearedCount++;
+    } catch (e) {
+      console.error('Cancel bulk holiday failed for', dateStr, e);
+      bulkStatusEl.style.display = 'none';
+      btn.disabled = false;
+      alert(`Failed to cancel for ${dateStr}: ${e.message}`);
+      return;
+    }
+  }
+
+  bulkStatusEl.style.display = 'none';
+  btn.disabled = false;
+  if (dates.includes(todayStr())) {
+    const i = players.findIndex((p) => p.name === name);
+    if (i >= 0 && advanceHolidayNamesToday.has(name)) {
+      players[i].status = 'present';
+      render();
+      save();
+    }
+  }
+  alert(clearedCount ? `Cancelled ${clearedCount} day(s) of advance holiday for ${name} ✅` : `No advance-scheduled holiday found for ${name} in that range.`);
+  loadAttendance(attnDateInput.value);
+}
+
+document.getElementById('bulkHolidayCancelBtn').addEventListener('click', () => {
+  const name = document.getElementById('bulkHolidayName').value;
+  const startStr = document.getElementById('bulkHolidayStart').value;
+  const endStr = document.getElementById('bulkHolidayEnd').value;
+  if (!name || !startStr || !endStr) {
+    alert('Please choose a player and both dates (start, end).');
+    return;
+  }
+  bulkCancelHoliday(name, startStr, endStr);
 });
 
 document.getElementById('resetPassBtn').addEventListener('click', () => {
