@@ -2488,7 +2488,7 @@ document.getElementById('loginPhotoInput').addEventListener('change', (e) => {
     if (i === -1) { alert('Could not find that player.'); return; }
     players[i].photo = dataUrl;
     render();
-    save();
+    savePhotoChange(name, dataUrl);
     updateLoginAvatar();
     renderHeroAvatar();
   });
@@ -2502,11 +2502,47 @@ document.getElementById('loginPhotoDelBtn').addEventListener('click', () => {
     if (i === -1) return;
     delete players[i].photo;
     render();
-    save();
+    savePhotoChange(name, null);
     updateLoginAvatar();
     renderHeroAvatar();
   });
 });
+
+// A photo change writes against the LATEST server copy of the roster, not whatever this device
+// happened to have cached — so if someone else saved an unrelated change (a rating edit, an
+// attendance tick) a moment earlier from a different phone, that other person's save can no
+// longer come along later and silently wipe out a photo that was already set, or vice-versa.
+function savePhotoChange(name, photoDataUrlOrNull) {
+  if (!cloudReady) {
+    alert('Data is still loading — please wait and try again (2-3 seconds).');
+    return;
+  }
+  playersDocRef.get().then((doc) => {
+    let list = (doc.exists && Array.isArray(doc.data().list)) ? doc.data().list : players;
+    let i = list.findIndex((p) => p.name === name);
+    if (i === -1) {
+      // Not in the server copy yet for some reason — fall back to this device's current list.
+      list = players;
+      i = list.findIndex((p) => p.name === name);
+      if (i === -1) return;
+    }
+    list = list.map((p, idx) => {
+      if (idx !== i) return p;
+      const updated = { ...p };
+      if (photoDataUrlOrNull) updated.photo = photoDataUrlOrNull;
+      else delete updated.photo;
+      return updated;
+    });
+    suppressNextSnapshot = true;
+    return playersDocRef.set({ list, statusDate: doc.exists ? (doc.data().statusDate || todayStr()) : todayStr(), updatedAt: Date.now() });
+  }).then(() => {
+    try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
+    showSaved();
+  }).catch((e) => {
+    console.error('Photo save failed', e);
+    alert('Photo failed to save to the cloud: ' + e.message);
+  });
+}
 
 let editingRatingIdx = null; // which row's skill number is currently unlocked for editing (null = none)
 plistEl.addEventListener('click', (e) => {
