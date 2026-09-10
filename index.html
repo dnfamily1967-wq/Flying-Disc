@@ -3311,6 +3311,7 @@ function load() {
   } catch (e) { /* ignore */ }
   render();
   refreshBdayBanner();
+  updateLoginAvatar(); // login modal may already be open (it's shown before this data loads) — refresh it now that photos are available
 
   playersDocRef.onSnapshot((doc) => {
     cloudReady = true;
@@ -3332,6 +3333,7 @@ function load() {
           try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
           render();
           refreshBdayBanner();
+          updateLoginAvatar();
           suppressNextSnapshot = true;
           playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e) => {
             console.error('Day-rollover save failed', e);
@@ -3342,6 +3344,7 @@ function load() {
           try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e2) {}
           render();
           refreshBdayBanner();
+          updateLoginAvatar();
           suppressNextSnapshot = true;
           playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e2) => {
             console.error('Day-rollover save failed', e2);
@@ -3353,6 +3356,7 @@ function load() {
       render();
       refreshBdayBanner();
       renderHeroAvatar(); // someone's photo (including a remote change from another phone) must refresh here too, not just in the roster list
+      updateLoginAvatar(); // and the login screen's avatar too, if that modal happens to be open right now
     }
   }, (err) => {
     console.error('Cloud sync error (using local data):', err);
