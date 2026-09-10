@@ -3370,13 +3370,22 @@ function save() {
   // on the server after this device last synced. An ordinary roster save (rating tweak,
   // attendance tick, add/remove player, etc.) writes the FULL local `players` list, so without
   // this check a slightly-stale in-memory copy would silently overwrite/erase a photo that was
-  // just added elsewhere — which is why photos were disappearing repeatedly. Fetch the latest
-  // server copy first and borrow any photo this device doesn't already have before writing.
+  // just added elsewhere. A generic save is never the thing that's actually supposed to be
+  // changing anyone's photo (only the dedicated photo-upload flow does that, via
+  // savePhotoChange), so it always takes whatever photo the server currently has for each
+  // player — even if this device's own local copy has a DIFFERENT (older/stale) one — rather
+  // than only filling in when local has none at all, which is what let a newer photo get
+  // silently reverted by an unrelated save from a device that hadn't caught up yet.
   playersDocRef.get().then((doc) => {
     const serverList = (doc.exists && Array.isArray(doc.data().list)) ? doc.data().list : [];
     const serverPhotoByName = {};
     serverList.forEach((p) => { if (p && p.photo) serverPhotoByName[p.name] = p.photo; });
-    players = players.map((p) => (p.photo || !serverPhotoByName[p.name]) ? p : { ...p, photo: serverPhotoByName[p.name] });
+    players = players.map((p) => {
+      const serverPhoto = serverPhotoByName[p.name];
+      if (serverPhoto) return { ...p, photo: serverPhoto };
+      if (p.photo) { const { photo, ...rest } = p; return rest; } // server has none — don't resurrect a stale local one
+      return p;
+    });
     try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
     render();
     renderHeroAvatar();
