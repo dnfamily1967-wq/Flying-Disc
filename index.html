@@ -2853,12 +2853,25 @@ document.getElementById('loadMatchHistoryBtn').addEventListener('click', () => {
   if (!dateStr) return;
   const resultEl = document.getElementById('matchHistoryResult');
   resultEl.innerHTML = '<div class="legend">Loading…</div>';
-  db.collection('disc_team').doc('matches_' + dateStr).get().then((doc) => {
+  Promise.all([
+    db.collection('disc_team').doc('matches_' + dateStr).get(),
+    attendanceDocRef(dateStr).get()
+  ]).then(([doc, attnDoc]) => {
     if (!doc.exists) {
       resultEl.innerHTML = `<div class="err" style="display:block;">No match record found for ${dateStr}.</div>`;
       return;
     }
     const data = doc.data();
+    // Strip out anyone who was actually marked "absent" that day, even if their name is still
+    // sitting in the saved team lists — the team is rebuilt here with absentees removed.
+    const absentSet = new Set();
+    if (attnDoc.exists) {
+      (Array.isArray(attnDoc.data().players) ? attnDoc.data().players : [])
+        .filter((p) => p.status === 'absent')
+        .forEach((p) => absentSet.add(p.name));
+    }
+    const teamA = (Array.isArray(data.teamA) ? data.teamA : []).filter((n) => !absentSet.has(n));
+    const teamB = (Array.isArray(data.teamB) ? data.teamB : []).filter((n) => !absentSet.has(n));
     const results = Array.isArray(data.results) ? data.results : [];
     const winsA = results.filter((m) => m.winner === 'A').length;
     const winsB = results.filter((m) => m.winner === 'B').length;
@@ -2867,9 +2880,13 @@ document.getElementById('loadMatchHistoryBtn').addEventListener('click', () => {
         <span class="matchRowLabel">Match ${m.match}</span>
         <span>${m.winner === 'A' ? '🟢 Team A won' : m.winner === 'B' ? '🟠 Team B won' : m.winner === 'draw' ? '🤝 Draw' : '—'}</span>
       </div>`).join('');
+    const removedNote = absentSet.size
+      ? `<div class="legend" style="color:var(--red);">Absent hone ki wajah se hataye gaye: ${[...absentSet].join(', ')}</div>`
+      : '';
     resultEl.innerHTML = `
-      <div class="legend" style="margin-top:0;">🟢 Team A: ${(data.teamA || []).join(', ')}</div>
-      <div class="legend">🟠 Team B: ${(data.teamB || []).join(', ')}</div>
+      <div class="legend" style="margin-top:0;">🟢 Team A: ${teamA.join(', ') || '—'}</div>
+      <div class="legend">🟠 Team B: ${teamB.join(', ') || '—'}</div>
+      ${removedNote}
       <div style="font-weight:800; margin:8px 0;">Team A ${winsA} — ${winsB} Team B</div>
       ${rows}
     `;
@@ -2890,7 +2907,7 @@ if (monthlyRecordMonthInput) {
 }
 let lastMonthlyRecord = null; // cached result of the last computed month, used by Save/Export
 
-function computeMonthlyRecord(monthStr, docs) {
+function computeMonthlyRecord(monthStr, docs, absentByDate) {
   // monthStr = "YYYY-MM"
   const wins = {};      // name -> matches won
   const played = {};    // name -> matches played (any result)
@@ -2899,8 +2916,12 @@ function computeMonthlyRecord(monthStr, docs) {
 
   docs.forEach((doc) => {
     const data = doc.data();
-    const teamA = Array.isArray(data.teamA) ? data.teamA : [];
-    const teamB = Array.isArray(data.teamB) ? data.teamB : [];
+    // A player who was actually marked "absent" in that day's attendance record shouldn't get
+    // credit for a win (or a played match) even if their name is still sitting in the saved
+    // team lists — rebuild each day's team here with absentees taken out first.
+    const absentSet = (absentByDate && absentByDate[data.date]) || new Set();
+    const teamA = (Array.isArray(data.teamA) ? data.teamA : []).filter((n) => !absentSet.has(n));
+    const teamB = (Array.isArray(data.teamB) ? data.teamB : []).filter((n) => !absentSet.has(n));
     const results = Array.isArray(data.results) ? data.results : [];
     results.forEach((m) => {
       if (!m || !m.winner) return; // unticked/undecided match — skip
@@ -2991,8 +3012,23 @@ document.getElementById('loadMonthlyRecordBtn').addEventListener('click', () => 
     .where(firebase.firestore.FieldPath.documentId(), '<=', 'matches_' + monthStr + '-31')
     .get()
     .then((snap) => {
-      lastMonthlyRecord = computeMonthlyRecord(monthStr, snap.docs);
-      renderMonthlyRecord(lastMonthlyRecord);
+      // Cross-check every match day against that day's saved attendance, so anyone marked
+      // "absent" that day is stripped out of the team before we count wins/played matches.
+      const dates = snap.docs.map((d) => d.data().date).filter(Boolean);
+      return Promise.all(dates.map((dt) => attendanceDocRef(dt).get()))
+        .then((attnDocs) => {
+          const absentByDate = {};
+          attnDocs.forEach((aDoc) => {
+            if (!aDoc.exists) return;
+            const data = aDoc.data();
+            const abs = new Set((Array.isArray(data.players) ? data.players : [])
+              .filter((p) => p.status === 'absent')
+              .map((p) => p.name));
+            absentByDate[data.date] = abs;
+          });
+          lastMonthlyRecord = computeMonthlyRecord(monthStr, snap.docs, absentByDate);
+          renderMonthlyRecord(lastMonthlyRecord);
+        });
     })
     .catch((err) => {
       console.error('Load monthly record failed', err);
