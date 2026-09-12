@@ -1375,6 +1375,14 @@
       <button class="secondary" id="loadMonthlyRecordBtn">👁️ VIEW</button>
     </div>
     <div id="monthlyRecordResult"></div>
+    <div class="attnRow" id="monthlyRecordSortRow" style="display:none; margin-top:6px;">
+      <span class="sortLabel">SORT:</span>
+      <button class="sortBtn" id="mrSortWinsBtn" data-mode="wins">WINS <span id="mrWinsArrow">↕</span></button>
+      <button class="sortBtn" id="mrSortPctBtn" data-mode="pct">% <span id="mrPctArrow">↕</span></button>
+      <button class="sortBtn" id="mrSortPlayedBtn" data-mode="played">PLAYED <span id="mrPlayedArrow">↕</span></button>
+      <button class="sortBtn" id="mrSortNameBtn" data-mode="name">NAME <span id="mrNameArrow">↕</span></button>
+    </div>
+    <div id="monthlyRecordRows"></div>
     <div id="monthlyRecordActions" style="display:none; gap:8px; margin-top:10px;">
       <button class="secondary" id="saveMonthlyRecordBtn" style="margin:0; flex:1;">💾 SAVE RECORD</button>
       <button id="exportMonthlyRecordBtn" style="margin:0; flex:1;">📥 EXPORT CSV</button>
@@ -2950,13 +2958,61 @@ function computeMonthlyRecord(monthStr, docs, absentByDate) {
   return { month: monthStr, dayCount, totalMatches, teamAWins, teamBWins, draws, leaderboard, playersOfMonth, topWins };
 }
 
+let mrSortMode = 'wins';
+let mrSortDir = -1; // -1 = descending (default: best first), 1 = ascending
+
+function renderMonthlyRecordRows() {
+  const rowsEl = document.getElementById('monthlyRecordRows');
+  if (!rowsEl || !lastMonthlyRecord) return;
+  const rec = lastMonthlyRecord;
+  const list = rec.leaderboard.filter((p) => p.wins > 0).map((p) => ({
+    ...p, pct: p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0
+  }));
+  list.sort((a, b) => {
+    let cmp;
+    if (mrSortMode === 'name') cmp = a.name.localeCompare(b.name);
+    else if (mrSortMode === 'pct') cmp = a.pct - b.pct || a.wins - b.wins;
+    else if (mrSortMode === 'played') cmp = a.played - b.played || a.wins - b.wins;
+    else cmp = a.wins - b.wins || a.pct - b.pct; // wins (default)
+    if (mrSortMode !== 'name' && cmp === 0) cmp = a.name.localeCompare(b.name);
+    return cmp * (mrSortMode === 'name' ? mrSortDir : -mrSortDir);
+  });
+  rowsEl.innerHTML = list.map((p, i) => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #F2EFE4;">
+      <span style="font-weight:700;">${i + 1}. ${p.name}${rec.playersOfMonth.includes(p.name) ? ' 🏆' : ''}</span>
+      <span style="font-weight:800; color:var(--green-deep);">${p.wins} win${p.wins === 1 ? '' : 's'} <span style="color:var(--orange);">(${p.pct}%)</span> <span style="color:var(--muted); font-weight:500; font-size:12px;">— ${p.played} played</span></span>
+    </div>`).join('') || '<div class="legend">Koi player win record nahi mila.</div>';
+
+  ['wins', 'pct', 'played', 'name'].forEach((mode) => {
+    const btn = document.getElementById('mrSort' + mode.charAt(0).toUpperCase() + mode.slice(1) + 'Btn');
+    const arrow = document.getElementById('mr' + mode.charAt(0).toUpperCase() + mode.slice(1) + 'Arrow');
+    if (btn) btn.classList.toggle('active', mrSortMode === mode);
+    if (arrow) arrow.textContent = mrSortMode === mode ? (mrSortDir === -1 ? '↓' : '↑') : '↕';
+  });
+}
+
+['mrSortWinsBtn', 'mrSortPctBtn', 'mrSortPlayedBtn', 'mrSortNameBtn'].forEach((id) => {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    if (mrSortMode === mode) mrSortDir *= -1;
+    else { mrSortMode = mode; mrSortDir = mode === 'name' ? 1 : -1; }
+    renderMonthlyRecordRows();
+  });
+});
+
 function renderMonthlyRecord(rec) {
   const resultEl = document.getElementById('monthlyRecordResult');
   const actionsEl = document.getElementById('monthlyRecordActions');
+  const sortRowEl = document.getElementById('monthlyRecordSortRow');
+  const rowsEl = document.getElementById('monthlyRecordRows');
   if (!resultEl) return;
   if (!rec || rec.dayCount === 0) {
     resultEl.innerHTML = `<div class="err" style="display:block;">Is mahine ke liye koi saved match record nahi mila.</div>`;
     if (actionsEl) actionsEl.style.display = 'none';
+    if (sortRowEl) sortRowEl.style.display = 'none';
+    if (rowsEl) rowsEl.innerHTML = '';
     return;
   }
   const [yy, mm] = rec.month.split('-');
@@ -2976,15 +3032,6 @@ function renderMonthlyRecord(rec) {
       </div>`
     : `<div class="legend">Is mahine abhi tak koi match decide nahi hua (sab draw/pending hain).</div>`;
 
-  const rows = rec.leaderboard.filter((p) => p.wins > 0).map((p, i) => {
-    const pct = p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
-    return `
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #F2EFE4;">
-      <span style="font-weight:700;">${i + 1}. ${p.name}${rec.playersOfMonth.includes(p.name) ? ' 🏆' : ''}</span>
-      <span style="font-weight:800; color:var(--green-deep);">${p.wins} win${p.wins === 1 ? '' : 's'} <span style="color:var(--orange);">(${pct}%)</span> <span style="color:var(--muted); font-weight:500; font-size:12px;">— ${p.played} played</span></span>
-    </div>`;
-  }).join('');
-
   resultEl.innerHTML = `
     <div class="legend" style="margin-top:0; font-weight:700; color:var(--ink);">${monthLabel}</div>
     ${potHtml}
@@ -2993,14 +3040,18 @@ function renderMonthlyRecord(rec) {
       <div style="flex:1; text-align:center; background:#F5F1E6; border-radius:10px; padding:8px 4px;"><div style="font-size:17px; font-weight:800;">${rec.totalMatches}</div><div style="font-size:10.5px; color:var(--muted);">MATCHES</div></div>
       <div style="flex:1; text-align:center; background:#F5F1E6; border-radius:10px; padding:8px 4px;"><div style="font-size:17px; font-weight:800;">🟢${rec.teamAWins} 🟠${rec.teamBWins}</div><div style="font-size:10.5px; color:var(--muted);">A vs B WINS</div></div>
     </div>
-    ${rows || '<div class="legend">Koi player win record nahi mila.</div>'}
   `;
   if (actionsEl) actionsEl.style.display = 'flex';
+  if (sortRowEl) sortRowEl.style.display = 'flex';
+  mrSortMode = 'wins';
+  mrSortDir = -1;
+  renderMonthlyRecordRows();
   const saveBtn = document.getElementById('saveMonthlyRecordBtn');
   if (saveBtn) saveBtn.style.display = isAdmin ? '' : 'none'; // saving the snapshot is admin-only; viewing/export stays open to everyone
 }
 
 document.getElementById('loadMonthlyRecordBtn').addEventListener('click', () => {
+
   const monthStr = monthlyRecordMonthInput.value;
   if (!monthStr) return;
   const resultEl = document.getElementById('monthlyRecordResult');
