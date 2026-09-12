@@ -1369,7 +1369,7 @@
 
   <div class="card accent-gold" id="monthlyRecordCard">
     <h2>🗓️ MONTHLY MATCH RECORD</h2>
-    <div class="legend" style="margin-top:0;">Sabhi saved matches ke hisaab se is mahine ka record — kaun kitna jeeta.</div>
+    <div class="legend" style="margin-top:0;">Based on all saved matches — who won how many this month.</div>
     <div class="attnRow">
       <input type="month" id="monthlyRecordMonthInput">
       <button class="secondary" id="loadMonthlyRecordBtn">👁️ VIEW</button>
@@ -2889,7 +2889,7 @@ document.getElementById('loadMatchHistoryBtn').addEventListener('click', () => {
         <span>${m.winner === 'A' ? '🟢 Team A won' : m.winner === 'B' ? '🟠 Team B won' : m.winner === 'draw' ? '🤝 Draw' : '—'}</span>
       </div>`).join('');
     const removedNote = absentSet.size
-      ? `<div class="legend" style="color:var(--red);">Absent hone ki wajah se hataye gaye: ${[...absentSet].join(', ')}</div>`
+      ? `<div class="legend" style="color:var(--red);">Removed for being marked absent: ${[...absentSet].join(', ')}</div>`
       : '';
     resultEl.innerHTML = `
       <div class="legend" style="margin-top:0;">🟢 Team A: ${teamA.join(', ') || '—'}</div>
@@ -2981,7 +2981,7 @@ function renderMonthlyRecordRows() {
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #F2EFE4;">
       <span style="font-weight:700;">${i + 1}. ${p.name}${rec.playersOfMonth.includes(p.name) ? ' 🏆' : ''}</span>
       <span style="font-weight:800; color:var(--green-deep);">${p.wins} win${p.wins === 1 ? '' : 's'} <span style="color:var(--orange);">(${p.pct}%)</span> <span style="color:var(--muted); font-weight:500; font-size:12px;">— ${p.played} played</span></span>
-    </div>`).join('') || '<div class="legend">Koi player win record nahi mila.</div>';
+    </div>`).join('') || '<div class="legend">No player win record found.</div>';
 
   ['wins', 'pct', 'played', 'name'].forEach((mode) => {
     const btn = document.getElementById('mrSort' + mode.charAt(0).toUpperCase() + mode.slice(1) + 'Btn');
@@ -3009,7 +3009,7 @@ function renderMonthlyRecord(rec) {
   const rowsEl = document.getElementById('monthlyRecordRows');
   if (!resultEl) return;
   if (!rec || rec.dayCount === 0) {
-    resultEl.innerHTML = `<div class="err" style="display:block;">Is mahine ke liye koi saved match record nahi mila.</div>`;
+    resultEl.innerHTML = `<div class="err" style="display:block;">No saved match record found for this month.</div>`;
     if (actionsEl) actionsEl.style.display = 'none';
     if (sortRowEl) sortRowEl.style.display = 'none';
     if (rowsEl) rowsEl.innerHTML = '';
@@ -3027,10 +3027,10 @@ function renderMonthlyRecord(rec) {
             const p = rec.leaderboard.find((x) => x.name === n);
             const pct = p && p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
             return `${n} (${pct}%)`;
-          }).join(', ')} — ${rec.topWins} match${rec.topWins === 1 ? '' : 'es'} jeete</div>
+          }).join(', ')} — ${rec.topWins} match${rec.topWins === 1 ? '' : 'es'} won</div>
         </div>
       </div>`
-    : `<div class="legend">Is mahine abhi tak koi match decide nahi hua (sab draw/pending hain).</div>`;
+    : `<div class="legend">No match has been decided yet this month (all draws/pending).</div>`;
 
   resultEl.innerHTML = `
     <div class="legend" style="margin-top:0; font-weight:700; color:var(--ink);">${monthLabel}</div>
@@ -3107,46 +3107,59 @@ document.getElementById('saveMonthlyRecordBtn').addEventListener('click', () => 
 });
 
 // ---- Export: download the month's record as a CSV so it can be kept/shared/opened in Excel. ----
-function downloadTextFile(filename, mimeType, content) {
+async function downloadTextFile(filename, mimeType, content) {
   const blob = new Blob([content], { type: mimeType });
+  let sharedViaSheet = false;
   if (navigator.canShare && navigator.share) {
     try {
       const file = new File([blob], filename, { type: mimeType });
       if (navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: filename }).catch(() => {});
-        return;
+        await navigator.share({ files: [file], title: filename });
+        sharedViaSheet = true;
       }
-    } catch (e) { /* fall through to plain download below */ }
+    } catch (shareErr) {
+      if (shareErr && shareErr.name === 'AbortError') sharedViaSheet = true; // user cancelled the sheet — not a failure
+    }
   }
-  const blobUrl = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = blobUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+  if (!sharedViaSheet) {
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Some browsers/webviews ignore the `download` attribute and just navigate instead — opening
+    // it in a new tab too means the file is still reachable even if the silent download failed.
+    window.open(blobUrl, '_blank');
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+  }
 }
 
-document.getElementById('exportMonthlyRecordBtn').addEventListener('click', () => {
+document.getElementById('exportMonthlyRecordBtn').addEventListener('click', async () => {
   if (!lastMonthlyRecord) return;
-  const rec = lastMonthlyRecord;
-  const lines = [];
-  lines.push(`Monthly Match Record,${rec.month}`);
-  lines.push(`Match Days,${rec.dayCount}`);
-  lines.push(`Total Matches,${rec.totalMatches}`);
-  lines.push(`Team A Wins,${rec.teamAWins}`);
-  lines.push(`Team B Wins,${rec.teamBWins}`);
-  lines.push(`Draws,${rec.draws}`);
-  lines.push(`Player of the Month,${rec.playersOfMonth.join(' / ') || '—'}`);
-  lines.push('');
-  lines.push('Rank,Player,Wins,Matches Played,Win %');
-  rec.leaderboard.filter((p) => p.played > 0).forEach((p, i) => {
-    const pct = p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
-    lines.push(`${i + 1},${p.name},${p.wins},${p.played},${pct}%`);
-  });
-  const csv = lines.map((l) => l.split(',').map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  downloadTextFile(`monthly-match-record-${rec.month}.csv`, 'text/csv;charset=utf-8', csv);
+  try {
+    const rec = lastMonthlyRecord;
+    const lines = [];
+    lines.push(`Monthly Match Record,${rec.month}`);
+    lines.push(`Match Days,${rec.dayCount}`);
+    lines.push(`Total Matches,${rec.totalMatches}`);
+    lines.push(`Team A Wins,${rec.teamAWins}`);
+    lines.push(`Team B Wins,${rec.teamBWins}`);
+    lines.push(`Draws,${rec.draws}`);
+    lines.push(`Player of the Month,${rec.playersOfMonth.join(' / ') || '-'}`);
+    lines.push('');
+    lines.push('Rank,Player,Wins,Matches Played,Win %');
+    rec.leaderboard.filter((p) => p.played > 0).forEach((p, i) => {
+      const pct = p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
+      lines.push(`${i + 1},${p.name},${p.wins},${p.played},${pct}%`);
+    });
+    const csv = lines.map((l) => l.split(',').map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    await downloadTextFile(`monthly-match-record-${rec.month}.csv`, 'text/csv;charset=utf-8', csv);
+  } catch (err) {
+    console.error('Export monthly record failed', err);
+    alert('Export failed: ' + err.message);
+  }
 });
 
 // ---- Firebase / Firestore cloud sync ----
@@ -5679,11 +5692,11 @@ document.getElementById('navCricketBtn').addEventListener('click', () => {
     // always why "install nahi ho raha". The fix is opening the link in the real browser.
     if (warnEl) {
       warnEl.style.display = 'block';
-      warnEl.innerHTML = '⚠️ Ye link abhi WhatsApp/Instagram ke andar ke browser mein khula hai — isme "Install" kaam nahi karta. Upar-right corner mein <b>⋮ (3 dots)</b> dabakar <b>"Open in Chrome"</b> ya <b>"Open in browser"</b> chunein, phir wahan se install karein.';
+      warnEl.innerHTML = '⚠️ This link is currently open inside the WhatsApp/Instagram in-app browser — "Install" won\'t work here. Tap the <b>⋮ (3 dots)</b> in the top-right corner and choose <b>"Open in Chrome"</b> or <b>"Open in browser"</b>, then install from there.';
     }
     if (hintEl) hintEl.style.display = 'none';
   } else if (isIOS) {
-    if (hintEl) hintEl.innerHTML = '📲 iPhone par app jaisa use karne ke liye: neeche/upar <b>Share button (□ jisme upar teer ho)</b> dabayein, phir <b>"Add to Home Screen"</b> chunein. (Ye sirf Safari mein kaam karta hai, Chrome mein nahi.)';
+    if (hintEl) hintEl.innerHTML = '📲 To use this like an app on iPhone: tap the <b>Share button (□ with an arrow pointing up)</b> at the top/bottom, then choose <b>"Add to Home Screen"</b>. (This only works in Safari, not Chrome.)';
   } else {
     // Android: try to capture the native install prompt for a proper one-tap Install button.
     let deferredPrompt = null;
