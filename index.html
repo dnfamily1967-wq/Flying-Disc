@@ -1367,6 +1367,21 @@
     <div id="matchHistoryResult"></div>
   </div>
 
+  <div class="card accent-gold" id="monthlyRecordCard">
+    <h2>🗓️ MONTHLY MATCH RECORD</h2>
+    <div class="legend" style="margin-top:0;">Sabhi saved matches ke hisaab se is mahine ka record — kaun kitna jeeta.</div>
+    <div class="attnRow">
+      <input type="month" id="monthlyRecordMonthInput">
+      <button class="secondary" id="loadMonthlyRecordBtn">👁️ VIEW</button>
+    </div>
+    <div id="monthlyRecordResult"></div>
+    <div id="monthlyRecordActions" style="display:none; gap:8px; margin-top:10px;">
+      <button class="secondary" id="saveMonthlyRecordBtn" style="margin:0; flex:1;">💾 SAVE RECORD</button>
+      <button id="exportMonthlyRecordBtn" style="margin:0; flex:1;">📥 EXPORT CSV</button>
+    </div>
+    <div class="legend" id="monthlyRecordSavedStatus" style="display:none; margin-top:8px;"></div>
+  </div>
+
   <div class="card accent-gold" id="bdayCard">
     <h2 id="bdayHeading" style="cursor:pointer; justify-content:space-between;">
       <span>🎂 BIRTHDAYS</span>
@@ -2862,6 +2877,181 @@ document.getElementById('loadMatchHistoryBtn').addEventListener('click', () => {
     console.error('Load match history failed', err);
     resultEl.innerHTML = `<div class="err" style="display:block;">Failed to load: ${err.message}</div>`;
   });
+});
+
+// ---- Monthly Match Record: aggregate every saved match in a month, and work out who won the
+// most matches that month ("Player of the Month"). A match's winning team's players each get
+// credit for that individual match (not just the day) — so someone who played 2 of 3 matches on
+// a day and won both gets 2 wins, not 1. ----
+const monthlyRecordMonthInput = document.getElementById('monthlyRecordMonthInput');
+if (monthlyRecordMonthInput) {
+  const d = new Date();
+  monthlyRecordMonthInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+let lastMonthlyRecord = null; // cached result of the last computed month, used by Save/Export
+
+function computeMonthlyRecord(monthStr, docs) {
+  // monthStr = "YYYY-MM"
+  const wins = {};      // name -> matches won
+  const played = {};    // name -> matches played (any result)
+  let teamAWins = 0, teamBWins = 0, draws = 0, totalMatches = 0;
+  const dayCount = docs.length;
+
+  docs.forEach((doc) => {
+    const data = doc.data();
+    const teamA = Array.isArray(data.teamA) ? data.teamA : [];
+    const teamB = Array.isArray(data.teamB) ? data.teamB : [];
+    const results = Array.isArray(data.results) ? data.results : [];
+    results.forEach((m) => {
+      if (!m || !m.winner) return; // unticked/undecided match — skip
+      totalMatches++;
+      teamA.forEach((name) => { played[name] = (played[name] || 0) + 1; });
+      teamB.forEach((name) => { played[name] = (played[name] || 0) + 1; });
+      if (m.winner === 'A') {
+        teamAWins++;
+        teamA.forEach((name) => { wins[name] = (wins[name] || 0) + 1; });
+      } else if (m.winner === 'B') {
+        teamBWins++;
+        teamB.forEach((name) => { wins[name] = (wins[name] || 0) + 1; });
+      } else if (m.winner === 'draw') {
+        draws++;
+      }
+    });
+  });
+
+  const leaderboard = Object.keys(played)
+    .map((name) => ({ name, wins: wins[name] || 0, played: played[name] || 0 }))
+    .sort((a, b) => b.wins - a.wins || a.name.localeCompare(b.name));
+
+  const topWins = leaderboard.length ? leaderboard[0].wins : 0;
+  const playersOfMonth = topWins > 0 ? leaderboard.filter((p) => p.wins === topWins).map((p) => p.name) : [];
+
+  return { month: monthStr, dayCount, totalMatches, teamAWins, teamBWins, draws, leaderboard, playersOfMonth, topWins };
+}
+
+function renderMonthlyRecord(rec) {
+  const resultEl = document.getElementById('monthlyRecordResult');
+  const actionsEl = document.getElementById('monthlyRecordActions');
+  if (!resultEl) return;
+  if (!rec || rec.dayCount === 0) {
+    resultEl.innerHTML = `<div class="err" style="display:block;">Is mahine ke liye koi saved match record nahi mila.</div>`;
+    if (actionsEl) actionsEl.style.display = 'none';
+    return;
+  }
+  const [yy, mm] = rec.month.split('-');
+  const monthLabel = new Date(Number(yy), Number(mm) - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+  const potHtml = rec.playersOfMonth.length
+    ? `<div style="background:var(--gold-soft); border-radius:12px; padding:12px 14px; margin:10px 0; display:flex; align-items:center; gap:10px;">
+        <span style="font-size:26px;">🏆</span>
+        <div>
+          <div style="font-size:11px; font-weight:800; letter-spacing:0.5px; color:#8A6D1F; text-transform:uppercase;">Player of the Month${rec.playersOfMonth.length > 1 ? 's' : ''}</div>
+          <div style="font-size:15px; font-weight:800; color:var(--ink);">${rec.playersOfMonth.join(', ')} — ${rec.topWins} match${rec.topWins === 1 ? '' : 'es'} jeete</div>
+        </div>
+      </div>`
+    : `<div class="legend">Is mahine abhi tak koi match decide nahi hua (sab draw/pending hain).</div>`;
+
+  const rows = rec.leaderboard.filter((p) => p.wins > 0).map((p, i) => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #F2EFE4;">
+      <span style="font-weight:700;">${i + 1}. ${p.name}${rec.playersOfMonth.includes(p.name) ? ' 🏆' : ''}</span>
+      <span style="font-weight:800; color:var(--green-deep);">${p.wins} win${p.wins === 1 ? '' : 's'} <span style="color:var(--muted); font-weight:500; font-size:12px;">(${p.played} played)</span></span>
+    </div>`).join('');
+
+  resultEl.innerHTML = `
+    <div class="legend" style="margin-top:0; font-weight:700; color:var(--ink);">${monthLabel}</div>
+    ${potHtml}
+    <div style="display:flex; gap:8px; margin:10px 0;">
+      <div style="flex:1; text-align:center; background:#F5F1E6; border-radius:10px; padding:8px 4px;"><div style="font-size:17px; font-weight:800;">${rec.dayCount}</div><div style="font-size:10.5px; color:var(--muted);">MATCH DAYS</div></div>
+      <div style="flex:1; text-align:center; background:#F5F1E6; border-radius:10px; padding:8px 4px;"><div style="font-size:17px; font-weight:800;">${rec.totalMatches}</div><div style="font-size:10.5px; color:var(--muted);">MATCHES</div></div>
+      <div style="flex:1; text-align:center; background:#F5F1E6; border-radius:10px; padding:8px 4px;"><div style="font-size:17px; font-weight:800;">🟢${rec.teamAWins} 🟠${rec.teamBWins}</div><div style="font-size:10.5px; color:var(--muted);">A vs B WINS</div></div>
+    </div>
+    ${rows || '<div class="legend">Koi player win record nahi mila.</div>'}
+  `;
+  if (actionsEl) actionsEl.style.display = 'flex';
+  const saveBtn = document.getElementById('saveMonthlyRecordBtn');
+  if (saveBtn) saveBtn.style.display = isAdmin ? '' : 'none'; // saving the snapshot is admin-only; viewing/export stays open to everyone
+}
+
+document.getElementById('loadMonthlyRecordBtn').addEventListener('click', () => {
+  const monthStr = monthlyRecordMonthInput.value;
+  if (!monthStr) return;
+  const resultEl = document.getElementById('monthlyRecordResult');
+  resultEl.innerHTML = '<div class="legend">Loading…</div>';
+  document.getElementById('monthlyRecordActions').style.display = 'none';
+  document.getElementById('monthlyRecordSavedStatus').style.display = 'none';
+  db.collection('disc_team')
+    .where(firebase.firestore.FieldPath.documentId(), '>=', 'matches_' + monthStr + '-01')
+    .where(firebase.firestore.FieldPath.documentId(), '<=', 'matches_' + monthStr + '-31')
+    .get()
+    .then((snap) => {
+      lastMonthlyRecord = computeMonthlyRecord(monthStr, snap.docs);
+      renderMonthlyRecord(lastMonthlyRecord);
+    })
+    .catch((err) => {
+      console.error('Load monthly record failed', err);
+      resultEl.innerHTML = `<div class="err" style="display:block;">Failed to load: ${err.message}</div>`;
+    });
+});
+
+// ---- Save: snapshot this month's computed record into Firestore, so it stays available as a
+// permanent record even if individual day-by-day match docs are later edited/removed. ----
+document.getElementById('saveMonthlyRecordBtn').addEventListener('click', () => {
+  if (!lastMonthlyRecord) return;
+  const statusEl = document.getElementById('monthlyRecordSavedStatus');
+  statusEl.style.display = 'block';
+  statusEl.textContent = 'Saving…';
+  db.collection('disc_team').doc('monthlyRecord_' + lastMonthlyRecord.month).set({
+    ...lastMonthlyRecord,
+    savedAt: Date.now(),
+    savedBy: currentUser || 'Admin'
+  }).then(() => {
+    statusEl.textContent = 'Monthly record saved ✅';
+  }).catch((err) => {
+    console.error('Save monthly record failed', err);
+    statusEl.textContent = 'Save failed: ' + err.message;
+  });
+});
+
+// ---- Export: download the month's record as a CSV so it can be kept/shared/opened in Excel. ----
+function downloadTextFile(filename, mimeType, content) {
+  const blob = new Blob([content], { type: mimeType });
+  if (navigator.canShare && navigator.share) {
+    try {
+      const file = new File([blob], filename, { type: mimeType });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: filename }).catch(() => {});
+        return;
+      }
+    } catch (e) { /* fall through to plain download below */ }
+  }
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+}
+
+document.getElementById('exportMonthlyRecordBtn').addEventListener('click', () => {
+  if (!lastMonthlyRecord) return;
+  const rec = lastMonthlyRecord;
+  const lines = [];
+  lines.push(`Monthly Match Record,${rec.month}`);
+  lines.push(`Match Days,${rec.dayCount}`);
+  lines.push(`Total Matches,${rec.totalMatches}`);
+  lines.push(`Team A Wins,${rec.teamAWins}`);
+  lines.push(`Team B Wins,${rec.teamBWins}`);
+  lines.push(`Draws,${rec.draws}`);
+  lines.push(`Player of the Month,${rec.playersOfMonth.join(' / ') || '—'}`);
+  lines.push('');
+  lines.push('Rank,Player,Wins,Matches Played');
+  rec.leaderboard.filter((p) => p.played > 0).forEach((p, i) => {
+    lines.push(`${i + 1},${p.name},${p.wins},${p.played}`);
+  });
+  const csv = lines.map((l) => l.split(',').map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  downloadTextFile(`monthly-match-record-${rec.month}.csv`, 'text/csv;charset=utf-8', csv);
 });
 
 // ---- Firebase / Firestore cloud sync ----
