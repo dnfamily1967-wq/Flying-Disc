@@ -2867,7 +2867,7 @@ document.getElementById('loadMatchHistoryBtn').addEventListener('click', () => {
     const absentSet = new Set();
     if (attnDoc.exists) {
       (Array.isArray(attnDoc.data().players) ? attnDoc.data().players : [])
-        .filter((p) => p.status === 'absent')
+        .filter((p) => p && p.name && normalizeAttnStatus(p) === 'absent')
         .forEach((p) => absentSet.add(p.name));
     }
     const teamA = (Array.isArray(data.teamA) ? data.teamA : []).filter((n) => !absentSet.has(n));
@@ -3022,7 +3022,7 @@ document.getElementById('loadMonthlyRecordBtn').addEventListener('click', () => 
             if (!aDoc.exists) return;
             const data = aDoc.data();
             const abs = new Set((Array.isArray(data.players) ? data.players : [])
-              .filter((p) => p.status === 'absent')
+              .filter((p) => p && p.name && normalizeAttnStatus(p) === 'absent')
               .map((p) => p.name));
             absentByDate[data.date] = abs;
           });
