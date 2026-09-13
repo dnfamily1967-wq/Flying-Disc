@@ -3094,13 +3094,15 @@ function renderMonthlyRecord(rec) {
       <div style="flex:1; text-align:center; background:#F5F1E6; border-radius:10px; padding:8px 4px;"><div style="font-size:17px; font-weight:800;">🟢${rec.teamAWins} 🟠${rec.teamBWins}</div><div style="font-size:10.5px; color:var(--muted);">A vs B WINS</div></div>
     </div>
   `;
-  if (actionsEl) actionsEl.style.display = 'flex';
+  if (actionsEl) actionsEl.style.display = isAdmin ? 'flex' : 'none';
   if (sortRowEl) sortRowEl.style.display = 'flex';
   mrSortMode = 'wins';
   mrSortDir = -1;
   renderMonthlyRecordRows();
   const saveBtn = document.getElementById('saveMonthlyRecordBtn');
-  if (saveBtn) saveBtn.style.display = isAdmin ? '' : 'none'; // saving the snapshot is admin-only; viewing/export stays open to everyone
+  if (saveBtn) saveBtn.style.display = isAdmin ? '' : 'none'; // saving the snapshot is admin-only
+  const shareBtn = document.getElementById('shareMonthlyRecordJpegBtn');
+  if (shareBtn) shareBtn.style.display = isAdmin ? '' : 'none'; // JPEG share is admin-only too
 }
 
 document.getElementById('loadMonthlyRecordBtn').addEventListener('click', () => {
@@ -3208,7 +3210,7 @@ function populateMatchExportTemplate(rec) {
 }
 
 document.getElementById('shareMonthlyRecordJpegBtn').addEventListener('click', () => {
-  if (!lastMonthlyRecord) return;
+  if (!isAdmin || !lastMonthlyRecord) return;
   populateMatchExportTemplate(lastMonthlyRecord);
   document.getElementById('matchExportPreviewOverlay').classList.add('show');
 });
