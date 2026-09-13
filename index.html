@@ -3945,7 +3945,14 @@ function load() {
       // correctly here every day up through however far it was approved for.
       const serverStatusDate = doc.data().statusDate || '';
       const today = todayStr();
-      if (serverStatusDate !== today) {
+      // Only run the day-rollover reset (and the write-back it does) once we have a confirmed
+      // snapshot FROM THE SERVER. Acting on the very first snapshot — which, with offline
+      // persistence enabled, is often a stale cached copy still showing yesterday's date —
+      // was resetting everyone to "present" and writing that back, which could race ahead of
+      // (and wipe out) someone's just-marked absent/holiday status set moments earlier on
+      // another device. The real server snapshot always arrives right after, so nothing is lost
+      // by waiting for it.
+      if (serverStatusDate !== today && !doc.metadata.fromCache) {
         attendanceDocRef(today).get().then((attnDoc) => {
           const todaysRecord = (attnDoc.exists && Array.isArray(attnDoc.data().players)) ? attnDoc.data().players : [];
           const holidayNames = new Set(todaysRecord.filter((r) => normalizeAttnStatus(r) === 'holiday').map((r) => r.name));
