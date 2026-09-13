@@ -1349,6 +1349,19 @@
   <div class="card accent-green" id="resetCard">
     <button id="makeBtn">🏆 MAKE TEAMS</button>
     <button class="secondary" id="reshuffleBtn" style="display:none;">🔀 RESHUFFLE</button>
+
+    <div class="card accent-gold" id="lateArrivalCard" style="display:none; margin:14px 0 0; box-shadow:none;">
+      <h2>🚶 LATE ARRIVAL?</h2>
+      <div class="legend" style="margin-top:0;">Agar koi player team banne ke baad aaya ho, ya koi guest khel raha ho, use yahan se team mein add karo — taaki match mein khelne ke baad uska win record bhi sahi se count ho.</div>
+      <select id="lateArrivalSelect" style="width:100%; margin-bottom:8px;"></select>
+      <input type="text" id="lateArrivalGuestName" placeholder="Guest ka naam likhein…" style="display:none; width:100%; margin-bottom:8px; box-sizing:border-box; border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; font-size:15px; font-family:inherit; background:#FCFBF7;">
+      <div class="attnRow">
+        <button class="secondary" id="addToTeamABtn" style="margin:0; flex:1;">🟢 ADD TO TEAM A</button>
+        <button id="addToTeamBBtn" style="margin:0; flex:1; background:var(--orange);">🟠 ADD TO TEAM B</button>
+      </div>
+      <div class="legend" id="lateArrivalStatus" style="display:none; margin-top:8px;"></div>
+    </div>
+
     <button class="secondary" id="cancelTeamBtn" style="display:none; border-color:var(--red); color:#8C2E2E; margin-top:8px;">🗑️ CANCEL — MATCH DIDN'T HAPPEN</button>
     <div class="status" id="status" style="display:none;"></div>
   </div>
@@ -1356,18 +1369,6 @@
   <div class="teams" id="teamsOut" style="display:none;">
     <div class="team a"><h3>🟢 TEAM A</h3><ol id="teamA"></ol></div>
     <div class="team b"><h3>🟠 TEAM B</h3><ol id="teamB"></ol></div>
-  </div>
-
-  <div class="card accent-gold" id="lateArrivalCard" style="display:none;">
-    <h2>🚶 LATE ARRIVAL?</h2>
-    <div class="legend" style="margin-top:0;">Agar koi player team banne ke baad aaya ho, ya koi guest khel raha ho, use yahan se team mein add karo — taaki match mein khelne ke baad uska win record bhi sahi se count ho.</div>
-    <select id="lateArrivalSelect" style="width:100%; margin-bottom:8px;"></select>
-    <input type="text" id="lateArrivalGuestName" placeholder="Guest ka naam likhein…" style="display:none; width:100%; margin-bottom:8px; box-sizing:border-box; border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; font-size:15px; font-family:inherit; background:#FCFBF7;">
-    <div class="attnRow">
-      <button class="secondary" id="addToTeamABtn" style="margin:0; flex:1;">🟢 ADD TO TEAM A</button>
-      <button id="addToTeamBBtn" style="margin:0; flex:1; background:var(--orange);">🟠 ADD TO TEAM B</button>
-    </div>
-    <div class="legend" id="lateArrivalStatus" style="display:none; margin-top:8px;"></div>
   </div>
 
   <div class="card accent-orange" id="matchResultsCard" style="display:none;">
