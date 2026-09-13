@@ -1931,6 +1931,12 @@ let currentUser = localStorage.getItem('disc-team-user') || '';
 let isAdmin = !!currentUser && ADMIN_NAMES.includes(currentUser.toUpperCase());
 let isFullAdmin = !!currentUser && FULL_ADMIN_NAMES.includes(currentUser.toUpperCase());
 let isAttendanceAdmin = !!currentUser && ATTENDANCE_ADMIN_NAMES.includes(currentUser.toUpperCase());
+// Declared early (rather than down near makeTeams(), where it's used) because
+// applyAdminVisibility() — called well before that point during initial page load — reads these
+// via refreshLateArrivalUI(). Referencing a `let` before its declaration line runs throws a
+// "before initialization" error that halts the entire script, which used to break EVERY listener
+// registered later in the file, including the login button itself.
+let lastTeamA = [], lastTeamB = [];
 
 function isAdminName(name) {
   return ADMIN_NAMES.includes(String(name || '').toUpperCase());
@@ -2848,7 +2854,6 @@ document.getElementById('makeBtn').addEventListener('click', makeTeams);
 reshuffleBtn.addEventListener('click', makeTeams);
 
 // ---- Match results: record who won each match today, saved date-wise ----
-let lastTeamA = [], lastTeamB = [];
 let matchResults = []; // [{ match: 1, winner: null | 'A' | 'B' | 'draw' }]
 let applyingRemoteTeamDraft = false; // true while rendering someone ELSE's draft, so we don't echo it straight back
 
@@ -2856,8 +2861,9 @@ let applyingRemoteTeamDraft = false; // true while rendering someone ELSE's draf
 // so their wins get counted, instead of being locked out of the roster for the day. ----
 function refreshLateArrivalUI() {
   const card = document.getElementById('lateArrivalCard');
+  const teamsOutEl = document.getElementById('teamsOut');
   if (!card) return;
-  const show = isAdmin && teamsOut && teamsOut.style.display !== 'none';
+  const show = isAdmin && teamsOutEl && teamsOutEl.style.display !== 'none';
   card.style.display = show ? '' : 'none';
   if (!show) return;
   const inTeams = new Set([...lastTeamA, ...lastTeamB]);
