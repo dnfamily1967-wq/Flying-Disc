@@ -3023,7 +3023,7 @@ function renderMonthlyRecordRows() {
     else if (mrSortMode === 'played') cmp = a.played - b.played || a.wins - b.wins;
     else cmp = a.wins - b.wins || a.pct - b.pct; // wins (default)
     if (mrSortMode !== 'name' && cmp === 0) cmp = a.name.localeCompare(b.name);
-    return cmp * (mrSortMode === 'name' ? mrSortDir : -mrSortDir);
+    return cmp * mrSortDir;
   });
   rowsEl.innerHTML = list.map((p, i) => `
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #F2EFE4;">
