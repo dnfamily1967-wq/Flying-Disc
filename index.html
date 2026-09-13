@@ -1017,6 +1017,15 @@
     background: #FCFBF7;
     margin-top: 10px;
   }
+  select#lateArrivalSelect {
+    width: 100%;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    background: #FCFBF7;
+  }
 
   /* The app should always look like a mobile app — no matter how big the screen is */
   .wrap { padding: 0 8px; max-width: 480px; }
@@ -1347,6 +1356,17 @@
   <div class="teams" id="teamsOut" style="display:none;">
     <div class="team a"><h3>🟢 TEAM A</h3><ol id="teamA"></ol></div>
     <div class="team b"><h3>🟠 TEAM B</h3><ol id="teamB"></ol></div>
+  </div>
+
+  <div class="card accent-gold" id="lateArrivalCard" style="display:none;">
+    <h2>🚶 LATE ARRIVAL?</h2>
+    <div class="legend" style="margin-top:0;">Agar koi player team banne ke baad aaya ho, use yahan se team mein add karo — taaki match mein khelne ke baad uska win record bhi sahi se count ho.</div>
+    <select id="lateArrivalSelect" style="width:100%; margin-bottom:8px;"></select>
+    <div class="attnRow">
+      <button class="secondary" id="addToTeamABtn" style="margin:0; flex:1;">🟢 ADD TO TEAM A</button>
+      <button id="addToTeamBBtn" style="margin:0; flex:1; background:var(--orange);">🟠 ADD TO TEAM B</button>
+    </div>
+    <div class="legend" id="lateArrivalStatus" style="display:none; margin-top:8px;"></div>
   </div>
 
   <div class="card accent-orange" id="matchResultsCard" style="display:none;">
@@ -1934,6 +1954,7 @@ function applyAdminVisibility() {
   if (matchResultsCardEl && teamsOutEl && teamsOutEl.style.display !== 'none') {
     matchResultsCardEl.style.display = isAdmin ? '' : 'none';
   }
+  if (typeof refreshLateArrivalUI === 'function') refreshLateArrivalUI();
   const resetPassCard = document.getElementById('resetPassCard');
   if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
   const forceLogoutCard = document.getElementById('forceLogoutCard');
@@ -2786,6 +2807,7 @@ function makeTeams() {
     reshuffleBtn.style.display = 'none';
     cancelTeamBtn.style.display = 'none';
     statusEl.style.display = 'none';
+    refreshLateArrivalUI();
     return;
   }
   errEl.style.display = 'none';
@@ -2817,6 +2839,7 @@ function makeTeams() {
   if (matchResultsCard) matchResultsCard.style.display = isAdmin ? '' : 'none';
   const matchSavedStatus = document.getElementById('matchSavedStatus');
   if (matchSavedStatus) matchSavedStatus.style.display = 'none';
+  refreshLateArrivalUI();
   renderMatchRows();
   pushTeamDraft();
 }
@@ -2828,6 +2851,52 @@ reshuffleBtn.addEventListener('click', makeTeams);
 let lastTeamA = [], lastTeamB = [];
 let matchResults = []; // [{ match: 1, winner: null | 'A' | 'B' | 'draw' }]
 let applyingRemoteTeamDraft = false; // true while rendering someone ELSE's draft, so we don't echo it straight back
+
+// ---- Late arrival: someone who shows up after teams were already made — add them into a team
+// so their wins get counted, instead of being locked out of the roster for the day. ----
+function refreshLateArrivalUI() {
+  const card = document.getElementById('lateArrivalCard');
+  if (!card) return;
+  const show = isAdmin && teamsOut && teamsOut.style.display !== 'none';
+  card.style.display = show ? '' : 'none';
+  if (!show) return;
+  const inTeams = new Set([...lastTeamA, ...lastTeamB]);
+  const options = players
+    .filter((p) => !inTeams.has(p.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const select = document.getElementById('lateArrivalSelect');
+  const prevValue = select.value;
+  select.innerHTML = options.length
+    ? options.map((p) => `<option value="${p.name}">${p.name}</option>`).join('')
+    : '<option value="">— everyone is already in a team —</option>';
+  if (options.some((p) => p.name === prevValue)) select.value = prevValue;
+  const statusMsgEl = document.getElementById('lateArrivalStatus');
+  if (statusMsgEl) statusMsgEl.style.display = 'none';
+}
+
+function addLatePlayerToTeam(teamLetter) {
+  const select = document.getElementById('lateArrivalSelect');
+  const name = select.value;
+  if (!name) return;
+  const targetArr = teamLetter === 'A' ? lastTeamA : lastTeamB;
+  if (targetArr.includes(name)) return;
+  targetArr.push(name);
+  const playerObj = players.find((p) => p.name === name);
+  const li = `<li>${name} <span>(${playerObj ? playerObj.rating : ''})</span></li>`;
+  (teamLetter === 'A' ? teamAEl : teamBEl).insertAdjacentHTML('beforeend', li);
+  statusEl.textContent = lastTeamA.length === lastTeamB.length
+    ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
+    : lastTeamA.length + ' vs ' + lastTeamB.length + ' (odd count, 1 extra)';
+  pushTeamDraft();
+  refreshLateArrivalUI();
+  const statusMsgEl = document.getElementById('lateArrivalStatus');
+  if (statusMsgEl) {
+    statusMsgEl.style.display = 'block';
+    statusMsgEl.textContent = `✅ ${name} added to Team ${teamLetter}. If today's match results were already saved, tap "SAVE MATCH RESULTS" again so the record picks this up.`;
+  }
+}
+document.getElementById('addToTeamABtn').addEventListener('click', () => addLatePlayerToTeam('A'));
+document.getElementById('addToTeamBBtn').addEventListener('click', () => addLatePlayerToTeam('B'));
 
 function pushTeamDraft() {
   if (applyingRemoteTeamDraft) return;
@@ -2879,6 +2948,7 @@ document.getElementById('cancelTeamBtn').addEventListener('click', () => {
   statusEl.style.display = 'none';
   const matchResultsCard = document.getElementById('matchResultsCard');
   if (matchResultsCard) matchResultsCard.style.display = 'none';
+  refreshLateArrivalUI();
   draftTeamsDocRef.delete().catch(() => {});
 });
 
@@ -3437,6 +3507,7 @@ draftTeamsDocRef.onSnapshot((doc) => {
     statusEl.style.display = 'none';
     const matchResultsCardEl = document.getElementById('matchResultsCard');
     if (matchResultsCardEl) matchResultsCardEl.style.display = 'none';
+    refreshLateArrivalUI();
     return;
   }
   const data = doc.data();
@@ -3462,6 +3533,7 @@ draftTeamsDocRef.onSnapshot((doc) => {
   if (matchResultsDateEl) matchResultsDateEl.textContent = todayStr();
   const matchResultsCard = document.getElementById('matchResultsCard');
   if (matchResultsCard) matchResultsCard.style.display = isAdmin ? '' : 'none';
+  refreshLateArrivalUI();
   renderMatchRows();
   applyingRemoteTeamDraft = false;
 });
