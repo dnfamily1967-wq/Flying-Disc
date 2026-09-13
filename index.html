@@ -1383,9 +1383,10 @@
       <button class="sortBtn" id="mrSortNameBtn" data-mode="name">NAME <span id="mrNameArrow">↕</span></button>
     </div>
     <div id="monthlyRecordRows"></div>
-    <div id="monthlyRecordActions" style="display:none; gap:8px; margin-top:10px;">
+    <div id="monthlyRecordActions" style="display:none; gap:8px; margin-top:10px; flex-wrap:wrap;">
       <button class="secondary" id="saveMonthlyRecordBtn" style="margin:0; flex:1;">💾 SAVE RECORD</button>
       <button id="exportMonthlyRecordBtn" style="margin:0; flex:1;">📥 EXPORT CSV</button>
+      <button id="shareMonthlyRecordJpegBtn" style="margin:0; flex-basis:100%; background:var(--green-deep);">📸 SHARE AS IMAGE (JPEG)</button>
     </div>
     <div class="legend" id="monthlyRecordSavedStatus" style="display:none; margin-top:8px;"></div>
   </div>
@@ -1589,6 +1590,53 @@
       <div style="display:flex; gap:10px; padding:14px; border-top:1px solid var(--line); background:#fff;">
         <button class="secondary" id="exportPreviewCloseBtn" type="button" style="margin:0;">✖ CLOSE</button>
         <button id="exportPreviewDownloadBtn" type="button" style="margin:0;">📥 DOWNLOAD JPEG</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalOverlay" id="matchExportPreviewOverlay">
+    <div style="max-width:95vw; max-height:90vh; display:flex; flex-direction:column; background:#FFFDF7; border-radius:16px; overflow:hidden;">
+      <div style="overflow:auto; padding:4px;">
+        <div id="matchExportTemplate" style="width:860px; background:#FFFDF7; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:28px; color:#2B2B22;">
+          <div style="display:flex; align-items:center; gap:14px; border-bottom:3px solid #1F5C3F; padding-bottom:16px; margin-bottom:20px;">
+            <img id="matchExportLogo" src="icon-192.png" style="width:56px; height:56px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+            <div style="min-width:0;">
+              <div style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#1F5C3F;">Flying Disc Morning Walkers</div>
+              <div style="font-size:13px; color:#8A8570;">Jubilee Park &middot; Monthly Match Record</div>
+            </div>
+            <div id="matchExportMonthBadge" style="margin-left:auto; flex-shrink:0; background:#1F5C3F; color:#fff; font-weight:800; font-size:14px; padding:6px 14px; border-radius:16px;">SEP-26</div>
+          </div>
+
+          <div id="matchExportPot" style="background:linear-gradient(135deg,#FCF3DC,#FBE8B8); border:2px solid #E0A62B; border-radius:14px; padding:16px 18px; text-align:center; margin-bottom:18px;"></div>
+
+          <div style="display:flex; gap:10px; margin-bottom:20px; box-sizing:border-box;">
+            <div style="flex:1; min-width:0; box-sizing:border-box; background:#F1EBDA; border-radius:12px; padding:12px 8px; text-align:center;">
+              <div style="font-size:10px; font-weight:800; color:#8A7A4C; text-transform:uppercase; white-space:nowrap;">Match Days</div>
+              <div id="matchExportDayCount" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#6B5A2E; margin-top:4px;">0</div>
+            </div>
+            <div style="flex:1; min-width:0; box-sizing:border-box; background:#EFF3FB; border-radius:12px; padding:12px 8px; text-align:center;">
+              <div style="font-size:10px; font-weight:800; color:#3F5C8A; text-transform:uppercase; white-space:nowrap;">Total Matches</div>
+              <div id="matchExportTotalMatches" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#2E4E80; margin-top:4px;">0</div>
+            </div>
+            <div style="flex:1; min-width:0; box-sizing:border-box; background:#EAF4EC; border-radius:12px; padding:12px 8px; text-align:center;">
+              <div style="font-size:10px; font-weight:800; color:#4C7A5A; text-transform:uppercase; white-space:nowrap;">🟢 Team A Wins</div>
+              <div id="matchExportTeamAWins" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#189B4E; margin-top:4px;">0</div>
+            </div>
+            <div style="flex:1; min-width:0; box-sizing:border-box; background:#FDF0E6; border-radius:12px; padding:12px 8px; text-align:center;">
+              <div style="font-size:10px; font-weight:800; color:#A16B3A; text-transform:uppercase; white-space:nowrap;">🟠 Team B Wins</div>
+              <div id="matchExportTeamBWins" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#E0781E; margin-top:4px;">0</div>
+            </div>
+          </div>
+
+          <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:10px;">🏅 PLAYER LEADERBOARD</div>
+          <div id="matchExportLeaderboard"></div>
+
+          <div style="border-top:1px dashed #D8D2BE; margin-top:16px; padding-top:12px; font-size:11px; color:#A8A38C; text-align:center;">Generated from the team app &middot; <span id="matchExportGeneratedDate"></span></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; padding:14px; border-top:1px solid var(--line); background:#fff;">
+        <button class="secondary" id="matchExportPreviewCloseBtn" type="button" style="margin:0;">✖ CLOSE</button>
+        <button id="matchExportPreviewDownloadBtn" type="button" style="margin:0;">📥 DOWNLOAD / SHARE JPEG</button>
       </div>
     </div>
   </div>
@@ -3162,6 +3210,137 @@ document.getElementById('exportMonthlyRecordBtn').addEventListener('click', asyn
   }
 });
 
+// ---- Share as Image: build a colorful branded scorecard (logo, month badge, player leaderboard)
+// and export it as a JPEG the same reliable way the Accounts summary export does — native Share
+// sheet first (so it can go straight to WhatsApp etc.), falling back to a plain download. ----
+function populateMatchExportTemplate(rec) {
+  const [yy, mm] = rec.month.split('-');
+  const monthLabel = new Date(Number(yy), Number(mm) - 1, 1)
+    .toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+    .toUpperCase().replace(' ', '-');
+  document.getElementById('matchExportMonthBadge').textContent = monthLabel;
+  document.getElementById('matchExportDayCount').textContent = rec.dayCount;
+  document.getElementById('matchExportTotalMatches').textContent = rec.totalMatches;
+  document.getElementById('matchExportTeamAWins').textContent = rec.teamAWins;
+  document.getElementById('matchExportTeamBWins').textContent = rec.teamBWins;
+  document.getElementById('matchExportGeneratedDate').textContent = new Date().toLocaleDateString();
+
+  const potEl = document.getElementById('matchExportPot');
+  if (rec.playersOfMonth.length) {
+    const namesHtml = rec.playersOfMonth.map((n) => {
+      const p = rec.leaderboard.find((x) => x.name === n);
+      const pct = p && p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
+      return `${n} (${pct}%)`;
+    }).join(', ');
+    potEl.innerHTML = `
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.5px; color:#8A6D1F; text-transform:uppercase;">🏆 Player of the Month${rec.playersOfMonth.length > 1 ? 's' : ''}</div>
+      <div style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#2B2B22; margin-top:4px;">${namesHtml}</div>
+      <div style="font-size:12.5px; color:#8A6D1F; margin-top:2px; font-weight:700;">${rec.topWins} match${rec.topWins === 1 ? '' : 'es'} won this month</div>
+    `;
+  } else {
+    potEl.innerHTML = `<div style="font-size:13px; color:#8A8570;">No match has been decided yet this month.</div>`;
+  }
+
+  const rows = rec.leaderboard.filter((p) => p.wins > 0).map((p, i) => {
+    const pct = p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
+    const isTop = rec.playersOfMonth.includes(p.name);
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:8px; margin-bottom:5px; background:${isTop ? '#FCF3DC' : (i % 2 === 0 ? '#F7F4E9' : 'transparent')}; box-sizing:border-box;">
+        <span style="font-weight:700; font-size:13.5px;">${i + 1}. ${p.name}${isTop ? ' 🏆' : ''}</span>
+        <span style="font-weight:800; font-size:13.5px; color:#189B4E;">${p.wins}W <span style="color:#E0781E;">(${pct}%)</span> <span style="color:#A8A38C; font-weight:500; font-size:11.5px;">— ${p.played}P</span></span>
+      </div>`;
+  }).join('');
+  document.getElementById('matchExportLeaderboard').innerHTML = rows || '<div style="color:#A8A38C; font-size:13px;">No player win record found.</div>';
+}
+
+document.getElementById('shareMonthlyRecordJpegBtn').addEventListener('click', () => {
+  if (!lastMonthlyRecord) return;
+  populateMatchExportTemplate(lastMonthlyRecord);
+  document.getElementById('matchExportPreviewOverlay').classList.add('show');
+});
+
+document.getElementById('matchExportPreviewCloseBtn').addEventListener('click', () => {
+  document.getElementById('matchExportPreviewOverlay').classList.remove('show');
+});
+
+document.getElementById('matchExportPreviewDownloadBtn').addEventListener('click', async () => {
+  if (!lastMonthlyRecord) return;
+  if (typeof html2canvas === 'undefined') {
+    try { await ensureHtml2Canvas(); } catch (e) {
+      alert('Image generator needs an internet connection the first time — please check your connection and try again.');
+      return;
+    }
+  }
+  const btn = document.getElementById('matchExportPreviewDownloadBtn');
+  const originalLabel = btn.textContent;
+  btn.textContent = '⏳ PREPARING…';
+  btn.disabled = true;
+  try {
+    const el = document.getElementById('matchExportTemplate');
+    if (document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; } catch (e) {}
+    }
+    const logoEl = document.getElementById('matchExportLogo');
+    if (logoEl && !logoEl.complete) {
+      await new Promise((resolve) => {
+        logoEl.addEventListener('load', resolve, { once: true });
+        logoEl.addEventListener('error', resolve, { once: true });
+        setTimeout(resolve, 3000);
+      });
+    }
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const fullWidth = el.scrollWidth;
+    const fullHeight = el.scrollHeight;
+    const canvas = await html2canvas(el, {
+      backgroundColor: '#FFFDF7',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      width: fullWidth,
+      height: fullHeight,
+      windowWidth: fullWidth + 40,
+      windowHeight: fullHeight + 40,
+      scrollX: 0,
+      scrollY: 0,
+    });
+    const filename = `monthly-match-record-${lastMonthlyRecord.month}.jpg`;
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+    if (!blob) throw new Error('Could not generate image.');
+
+    let sharedViaSheet = false;
+    if (navigator.canShare && navigator.share) {
+      try {
+        const file = new File([blob], filename, { type: 'image/jpeg' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          sharedViaSheet = true;
+        }
+      } catch (shareErr) {
+        if (shareErr && shareErr.name === 'AbortError') { sharedViaSheet = true; } // user cancelled the sheet — not a failure
+      }
+    }
+    if (!sharedViaSheet) {
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // On browsers/webviews that ignore `download` and just navigate to the blob, this also
+      // opens it in a new tab as a fallback so the file is still reachable either way.
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    }
+  } catch (err) {
+    console.error('Export monthly record JPEG failed', err);
+    alert('Export failed: ' + err.message);
+  } finally {
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+  }
+});
+
 // ---- Firebase / Firestore cloud sync ----
 const firebaseConfig = {
   apiKey: "AIzaSyDDl9nYHaOokHC0Uqk25l0EH__RkNZiVSY",
@@ -3173,6 +3352,11 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+// On some mobile carriers/corporate Wi-Fi (common in India), Firestore's default realtime
+// connection (WebChannel/WebSockets) gets throttled or blocked by network proxies, which is what
+// makes live updates across devices feel slow or stuck until a manual refresh. Auto-detecting and
+// switching to long-polling when that happens fixes it without slowing down normal connections.
+db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
 // Cache Firestore data on-device (IndexedDB) so a repeat visit — including login itself, which
 // waits on the players/passwords docs — can load instantly from cache instead of waiting on a
 // fresh network round-trip every single time. This is the main fix for login sometimes feeling
