@@ -1360,8 +1360,9 @@
 
   <div class="card accent-gold" id="lateArrivalCard" style="display:none;">
     <h2>🚶 LATE ARRIVAL?</h2>
-    <div class="legend" style="margin-top:0;">Agar koi player team banne ke baad aaya ho, use yahan se team mein add karo — taaki match mein khelne ke baad uska win record bhi sahi se count ho.</div>
+    <div class="legend" style="margin-top:0;">Agar koi player team banne ke baad aaya ho, ya koi guest khel raha ho, use yahan se team mein add karo — taaki match mein khelne ke baad uska win record bhi sahi se count ho.</div>
     <select id="lateArrivalSelect" style="width:100%; margin-bottom:8px;"></select>
+    <input type="text" id="lateArrivalGuestName" placeholder="Guest ka naam likhein…" style="display:none; width:100%; margin-bottom:8px; box-sizing:border-box; border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; font-size:15px; font-family:inherit; background:#FCFBF7;">
     <div class="attnRow">
       <button class="secondary" id="addToTeamABtn" style="margin:0; flex:1;">🟢 ADD TO TEAM A</button>
       <button id="addToTeamBBtn" style="margin:0; flex:1; background:var(--orange);">🟠 ADD TO TEAM B</button>
@@ -2858,7 +2859,8 @@ let matchResults = []; // [{ match: 1, winner: null | 'A' | 'B' | 'draw' }]
 let applyingRemoteTeamDraft = false; // true while rendering someone ELSE's draft, so we don't echo it straight back
 
 // ---- Late arrival: someone who shows up after teams were already made — add them into a team
-// so their wins get counted, instead of being locked out of the roster for the day. ----
+// so their wins get counted, instead of being locked out of the roster for the day. Also lets
+// a one-off guest (someone not in the regular roster at all) be added the same way. ----
 function refreshLateArrivalUI() {
   const card = document.getElementById('lateArrivalCard');
   const teamsOutEl = document.getElementById('teamsOut');
@@ -2872,28 +2874,40 @@ function refreshLateArrivalUI() {
     .sort((a, b) => a.name.localeCompare(b.name));
   const select = document.getElementById('lateArrivalSelect');
   const prevValue = select.value;
-  select.innerHTML = options.length
-    ? options.map((p) => `<option value="${p.name}">${p.name}</option>`).join('')
-    : '<option value="">— everyone is already in a team —</option>';
-  if (options.some((p) => p.name === prevValue)) select.value = prevValue;
+  const optionsHtml = options.map((p) => `<option value="${p.name}">${p.name}</option>`).join('');
+  select.innerHTML = (options.length ? optionsHtml : '<option value="" disabled>— everyone is already in a team —</option>')
+    + '<option value="__guest__">➕ Add a guest…</option>';
+  if (prevValue === '__guest__' || options.some((p) => p.name === prevValue)) select.value = prevValue;
+  const guestInput = document.getElementById('lateArrivalGuestName');
+  if (guestInput) guestInput.style.display = select.value === '__guest__' ? '' : 'none';
   const statusMsgEl = document.getElementById('lateArrivalStatus');
   if (statusMsgEl) statusMsgEl.style.display = 'none';
 }
 
+document.getElementById('lateArrivalSelect').addEventListener('change', function () {
+  const guestInput = document.getElementById('lateArrivalGuestName');
+  if (guestInput) guestInput.style.display = this.value === '__guest__' ? '' : 'none';
+});
+
 function addLatePlayerToTeam(teamLetter) {
   const select = document.getElementById('lateArrivalSelect');
-  const name = select.value;
+  const isGuest = select.value === '__guest__';
+  const guestInput = document.getElementById('lateArrivalGuestName');
+  let name = isGuest ? (guestInput ? guestInput.value.trim() : '') : select.value;
   if (!name) return;
+  name = isGuest ? name.toUpperCase() : name; // match the ALL-CAPS naming style the rest of the roster uses
   const targetArr = teamLetter === 'A' ? lastTeamA : lastTeamB;
   if (targetArr.includes(name)) return;
   targetArr.push(name);
   const playerObj = players.find((p) => p.name === name);
-  const li = `<li>${name} <span>(${playerObj ? playerObj.rating : ''})</span></li>`;
+  const ratingLabel = playerObj ? playerObj.rating : 'Guest';
+  const li = `<li>${name} <span>(${ratingLabel})</span></li>`;
   (teamLetter === 'A' ? teamAEl : teamBEl).insertAdjacentHTML('beforeend', li);
   statusEl.textContent = lastTeamA.length === lastTeamB.length
     ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
     : lastTeamA.length + ' vs ' + lastTeamB.length + ' (odd count, 1 extra)';
   pushTeamDraft();
+  if (guestInput) guestInput.value = '';
   refreshLateArrivalUI();
   const statusMsgEl = document.getElementById('lateArrivalStatus');
   if (statusMsgEl) {
