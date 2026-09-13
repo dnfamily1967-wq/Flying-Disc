@@ -1597,47 +1597,53 @@
   <div class="modalOverlay" id="matchExportPreviewOverlay">
     <div style="max-width:95vw; max-height:90vh; display:flex; flex-direction:column; background:#FFFDF7; border-radius:16px; overflow:hidden;">
       <div style="overflow:auto; padding:4px;">
-        <div id="matchExportTemplate" style="width:860px; background:#FFFDF7; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:28px; color:#2B2B22;">
-          <div style="display:flex; align-items:center; gap:14px; border-bottom:3px solid #1F5C3F; padding-bottom:16px; margin-bottom:20px;">
-            <img id="matchExportLogo" src="icon-192.png" style="width:56px; height:56px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+        <div id="matchExportTemplate" style="width:900px; background:#FBF8EF; font-family:'Poppins',sans-serif; box-sizing:border-box; padding:0; color:#2B2B22; -webkit-font-smoothing:antialiased;">
+          <div style="background:linear-gradient(120deg,#1F5C3F,#164028); padding:26px 32px; display:flex; align-items:center; gap:16px;">
+            <img id="matchExportLogo" src="icon-192.png" style="width:64px; height:64px; border-radius:50%; object-fit:cover; flex-shrink:0; border:3px solid rgba(255,255,255,0.85); box-shadow:0 2px 8px rgba(0,0,0,0.25);">
             <div style="min-width:0;">
-              <div style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:800; color:#1F5C3F;">Flying Disc Morning Walkers</div>
-              <div style="font-size:13px; color:#8A8570;">Jubilee Park &middot; Monthly Match Record</div>
+              <div style="font-family:'Outfit',sans-serif; font-size:25px; font-weight:800; color:#fff; letter-spacing:0.2px;">Flying Disc Morning Walkers</div>
+              <div style="font-size:13.5px; color:#BFE0CC; margin-top:2px;">Jubilee Park &middot; Monthly Match Record</div>
             </div>
-            <div id="matchExportMonthBadge" style="margin-left:auto; flex-shrink:0; background:#1F5C3F; color:#fff; font-weight:800; font-size:14px; padding:6px 14px; border-radius:16px;">SEP-26</div>
+            <div id="matchExportMonthBadge" style="margin-left:auto; flex-shrink:0; background:#FCF3DC; color:#1F5C3F; font-family:'Outfit',sans-serif; font-weight:800; font-size:15px; padding:8px 18px; border-radius:18px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">SEP-26</div>
           </div>
 
-          <div id="matchExportPot" style="background:linear-gradient(135deg,#FCF3DC,#FBE8B8); border:2px solid #E0A62B; border-radius:14px; padding:16px 18px; text-align:center; margin-bottom:18px;"></div>
+          <div style="padding:26px 32px 32px;">
+            <div id="matchExportPot" style="background:linear-gradient(135deg,#FFF4D6,#FBE29A); border:2px solid #E0A62B; border-radius:16px; padding:18px 20px; text-align:center; margin-bottom:22px; box-shadow:0 3px 10px rgba(224,166,43,0.18);"></div>
 
-          <div style="display:flex; gap:10px; margin-bottom:20px; box-sizing:border-box;">
-            <div style="flex:1; min-width:0; box-sizing:border-box; background:#F1EBDA; border-radius:12px; padding:12px 8px; text-align:center;">
-              <div style="font-size:10px; font-weight:800; color:#8A7A4C; text-transform:uppercase; white-space:nowrap;">Match Days</div>
-              <div id="matchExportDayCount" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#6B5A2E; margin-top:4px;">0</div>
+            <div style="display:flex; gap:12px; margin-bottom:26px; box-sizing:border-box;">
+              <div style="flex:1; min-width:0; box-sizing:border-box; background:#fff; border:1.5px solid #EFE6C8; border-radius:14px; padding:14px 8px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                <div style="font-size:10.5px; font-weight:800; color:#8A7A4C; text-transform:uppercase; letter-spacing:0.4px; white-space:nowrap;">Match Days</div>
+                <div id="matchExportDayCount" style="font-family:'Outfit',sans-serif; font-size:24px; font-weight:800; color:#6B5A2E; margin-top:6px;">0</div>
+              </div>
+              <div style="flex:1; min-width:0; box-sizing:border-box; background:#fff; border:1.5px solid #DCE4F5; border-radius:14px; padding:14px 8px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                <div style="font-size:10.5px; font-weight:800; color:#3F5C8A; text-transform:uppercase; letter-spacing:0.4px; white-space:nowrap;">Total Matches</div>
+                <div id="matchExportTotalMatches" style="font-family:'Outfit',sans-serif; font-size:24px; font-weight:800; color:#2E4E80; margin-top:6px;">0</div>
+              </div>
+              <div style="flex:1; min-width:0; box-sizing:border-box; background:#fff; border:1.5px solid #CFE8D6; border-radius:14px; padding:14px 8px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                <div style="font-size:10.5px; font-weight:800; color:#4C7A5A; text-transform:uppercase; letter-spacing:0.4px; white-space:nowrap;">🟢 Team A Wins</div>
+                <div id="matchExportTeamAWins" style="font-family:'Outfit',sans-serif; font-size:24px; font-weight:800; color:#189B4E; margin-top:6px;">0</div>
+              </div>
+              <div style="flex:1; min-width:0; box-sizing:border-box; background:#fff; border:1.5px solid #F5DCC4; border-radius:14px; padding:14px 8px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                <div style="font-size:10.5px; font-weight:800; color:#A16B3A; text-transform:uppercase; letter-spacing:0.4px; white-space:nowrap;">🟠 Team B Wins</div>
+                <div id="matchExportTeamBWins" style="font-family:'Outfit',sans-serif; font-size:24px; font-weight:800; color:#E0781E; margin-top:6px;">0</div>
+              </div>
             </div>
-            <div style="flex:1; min-width:0; box-sizing:border-box; background:#EFF3FB; border-radius:12px; padding:12px 8px; text-align:center;">
-              <div style="font-size:10px; font-weight:800; color:#3F5C8A; text-transform:uppercase; white-space:nowrap;">Total Matches</div>
-              <div id="matchExportTotalMatches" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#2E4E80; margin-top:4px;">0</div>
+
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+              <span style="font-family:'Outfit',sans-serif; font-size:16px; font-weight:800; color:#1F5C3F;">🏅 PLAYER LEADERBOARD</span>
+              <span style="flex:1; height:2px; background:linear-gradient(90deg,#1F5C3F,transparent);"></span>
             </div>
-            <div style="flex:1; min-width:0; box-sizing:border-box; background:#EAF4EC; border-radius:12px; padding:12px 8px; text-align:center;">
-              <div style="font-size:10px; font-weight:800; color:#4C7A5A; text-transform:uppercase; white-space:nowrap;">🟢 Team A Wins</div>
-              <div id="matchExportTeamAWins" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#189B4E; margin-top:4px;">0</div>
-            </div>
-            <div style="flex:1; min-width:0; box-sizing:border-box; background:#FDF0E6; border-radius:12px; padding:12px 8px; text-align:center;">
-              <div style="font-size:10px; font-weight:800; color:#A16B3A; text-transform:uppercase; white-space:nowrap;">🟠 Team B Wins</div>
-              <div id="matchExportTeamBWins" style="font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#E0781E; margin-top:4px;">0</div>
-            </div>
+            <div id="matchExportLeaderboard"></div>
+
+            <div style="border-top:1px dashed #D8D2BE; margin-top:20px; padding-top:14px; font-size:11.5px; color:#A8A38C; text-align:center;">Generated from the team app &middot; <span id="matchExportGeneratedDate"></span></div>
           </div>
-
-          <div style="font-size:14px; font-weight:800; color:#1F5C3F; margin-bottom:10px;">🏅 PLAYER LEADERBOARD</div>
-          <div id="matchExportLeaderboard"></div>
-
-          <div style="border-top:1px dashed #D8D2BE; margin-top:16px; padding-top:12px; font-size:11px; color:#A8A38C; text-align:center;">Generated from the team app &middot; <span id="matchExportGeneratedDate"></span></div>
         </div>
       </div>
       <div style="display:flex; gap:10px; padding:14px; border-top:1px solid var(--line); background:#fff;">
         <button class="secondary" id="matchExportPreviewCloseBtn" type="button" style="margin:0;">✖ CLOSE</button>
         <button id="matchExportPreviewDownloadBtn" type="button" style="margin:0;">📥 DOWNLOAD / SHARE JPEG</button>
       </div>
+
     </div>
   </div>
 
@@ -3244,10 +3250,15 @@ function populateMatchExportTemplate(rec) {
   const rows = rec.leaderboard.filter((p) => p.wins > 0).map((p, i) => {
     const pct = p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
     const isTop = rec.playersOfMonth.includes(p.name);
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
     return `
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:8px; margin-bottom:5px; background:${isTop ? '#FCF3DC' : (i % 2 === 0 ? '#F7F4E9' : 'transparent')}; box-sizing:border-box;">
-        <span style="font-weight:700; font-size:13.5px;">${i + 1}. ${p.name}${isTop ? ' 🏆' : ''}</span>
-        <span style="font-weight:800; font-size:13.5px; color:#189B4E;">${p.wins}W <span style="color:#E0781E;">(${pct}%)</span> <span style="color:#A8A38C; font-weight:500; font-size:11.5px;">— ${p.played}P</span></span>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 16px; border-radius:10px; margin-bottom:6px; background:${isTop ? 'linear-gradient(90deg,#FCF3DC,#FBE8B8)' : (i % 2 === 0 ? '#F5F2E5' : '#FBF9F1')}; box-sizing:border-box; border:${isTop ? '1.5px solid #E0A62B' : '1.5px solid transparent'};">
+        <span style="font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px;"><span style="display:inline-block; min-width:22px; font-size:${i < 3 ? '17px' : '13px'};">${medal}</span>${p.name}${isTop ? ' 🏆' : ''}</span>
+        <span style="display:flex; align-items:center; gap:8px;">
+          <span style="font-family:'Outfit',sans-serif; font-weight:800; font-size:14px; color:#189B4E;">${p.wins}W</span>
+          <span style="font-weight:800; font-size:12px; color:#fff; background:#E0781E; padding:3px 9px; border-radius:10px;">${pct}%</span>
+          <span style="color:#A8A38C; font-weight:600; font-size:11.5px;">${p.played}P</span>
+        </span>
       </div>`;
   }).join('');
   document.getElementById('matchExportLeaderboard').innerHTML = rows || '<div style="color:#A8A38C; font-size:13px;">No player win record found.</div>';
@@ -3292,8 +3303,8 @@ document.getElementById('matchExportPreviewDownloadBtn').addEventListener('click
     const fullWidth = el.scrollWidth;
     const fullHeight = el.scrollHeight;
     const canvas = await html2canvas(el, {
-      backgroundColor: '#FFFDF7',
-      scale: 2,
+      backgroundColor: '#FBF8EF',
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       width: fullWidth,
@@ -3304,7 +3315,7 @@ document.getElementById('matchExportPreviewDownloadBtn').addEventListener('click
       scrollY: 0,
     });
     const filename = `monthly-match-record-${lastMonthlyRecord.month}.jpg`;
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.97));
     if (!blob) throw new Error('Could not generate image.');
 
     let sharedViaSheet = false;
