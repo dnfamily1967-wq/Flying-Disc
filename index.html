@@ -1384,8 +1384,7 @@
     </div>
     <div id="monthlyRecordRows"></div>
     <div id="monthlyRecordActions" style="display:none; gap:8px; margin-top:10px; flex-wrap:wrap;">
-      <button class="secondary" id="saveMonthlyRecordBtn" style="margin:0; flex:1;">💾 SAVE RECORD</button>
-      <button id="exportMonthlyRecordBtn" style="margin:0; flex:1;">📥 EXPORT CSV</button>
+      <button class="secondary" id="saveMonthlyRecordBtn" style="margin:0; flex-basis:100%;">💾 SAVE RECORD</button>
       <button id="shareMonthlyRecordJpegBtn" style="margin:0; flex-basis:100%; background:var(--green-deep);">📸 SHARE AS IMAGE (JPEG)</button>
     </div>
     <div class="legend" id="monthlyRecordSavedStatus" style="display:none; margin-top:8px;"></div>
@@ -3158,62 +3157,6 @@ document.getElementById('saveMonthlyRecordBtn').addEventListener('click', () => 
     console.error('Save monthly record failed', err);
     statusEl.textContent = 'Save failed: ' + err.message;
   });
-});
-
-// ---- Export: download the month's record as a CSV so it can be kept/shared/opened in Excel. ----
-async function downloadTextFile(filename, mimeType, content) {
-  const blob = new Blob([content], { type: mimeType });
-  let sharedViaSheet = false;
-  if (navigator.canShare && navigator.share) {
-    try {
-      const file = new File([blob], filename, { type: mimeType });
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: filename });
-        sharedViaSheet = true;
-      }
-    } catch (shareErr) {
-      if (shareErr && shareErr.name === 'AbortError') sharedViaSheet = true; // user cancelled the sheet — not a failure
-    }
-  }
-  if (!sharedViaSheet) {
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    // Some browsers/webviews ignore the `download` attribute and just navigate instead — opening
-    // it in a new tab too means the file is still reachable even if the silent download failed.
-    window.open(blobUrl, '_blank');
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-  }
-}
-
-document.getElementById('exportMonthlyRecordBtn').addEventListener('click', async () => {
-  if (!lastMonthlyRecord) return;
-  try {
-    const rec = lastMonthlyRecord;
-    const lines = [];
-    lines.push(`Monthly Match Record,${rec.month}`);
-    lines.push(`Match Days,${rec.dayCount}`);
-    lines.push(`Total Matches,${rec.totalMatches}`);
-    lines.push(`Team A Wins,${rec.teamAWins}`);
-    lines.push(`Team B Wins,${rec.teamBWins}`);
-    lines.push(`Draws,${rec.draws}`);
-    lines.push(`Player of the Month,${rec.playersOfMonth.join(' / ') || '-'}`);
-    lines.push('');
-    lines.push('Rank,Player,Wins,Matches Played,Win %');
-    rec.leaderboard.filter((p) => p.played > 0).forEach((p, i) => {
-      const pct = p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
-      lines.push(`${i + 1},${p.name},${p.wins},${p.played},${pct}%`);
-    });
-    const csv = lines.map((l) => l.split(',').map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    await downloadTextFile(`monthly-match-record-${rec.month}.csv`, 'text/csv;charset=utf-8', csv);
-  } catch (err) {
-    console.error('Export monthly record failed', err);
-    alert('Export failed: ' + err.message);
-  }
 });
 
 // ---- Share as Image: build a colorful branded scorecard (logo, month badge, player leaderboard)
