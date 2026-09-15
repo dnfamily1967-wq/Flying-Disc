@@ -856,6 +856,12 @@
 
   <!-- ================= SETUP SCREEN ================= -->
   <div id="setupScreen">
+    <div class="panel" id="scheduledBanner" style="display:none; border:1.5px solid var(--led, #16a34a);">
+      <h2 style="margin-bottom:6px;">🗓️ Scheduled For Today</h2>
+      <div id="scheduledBannerText" style="font-weight:700; margin-bottom:10px;"></div>
+      <button class="btn-primary" id="loadScheduledBannerBtn" style="width:100%;">▶ Load This Match</button>
+    </div>
+
     <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623);">
       <h2>🔐 Who's Scoring?</h2>
       <div class="setupHint" style="margin-top:0;">Pick your own name below (saved just on this phone), then choose one or more people who are allowed to actually score the match. Everyone else can still watch the live score, but their scoring buttons will be locked. Leave the scorer list empty to let anyone score, like before.</div>
@@ -923,6 +929,12 @@
       <h2>Match Settings</h2>
       <div class="matchupRow" style="margin-bottom:12px;">
         <div class="matchupCol">
+          <label>Match Name (optional)</label>
+          <input type="text" id="matchNameInput" placeholder="e.g. Sunday Derby" maxlength="40">
+        </div>
+      </div>
+      <div class="matchupRow" style="margin-bottom:12px;">
+        <div class="matchupCol">
           <label>🪙 Toss — who bowls first?</label>
           <select id="tossBowlsFirst">
             <option value="team1" selected>Team A</option>
@@ -977,6 +989,29 @@
       <div class="setupHint" id="retirementHint" style="margin-top:8px;"></div>
     </div>
 
+    <div class="panel" id="schedulePanel">
+      <h2>📅 Schedule This Match</h2>
+      <div class="setupHint" style="margin-top:0; margin-bottom:10px;">Set the teams &amp; settings above, give it a name, pick a future date &amp; time, and save it — it'll be waiting right here (with a banner) when that day comes.</div>
+      <div id="scheduleEditingBadge" class="setupHint hidden" style="margin-top:-4px; margin-bottom:10px; font-weight:700;">✏️ Editing "<span id="scheduleEditingName"></span>" — <a href="#" id="cancelScheduleEditBtn" style="color:var(--led,#16a34a); text-decoration:underline;">cancel</a></div>
+      <div class="matchupRow" style="margin-bottom:12px;">
+        <div class="matchupCol">
+          <label>Date &amp; Time</label>
+          <input type="datetime-local" id="scheduleDateTimeInput">
+        </div>
+      </div>
+      <button class="btn-ghost" id="saveScheduledBtn" style="width:100%;">💾 Save Match For Later</button>
+    </div>
+
+    <div class="panel">
+      <h2 id="scheduledHeading" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+        <span>Scheduled Matches <span id="scheduledCountTag" style="color:var(--muted); font-weight:600;"></span></span>
+        <span id="scheduledToggleIcon">▼</span>
+      </h2>
+      <div id="scheduledBody" style="display:none;">
+        <div id="scheduledList"></div>
+      </div>
+    </div>
+
     <div class="panel">
       <h2 id="historyHeading" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
         <span>Match History <span id="historyCountTag" style="color:var(--muted); font-weight:600;"></span></span>
@@ -997,6 +1032,7 @@
   <div id="matchScaleWrap">
 
     <div class="scoreboard">
+      <div id="matchNameLabel" class="hidden" style="text-align:center; font-weight:800; font-size:12.5px; letter-spacing:0.5px; color:var(--muted); margin-bottom:4px; text-transform:uppercase;"></div>
       <div class="teamsHeaderRow teamsHeaderRowIn" id="matchTeamsHeaderRow"></div>
       <div class="sbOver" id="sbOverLabel">OVER 1 OF 8 · 0.0 OVERS BOWLED</div>
       <div class="sbScoreSplit">
@@ -1150,6 +1186,7 @@
 const STORAGE_KEY = 'box-cricket-match-v1';
 const ROSTER_KEY = 'box-cricket-roster-v1';
 const MATCH_HISTORY_KEY = 'box-cricket-history-v1';
+const SCHEDULED_KEY = 'box-cricket-scheduled-v1'; // matches saved with a future date/time, waiting to be loaded
 const SCORERS_KEY = 'box-cricket-scorers-v1'; // shared (cloud-synced) list of who's allowed to score
 const WHOAMI_KEY = 'box-cricket-whoami-v1'; // per-device only — which roster name is using THIS phone
 const DEFAULT_ROSTER = ['DEVENDRA','DINESH','DIPPU','KAMLESH','MAHAVIR','NAVIN','PAWAN','PRAMOD','RAJENDRA','RAJESH','SANJAY','SHANKAR','SUBHASH','SURESH','VIBHAW','VISHAL','VISHNU'];
@@ -1262,6 +1299,7 @@ function loadState() {
       // Migrate older saved matches that predate these two settings.
       if (state.retirementRule === undefined) state.retirementRule = 'none';
       if (state.negOutSwapStrike === undefined) state.negOutSwapStrike = true;
+      if (state.matchName === undefined) state.matchName = '';
       // Migrate matches saved before manual bowler/batter selection was added — those had a
       // bowler + pair auto-picked by the app. Clear that one-time so nothing is pre-selected
       // that the team didn't actually tap themselves; future saves are left alone.
@@ -1274,7 +1312,7 @@ function loadState() {
       return;
     }
   } catch (e) {}
-  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true, manualPickMigrated: true };
+  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true, manualPickMigrated: true, matchName: '' };
 }
 
 function saveState() {
@@ -1507,6 +1545,8 @@ const retirementRuleInput = document.getElementById('retirementRuleInput');
 const retirementHintEl = document.getElementById('retirementHint');
 const oversInput = document.getElementById('oversInput');
 const tossBowlsFirstInput = document.getElementById('tossBowlsFirst');
+const matchNameInput = document.getElementById('matchNameInput');
+matchNameInput.addEventListener('input', () => { state.matchName = matchNameInput.value; saveState(); });
 const rosterChipsEl = document.getElementById('rosterChips');
 const rosterNameInput = document.getElementById('rosterNameInput');
 const addRosterBtn = document.getElementById('addRosterBtn');
@@ -1854,6 +1894,7 @@ const RETIREMENT_HINTS = {
 function renderSetup() {
   const combined = combinedTeamPlayers();
   startMatchBtn.disabled = combined.length < 2;
+  if (matchNameInput.value !== (state.matchName || '')) matchNameInput.value = state.matchName || '';
   outPenaltyInput.value = String(state.outPenalty);
   extraRunsInput.value = String(state.extraRuns);
   negOutSwapInput.value = state.negOutSwapStrike ? '1' : '0';
@@ -1894,6 +1935,7 @@ function renderSetup() {
   renderRoster();
   renderTeams();
   renderHistory();
+  renderScheduled();
 }
 
 outPenaltyInput.addEventListener('change', () => { state.outPenalty = Number(outPenaltyInput.value); saveState(); renderSetup(); });
@@ -1918,6 +1960,9 @@ oversInput.addEventListener('change', () => {
 startMatchBtn.addEventListener('click', () => {
   const combined = combinedTeamPlayers();
   if (combined.length < 2) { alert('Need at least 2 players across both teams to start.'); return; }
+  state.matchName = matchNameInput.value.trim();
+  editingScheduledId = null;
+  applyScheduleEditingUI();
   state.players = combined;
   // Toss decides who actually bowls first — everything internally still treats "team1" as the
   // side that bowls first, so if the toss went the other way we just swap which real team gets
@@ -2073,6 +2118,11 @@ function renderMatch() {
   const teamsHeaderInnings1Len = innings1OversCount();
   const isInnings1 = oIdx < teamsHeaderInnings1Len; // true while Team A is bowling (Team B batting)
   renderTeamsHeaderRow('matchTeamsHeaderRow', isInnings1);
+  const matchNameLabelEl = document.getElementById('matchNameLabel');
+  if (matchNameLabelEl) {
+    matchNameLabelEl.textContent = state.matchName || '';
+    matchNameLabelEl.classList.toggle('hidden', !state.matchName);
+  }
 
   // "OVER X OF Y" now shows progress through THIS innings specifically (not a combined count
   // spanning both teams), since that's what's actually meaningful to read mid-over.
@@ -2484,6 +2534,7 @@ document.getElementById('endMatchBtn').addEventListener('click', () => {
 function currentMatchRecord() {
   return {
     date: new Date().toISOString(),
+    matchName: state.matchName || '',
     team1Name: state.team1Name || 'Team A',
     team2Name: state.team2Name || 'Team B',
     team1Players: state.team1Players || [],
@@ -2599,12 +2650,236 @@ document.getElementById('newMatchBtnMatch').addEventListener('click', () => {
   render();
 });
 
+// ---------------- SCHEDULED MATCHES ----------------
+// Lets a team save today's line-up + settings against a FUTURE date/time, under a match name —
+// so it's waiting right here (with a "today" banner) instead of having to be rebuilt from
+// scratch when that day actually arrives. Local-only (like Match History), one list per phone.
+function loadScheduledList() {
+  try {
+    const raw = localStorage.getItem(SCHEDULED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+function saveScheduledListToStorage(list) {
+  try { localStorage.setItem(SCHEDULED_KEY, JSON.stringify(list)); } catch (e) {}
+}
+function isSameLocalDay(isoStr) {
+  const d = new Date(isoStr);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+function scheduledDateLabel(isoStr) {
+  return new Date(isoStr).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+let editingScheduledId = null; // set while editing an existing scheduled entry's rules in place, instead of creating a new one
+function toDatetimeLocalValue(iso) {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function applyScheduleEditingUI() {
+  const badge = document.getElementById('scheduleEditingBadge');
+  const nameEl = document.getElementById('scheduleEditingName');
+  const saveBtn = document.getElementById('saveScheduledBtn');
+  if (editingScheduledId) {
+    if (badge) badge.classList.remove('hidden');
+    if (nameEl) nameEl.textContent = state.matchName || '';
+    if (saveBtn) saveBtn.textContent = '💾 Update Scheduled Match';
+  } else {
+    if (badge) badge.classList.add('hidden');
+    if (saveBtn) saveBtn.textContent = '💾 Save Match For Later';
+  }
+}
+document.getElementById('cancelScheduleEditBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  editingScheduledId = null;
+  document.getElementById('scheduleDateTimeInput').value = '';
+  applyScheduleEditingUI();
+});
+
+document.getElementById('saveScheduledBtn').addEventListener('click', () => {
+  const dtInput = document.getElementById('scheduleDateTimeInput');
+  const dtVal = dtInput.value; // 'YYYY-MM-DDTHH:MM', local time
+  if (!dtVal) { alert('Pick a date & time to schedule this match for.'); return; }
+  const dt = new Date(dtVal);
+  if (isNaN(dt.getTime())) { alert('That date & time looks invalid — please pick again.'); return; }
+  const name = matchNameInput.value.trim();
+  if (!name) { alert('Give this match a name (above, in Match Settings) so you can spot it later.'); return; }
+  const combined = combinedTeamPlayers();
+  if (combined.length < 2) { alert('Set up both teams (at least 2 players total) before scheduling.'); return; }
+  const entry = {
+    id: editingScheduledId || ('sch' + Date.now()),
+    name,
+    dateTime: dt.toISOString(),
+    name1: teamsState.name1, name2: teamsState.name2,
+    team1: teamsState.team1.slice(), team2: teamsState.team2.slice(),
+    logo1: teamsState.logo1 || '', logo2: teamsState.logo2 || '',
+    overs: state.overs, outPenalty: state.outPenalty, extraRuns: state.extraRuns,
+    negOutSwapStrike: state.negOutSwapStrike, retirementRule: state.retirementRule,
+    tossBowlsFirst: state.tossBowlsFirst || 'team1'
+  };
+  const list = loadScheduledList();
+  if (editingScheduledId) {
+    const idx = list.findIndex((e) => e.id === editingScheduledId);
+    if (idx === -1) list.push(entry); else list[idx] = entry;
+    saveScheduledListToStorage(list);
+    editingScheduledId = null;
+    dtInput.value = '';
+    applyScheduleEditingUI();
+    alert(`Updated ✅ "${name}" is now scheduled for ${scheduledDateLabel(entry.dateTime)}.`);
+  } else {
+    list.push(entry);
+    saveScheduledListToStorage(list);
+    dtInput.value = '';
+    alert(`Saved ✅ "${name}" is scheduled for ${scheduledDateLabel(entry.dateTime)}.`);
+  }
+  renderScheduled();
+});
+
+// Pulls a saved scheduled entry's teams + settings + name into the live setup so its RULES can be
+// changed — the Date & Time field is pre-filled too, and "Save Match For Later" turns into
+// "Update Scheduled Match" so hitting it updates this same entry instead of creating a duplicate.
+function startEditScheduled(id) {
+  const entry = loadScheduledList().find((e) => e.id === id);
+  if (!entry) return;
+  teamsState = {
+    name1: entry.name1 || 'Team A', name2: entry.name2 || 'Team B',
+    team1: (entry.team1 || []).slice(), team2: (entry.team2 || []).slice(),
+    logo1: entry.logo1 || '', logo2: entry.logo2 || ''
+  };
+  saveTeams();
+  state.matchName = entry.name;
+  state.overs = entry.overs;
+  state.outPenalty = entry.outPenalty;
+  state.extraRuns = entry.extraRuns;
+  state.negOutSwapStrike = entry.negOutSwapStrike;
+  state.retirementRule = entry.retirementRule;
+  state.tossBowlsFirst = entry.tossBowlsFirst || 'team1';
+  saveState();
+  editingScheduledId = id;
+  document.getElementById('scheduleDateTimeInput').value = toDatetimeLocalValue(entry.dateTime);
+  renderSetup();
+  applyScheduleEditingUI();
+  const panel = document.getElementById('matchSettingsPanel');
+  if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Pulls a saved scheduled entry's teams + settings + name back into the live setup — same spot
+// Start Match already reads from, so hitting Start right after this uses exactly what was saved.
+function loadScheduledMatch(id) {
+  const entry = loadScheduledList().find((e) => e.id === id);
+  if (!entry) return;
+  if (!confirm(`Load "${entry.name}"? This replaces the current team setup with what was saved for this scheduled match.`)) return;
+  teamsState = {
+    name1: entry.name1 || 'Team A', name2: entry.name2 || 'Team B',
+    team1: (entry.team1 || []).slice(), team2: (entry.team2 || []).slice(),
+    logo1: entry.logo1 || '', logo2: entry.logo2 || ''
+  };
+  saveTeams();
+  state.matchName = entry.name;
+  state.overs = entry.overs;
+  state.outPenalty = entry.outPenalty;
+  state.extraRuns = entry.extraRuns;
+  state.negOutSwapStrike = entry.negOutSwapStrike;
+  state.retirementRule = entry.retirementRule;
+  state.tossBowlsFirst = entry.tossBowlsFirst || 'team1';
+  saveState();
+  editingScheduledId = null;
+  document.getElementById('scheduleDateTimeInput').value = '';
+  applyScheduleEditingUI();
+  renderSetup();
+  const panel = document.getElementById('matchSettingsPanel');
+  if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function deleteScheduledMatch(id) {
+  if (!confirm('Delete this scheduled match? This cannot be undone.')) return;
+  saveScheduledListToStorage(loadScheduledList().filter((e) => e.id !== id));
+  renderScheduled();
+}
+
+function scheduledRowHTML(entry) {
+  const due = new Date(entry.dateTime).getTime() <= Date.now();
+  return `
+    <div class="historyRow">
+      <div class="historyRowMain">
+        <div class="historyRowName" style="font-weight:800; margin-bottom:2px;">${entry.name}${due ? ' <span style="color:var(--led,#16a34a); font-weight:700;">· READY</span>' : ''}</div>
+        <div class="historyRowTeams">${entry.name1 || 'Team A'} <span style="color:var(--muted); font-weight:600;">vs</span> ${entry.name2 || 'Team B'}</div>
+        <div class="historyRowDate">${scheduledDateLabel(entry.dateTime)}</div>
+      </div>
+      <div class="historyRowActions">
+        <button type="button" class="historyActionBtn" data-edit-sch="${entry.id}" title="Edit rules">✏️</button>
+        <button type="button" class="historyActionBtn" data-load-sch="${entry.id}" title="Load this match">▶</button>
+        <button type="button" class="historyActionBtn del" data-delete-sch="${entry.id}" title="Delete">🗑</button>
+      </div>
+    </div>`;
+}
+
+function renderScheduled() {
+  const list = loadScheduledList().sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+  const countTag = document.getElementById('scheduledCountTag');
+  if (countTag) countTag.textContent = list.length ? `(${list.length})` : '';
+  const el = document.getElementById('scheduledList');
+  if (el) {
+    el.innerHTML = list.length
+      ? list.map(scheduledRowHTML).join('')
+      : '<div class="setupHint" style="margin:0;">No matches scheduled yet — set up teams above, name the match, pick a date &amp; time, and save it for later.</div>';
+  }
+  // Banner: surface the earliest scheduled match that falls on TODAY'S calendar date, so it's
+  // sitting right at the top the day it's meant to be played, without digging through the list.
+  const bannerEl = document.getElementById('scheduledBanner');
+  const bannerTextEl = document.getElementById('scheduledBannerText');
+  const todays = list.filter((e) => isSameLocalDay(e.dateTime));
+  if (bannerEl && bannerTextEl) {
+    if (todays.length) {
+      const next = todays[0];
+      bannerEl.dataset.loadId = next.id;
+      bannerTextEl.textContent = `${next.name} — ${next.name1 || 'Team A'} vs ${next.name2 || 'Team B'} at ${new Date(next.dateTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`;
+      bannerEl.style.display = '';
+    } else {
+      bannerEl.style.display = 'none';
+      delete bannerEl.dataset.loadId;
+    }
+  }
+}
+
+document.getElementById('scheduledList').addEventListener('click', (e) => {
+  const editBtn = e.target.closest('[data-edit-sch]');
+  const loadBtn = e.target.closest('[data-load-sch]');
+  const delBtn = e.target.closest('[data-delete-sch]');
+  if (editBtn) { startEditScheduled(editBtn.dataset.editSch); return; }
+  if (loadBtn) { loadScheduledMatch(loadBtn.dataset.loadSch); return; }
+  if (delBtn) { deleteScheduledMatch(delBtn.dataset.deleteSch); return; }
+});
+
+document.getElementById('loadScheduledBannerBtn').addEventListener('click', () => {
+  const bannerEl = document.getElementById('scheduledBanner');
+  const id = bannerEl && bannerEl.dataset.loadId;
+  if (id) loadScheduledMatch(id);
+});
+
+let scheduledExpanded = false;
+function applyScheduledExpanded() {
+  const body = document.getElementById('scheduledBody');
+  const icon = document.getElementById('scheduledToggleIcon');
+  if (body) body.style.display = scheduledExpanded ? '' : 'none';
+  if (icon) icon.textContent = scheduledExpanded ? '▲' : '▼';
+}
+document.getElementById('scheduledHeading').addEventListener('click', () => {
+  scheduledExpanded = !scheduledExpanded;
+  applyScheduledExpanded();
+});
+applyScheduledExpanded();
+applyScheduleEditingUI();
+
 // ---------------- MATCH HISTORY UI ----------------
 function historyRowHTML(rec) {
   const dateStr = rec.date ? new Date(rec.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
   return `
     <div class="historyRow">
       <div class="historyRowMain">
+        ${rec.matchName ? `<div class="historyRowName" style="font-weight:800; margin-bottom:2px;">${rec.matchName}</div>` : ''}
         <div class="historyRowTeams">${teamLogoHTML(rec.team1Name, 20, rec.team1Logo)} ${rec.team1Name} <span style="color:var(--muted); font-weight:600;">vs</span> ${teamLogoHTML(rec.team2Name, 20, rec.team2Logo)} ${rec.team2Name}</div>
         <div class="historyRowScore">${rec.team2Name} ${rec.firstInningsRuns || 0}/${rec.firstInningsWkts || 0} <span class="historyRowOvers">·</span> ${rec.team1Name} ${rec.totalRuns}/${rec.totalWkts} <span class="historyRowOvers">(${rec.oversBowled}/${rec.totalOvers} ov)</span></div>
         <div class="historyRowDate">${dateStr}</div>
@@ -2685,7 +2960,7 @@ function buildExportHTML(rec) {
 
   return `
     <div class="exportCardInner">
-      <div class="exTitle">🏏 BOX CRICKET — MATCH SCORECARD</div>
+      <div class="exTitle">${rec.matchName ? rec.matchName.toUpperCase() : '🏏 BOX CRICKET — MATCH SCORECARD'}</div>
       <div class="exDate">${dateStr}</div>
       <div class="exResultBanner">${resultText}</div>
       <div class="exTeamsRow">
