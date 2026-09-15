@@ -840,6 +840,7 @@
       <h2>🔐 Scoring Access</h2>
       <div class="setupHint" style="margin-top:0;">Simple rule: only UNLOCKED phones can tap the scoring buttons — everyone else can still watch live, view-only. There's no name list to manage — tap the 🔐 icon at the top of any phone and enter the PIN to unlock scoring on THAT phone (any time, even mid-match). Anyone who knows the PIN has full access.</div>
       <div id="scorerAccessStatus" style="margin-top:10px; font-weight:700; font-size:13px;"></div>
+      <a href="#" id="changePinLinkSetup" class="hidden" style="display:inline-block; margin-top:8px; color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline;">🔑 Change PIN</a>
     </div>
 
     <div class="panel">
@@ -1040,6 +1041,7 @@
 
     <div class="panel" id="scoreAccessStatusPanel" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
       <span id="scoreAccessStatusText" style="font-weight:800; font-size:13px;"></span>
+      <a href="#" id="changePinLinkMatch" class="hidden" style="color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline; white-space:nowrap;">🔑 Change PIN</a>
     </div>
 
     <div class="panel" id="scoringPanel">
@@ -1165,12 +1167,14 @@ const ROSTER_KEY = 'box-cricket-roster-v1';
 const MATCH_HISTORY_KEY = 'box-cricket-history-v1';
 const SCHEDULED_KEY = 'box-cricket-scheduled-v1'; // matches saved with a future date/time, waiting to be loaded
 const ADMIN_KEY = 'box-cricket-admin-v1'; // per-device only — whether THIS phone has unlocked scoring/admin access
-const ADMIN_PIN = '2580'; // change this to whatever PIN you want people to know — anyone who enters it unlocks full scoring access on that phone
+const ADMIN_PIN_KEY = 'box-cricket-admin-pin-v1'; // shared (cloud-synced) — the current PIN, changeable from inside the app
+const DEFAULT_ADMIN_PIN = '2580'; // used only the very first time, before anyone has set their own PIN
 const DEFAULT_ROSTER = ['DEVENDRA','DINESH','DIPPU','KAMLESH','MAHAVIR','NAVIN','PAWAN','PRAMOD','RAJENDRA','RAJESH','SANJAY','SHANKAR','SUBHASH','SURESH','VIBHAW','VISHAL','VISHNU'];
 
 let state = null;
 let roster = null; // { names: [...], absent: [...] } — persists across matches, separate from the live match state
 let isAdmin = localStorage.getItem(ADMIN_KEY) === '1'; // whether THIS phone has unlocked scoring — local only, never synced. No per-name list to manage — the PIN is the only gate.
+let adminPin = localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_ADMIN_PIN; // the current PIN — shared/cloud-synced so a change on one phone applies everywhere, changeable any time by whoever is already unlocked
 
 // ---- "Add to Home Screen" support: builds a manifest on the fly so this stays a single HTML
 // file (no separate manifest.json / icon file to host) but still installs like a real app. ----
@@ -1343,6 +1347,7 @@ function pushStateToCloud() {
         state: JSON.parse(JSON.stringify(state)),
         roster: JSON.parse(JSON.stringify(roster)),
         teamsState: JSON.parse(JSON.stringify(teamsState)),
+        adminPin: adminPin,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       liveMatchRef.set(payload)
@@ -1375,6 +1380,10 @@ function startCloudSync() {
     if (data.teamsState) {
       teamsState = data.teamsState;
       try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teamsState)); } catch (e) {}
+    }
+    if (typeof data.adminPin === 'string' && data.adminPin) {
+      adminPin = data.adminPin;
+      try { localStorage.setItem(ADMIN_PIN_KEY, adminPin); } catch (e) {}
     }
     render();
     applyingRemoteUpdate = false;
@@ -1422,6 +1431,10 @@ function renderScoreAccessStatus() {
     matchStatusEl.textContent = isAdmin ? '✅ This phone can score' : '🔒 View only on this phone';
     matchStatusEl.style.color = isAdmin ? 'var(--led, #2fa84f)' : '#a01f1f';
   }
+  const changePinSetupEl = document.getElementById('changePinLinkSetup');
+  if (changePinSetupEl) changePinSetupEl.classList.toggle('hidden', !isAdmin);
+  const changePinMatchEl = document.getElementById('changePinLinkMatch');
+  if (changePinMatchEl) changePinMatchEl.classList.toggle('hidden', !isAdmin);
 }
 
 function applyScoringLock() {
@@ -1451,12 +1464,13 @@ function applyAdminButtonUI() {
 }
 document.getElementById('adminToggleBtn').addEventListener('click', () => {
   if (isAdmin) {
-    if (confirm('Lock scoring on this phone?')) setAdmin(false);
+    const choice = confirm('This phone can already score.\n\nOK = Lock this phone\nCancel = keep it unlocked (you can change the PIN from the Scoring Access panel on Setup, or the strip on the Match screen)');
+    if (choice) setAdmin(false);
     return;
   }
   const pin = prompt('Enter PIN to unlock scoring on this phone:');
   if (pin === null) return;
-  if (pin === ADMIN_PIN) {
+  if (pin === adminPin) {
     setAdmin(true);
     alert('✅ Unlocked — this phone can score now.');
   } else {
@@ -1464,6 +1478,25 @@ document.getElementById('adminToggleBtn').addEventListener('click', () => {
   }
 });
 applyAdminButtonUI();
+
+// ---- Change PIN — only offered once a phone is already unlocked, since knowing the CURRENT PIN
+// is what proves you're allowed to set a new one. The new PIN syncs to every phone immediately. ----
+function changeAdminPin() {
+  if (!isAdmin) { alert('🔒 Unlock scoring on this phone first (🔐 icon at the top) before changing the PIN.'); return; }
+  const current = prompt('Enter the CURRENT PIN to confirm:');
+  if (current === null) return;
+  if (current !== adminPin) { alert('❌ That\'s not the current PIN.'); return; }
+  const next = prompt('Enter the NEW PIN:');
+  if (next === null) return;
+  const trimmed = next.trim();
+  if (!trimmed) { alert('PIN can\'t be empty.'); return; }
+  adminPin = trimmed;
+  try { localStorage.setItem(ADMIN_PIN_KEY, adminPin); } catch (e) {}
+  pushStateToCloud();
+  alert(`✅ PIN changed to "${adminPin}" — this applies on every phone.`);
+}
+document.getElementById('changePinLinkSetup').addEventListener('click', (e) => { e.preventDefault(); changeAdminPin(); });
+document.getElementById('changePinLinkMatch').addEventListener('click', (e) => { e.preventDefault(); changeAdminPin(); });
 
 function shuffleArr(arr) {
   const a = arr.slice();
