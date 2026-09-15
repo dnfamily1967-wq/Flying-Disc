@@ -152,7 +152,7 @@
 
   /* ---- Setup screen ---- */
   .addRow { display: flex; gap: 8px; margin-bottom: 10px; }
-  input[type="text"], input[type="number"], select {
+  input[type="text"], input[type="number"], input[type="date"], input[type="datetime-local"], select {
     flex: 1;
     background: var(--panel-2);
     border: 1.5px solid var(--line);
@@ -864,7 +864,7 @@
 
     <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623);">
       <h2>🔐 Who's Scoring?</h2>
-      <div class="setupHint" style="margin-top:0;">Pick your own name below (saved just on this phone), then choose one or more people who are allowed to actually score the match. Everyone else can still watch the live score, but their scoring buttons will be locked. Leave the scorer list empty to let anyone score, like before.</div>
+      <div class="setupHint" style="margin-top:0;">Pick your own name below (saved just on this phone), then choose one or more people who are allowed to actually score the match. Only names checked below can score — everyone else can watch the live score, but their scoring buttons stay locked until an admin adds them here (you can add someone new any time, even mid-match, from this same panel on the Match screen).</div>
       <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin:10px 0 6px; font-weight:700;">Who are you? (this phone)</label>
       <select id="whoAmISelect" style="width:100%; margin-bottom:12px;">
         <option value="">— Just watching —</option>
@@ -1018,6 +1018,14 @@
         <span id="historyToggleIcon">▼</span>
       </h2>
       <div id="historyBody" style="display:none;">
+        <div class="addRow">
+          <input type="date" id="historyDateFilterInput">
+          <button class="btn-ghost" style="width:auto; padding:12px 18px;" id="viewHistoryDateBtn">👁️ View</button>
+        </div>
+        <div id="historyFilterStatus" class="setupHint hidden" style="margin-top:-4px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <span id="historyFilterStatusText"></span>
+          <a href="#" id="clearHistoryFilterBtn" style="color:var(--led,#16a34a); font-weight:700; text-decoration:underline; white-space:nowrap;">Show all</a>
+        </div>
         <div id="historyList"></div>
         <button class="btn-ghost" id="clearHistoryBtn" style="width:100%; color:var(--ball); border-color:var(--ball); margin-top:4px;">🗑 Clear All History</button>
       </div>
@@ -1059,6 +1067,17 @@
           <div class="val" id="sbBatterName">—</div>
           <div class="valSub batterRuns" id="sbBatterRuns">0 runs</div>
         </div>
+      </div>
+    </div>
+
+    <div class="panel" id="scorerManagePanel" style="border:1.5px solid var(--amber, #f5a623);">
+      <h2 id="scorerManageHeading" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; margin-bottom:0;">
+        <span>🔐 Manage Scorers <span id="scorerManageCountTag" style="color:var(--muted); font-weight:600;"></span></span>
+        <span id="scorerManageToggleIcon">▼</span>
+      </h2>
+      <div id="scorerManageBody" style="display:none; margin-top:10px;">
+        <div class="setupHint" style="margin-top:0; margin-bottom:10px;">Add anyone from the roster as a scorer, any time — even mid-match. Everyone else stays view-only until added here.</div>
+        <div class="rosterList" id="scorerChipsMatch"></div>
       </div>
     </div>
 
@@ -1432,9 +1451,10 @@ function saveRoster() {
 
 // ---------------- WHO CAN SCORE? ----------------
 // `scorers` is the shared (cloud-synced) list of roster names allowed to actually tap the
-// scoring buttons. An empty list means "open to everyone", so nothing changes for groups who
-// never set this up. `whoAmI` is local to this one phone — it just remembers which roster name
-// this device belongs to, so the app can tell whether THIS phone should be locked or not.
+// scoring buttons. An empty list means scoring is LOCKED for everyone until an admin adds at
+// least one name — nobody can score "by default" any more. `whoAmI` is local to this one phone —
+// it just remembers which roster name this device belongs to, so the app can tell whether THIS
+// phone should be locked or not.
 function loadScorers() {
   try {
     const raw = localStorage.getItem(SCORERS_KEY);
@@ -1449,7 +1469,13 @@ function saveScorers() {
 }
 
 function isScorer(name) {
-  return scorers.length === 0 || scorers.includes(name);
+  return !!name && scorers.includes(name);
+}
+
+function scorerChipsHTML(names) {
+  return names.map((n) =>
+    `<span class="scorerChip${scorers.includes(n) ? ' on' : ''}" data-name="${n}">${scorers.includes(n) ? '✅ ' : ''}${n}</span>`
+  ).join('') || '<span style="color:var(--muted); font-size:13px;">Add roster names below first.</span>';
 }
 
 function renderScorerAccess() {
@@ -1461,16 +1487,18 @@ function renderScorerAccess() {
     whoSelect.value = names.includes(whoAmI) ? whoAmI : '';
   }
   const chipsEl = document.getElementById('scorerChips');
-  if (chipsEl) {
-    chipsEl.innerHTML = names.map((n) =>
-      `<span class="scorerChip${scorers.includes(n) ? ' on' : ''}" data-name="${n}">${scorers.includes(n) ? '✅ ' : ''}${n}</span>`
-    ).join('') || '<span style="color:var(--muted); font-size:13px;">Add roster names below first.</span>';
-  }
+  if (chipsEl) chipsEl.innerHTML = scorerChipsHTML(names);
+  // Same chips, mirrored on the Match screen — so an admin can add a new scorer mid-match
+  // without needing to back out to Setup (which is hidden once a match is live).
+  const chipsMatchEl = document.getElementById('scorerChipsMatch');
+  if (chipsMatchEl) chipsMatchEl.innerHTML = scorerChipsHTML(names);
+  const countTag = document.getElementById('scorerManageCountTag');
+  if (countTag) countTag.textContent = scorers.length ? `(${scorers.length})` : '';
   const statusEl = document.getElementById('scorerAccessStatus');
   if (statusEl) {
     if (scorers.length === 0) {
-      statusEl.textContent = '👐 No scorer set yet — anyone can score, same as before.';
-      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = '🔒 No scorer added yet — scoring is locked for everyone until you add one below.';
+      statusEl.style.color = '#a01f1f';
     } else if (isScorer(whoAmI)) {
       statusEl.textContent = '✅ You can score this match.';
       statusEl.style.color = 'var(--led, #2fa84f)';
@@ -1488,7 +1516,7 @@ function applyScoringLock() {
   const locked = !isScorer(whoAmI);
   if (panel) panel.classList.toggle('scoringLocked', locked);
   if (banner) banner.classList.toggle('show', locked);
-  if (namesEl) namesEl.textContent = scorers.length ? scorers.join(' / ') : 'a scorer';
+  if (namesEl) namesEl.textContent = scorers.length ? scorers.join(' / ') : 'a scorer (ask an admin to add one below)';
   // Keep the quick "that's me" picker inside the lock banner in sync too — this is the only way
   // to identify yourself once a match is already underway, since the main picker lives on the
   // Setup screen which is no longer visible.
@@ -1516,16 +1544,34 @@ document.getElementById('scoringLockWhoAmI').addEventListener('change', function
   setWhoAmI(this.value);
 });
 
-document.getElementById('scorerChips').addEventListener('click', (e) => {
-  const chip = e.target.closest('.scorerChip');
-  if (!chip) return;
-  const name = chip.dataset.name;
+function toggleScorer(name) {
   const i = scorers.indexOf(name);
   if (i === -1) scorers.push(name); else scorers.splice(i, 1);
   saveScorers();
   renderScorerAccess();
   applyScoringLock();
+}
+document.getElementById('scorerChips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.scorerChip');
+  if (chip) toggleScorer(chip.dataset.name);
 });
+document.getElementById('scorerChipsMatch').addEventListener('click', (e) => {
+  const chip = e.target.closest('.scorerChip');
+  if (chip) toggleScorer(chip.dataset.name);
+});
+
+let scorerManageExpanded = false;
+function applyScorerManageExpanded() {
+  const body = document.getElementById('scorerManageBody');
+  const icon = document.getElementById('scorerManageToggleIcon');
+  if (body) body.style.display = scorerManageExpanded ? '' : 'none';
+  if (icon) icon.textContent = scorerManageExpanded ? '▲' : '▼';
+}
+document.getElementById('scorerManageHeading').addEventListener('click', () => {
+  scorerManageExpanded = !scorerManageExpanded;
+  applyScorerManageExpanded();
+});
+applyScorerManageExpanded();
 
 function shuffleArr(arr) {
   const a = arr.slice();
@@ -2568,7 +2614,7 @@ function saveMatchToHistory() {
   record.bowlingStats = JSON.parse(JSON.stringify(record.bowlingStats));
   const list = loadHistory();
   list.unshift(record);
-  if (list.length > 50) list.length = 50; // keep the history from growing forever
+  if (list.length > 400) list.length = 400; // keep plenty of history around for the date filter to search through
   saveHistoryList(list);
 }
 
@@ -2874,6 +2920,17 @@ applyScheduledExpanded();
 applyScheduleEditingUI();
 
 // ---------------- MATCH HISTORY UI ----------------
+// Match a record's saved timestamp against a 'YYYY-MM-DD' filter value, using LOCAL calendar
+// date (not UTC) so a match saved late at night still lands on the day it was actually played.
+function recordMatchesLocalDate(rec, ymd) {
+  if (!rec.date) return false;
+  const d = new Date(rec.date);
+  const pad = (n) => String(n).padStart(2, '0');
+  const recYmd = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return recYmd === ymd;
+}
+let historyDateFilter = null; // 'YYYY-MM-DD', or null to show everything
+
 function historyRowHTML(rec) {
   const dateStr = rec.date ? new Date(rec.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
   return `
@@ -2891,15 +2948,41 @@ function historyRowHTML(rec) {
     </div>`;
 }
 function renderHistory() {
-  const list = loadHistory();
+  const fullList = loadHistory();
+  const list = historyDateFilter ? fullList.filter((r) => recordMatchesLocalDate(r, historyDateFilter)) : fullList;
   const countTag = document.getElementById('historyCountTag');
-  if (countTag) countTag.textContent = list.length ? `(${list.length})` : '';
+  if (countTag) countTag.textContent = fullList.length ? `(${fullList.length})` : '';
+  const statusEl = document.getElementById('historyFilterStatus');
+  const statusTextEl = document.getElementById('historyFilterStatusText');
+  if (statusEl && statusTextEl) {
+    if (historyDateFilter) {
+      const labelDate = new Date(historyDateFilter + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      statusTextEl.textContent = `${list.length} match${list.length === 1 ? '' : 'es'} on ${labelDate}`;
+      statusEl.classList.remove('hidden');
+    } else {
+      statusEl.classList.add('hidden');
+    }
+  }
   const el = document.getElementById('historyList');
   if (!el) return;
   el.innerHTML = list.length
     ? list.map(historyRowHTML).join('')
-    : '<div class="setupHint" style="margin:0;">No saved matches yet — finish a match to see it here.</div>';
+    : (historyDateFilter
+      ? '<div class="setupHint" style="margin:0;">No saved matches on that date.</div>'
+      : '<div class="setupHint" style="margin:0;">No saved matches yet — finish a match to see it here.</div>');
 }
+document.getElementById('viewHistoryDateBtn').addEventListener('click', () => {
+  const val = document.getElementById('historyDateFilterInput').value;
+  if (!val) { alert('Pick a date to view matches from.'); return; }
+  historyDateFilter = val;
+  renderHistory();
+});
+document.getElementById('clearHistoryFilterBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  historyDateFilter = null;
+  document.getElementById('historyDateFilterInput').value = '';
+  renderHistory();
+});
 document.getElementById('historyList').addEventListener('click', (e) => {
   const delBtn = e.target.closest('[data-delete]');
   const expBtn = e.target.closest('[data-export]');
