@@ -805,6 +805,52 @@
   .exportCardInner .exOvers { text-align: center; color: #2C4A66; font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin: 16px 0 2px; }
   .exportCardInner .exFoot { text-align: center; color: #4A6C8A; font-size: 10px; font-weight: 700; margin-top: 8px; letter-spacing: 1px; }
 
+  /* ---- Scoring-access (admin approves each phone) UI ---- */
+  .devRow {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 10px; margin-top: 8px;
+    border: 1.5px solid var(--line); border-radius: 11px;
+    background: var(--panel-2);
+  }
+  .devRow.isMe { border-color: var(--led, #16a34a); }
+  .devRow.wants { border-color: var(--amber, #f5a623); background: #FFF7E8; }
+  .devMain { flex: 1; min-width: 0; }
+  .devName { font-weight: 800; font-size: 13px; letter-spacing: 0.3px; }
+  .devMeta { font-size: 10px; color: var(--muted); font-weight: 700; margin-top: 2px; letter-spacing: 0.4px; }
+  .devBtns { display: flex; gap: 6px; flex-shrink: 0; }
+  .devBtn {
+    border: 1.5px solid var(--line); background: var(--panel);
+    border-radius: 9px; padding: 7px 9px; font-size: 12px;
+    font-weight: 800; cursor: pointer; color: var(--ink, #1b2a3a);
+  }
+  .devBtn.on { border-color: var(--led, #16a34a); color: var(--led, #16a34a); }
+  .devBtn.off { border-color: #d32f2f; color: #a01f1f; }
+  .accessBigBtn {
+    width: 100%; margin-top: 10px; padding: 12px;
+    border-radius: 11px; border: none; cursor: pointer;
+    font-weight: 800; font-size: 13px; letter-spacing: 0.5px;
+  }
+  .idOverlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(10, 25, 40, 0.72);
+    display: none; align-items: center; justify-content: center; padding: 18px;
+  }
+  .idOverlay.show { display: flex; }
+  .idBox {
+    background: var(--panel, #fff); border-radius: 16px;
+    padding: 18px 16px; width: 100%; max-width: 420px;
+    max-height: 86vh; overflow-y: auto;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+  }
+  .idBox h2 { margin: 0 0 6px; font-size: 16px; }
+  .idNames { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0; }
+  .idName {
+    border: 1.5px solid var(--line); background: var(--panel-2);
+    border-radius: 999px; padding: 8px 13px; font-size: 12px;
+    font-weight: 800; cursor: pointer; letter-spacing: 0.5px;
+  }
+  .idName.sel { border-color: var(--led, #16a34a); background: #E8F7EC; color: #14803a; }
+
   .hidden { display: none !important; }
   .footNote { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 18px; line-height: 1.6; }
 </style>
@@ -812,7 +858,7 @@
 <body>
 <div id="overToastWrap"></div>
 <div id="topActionBar" style="position:fixed; top:10px; right:14px; z-index:60; display:flex; gap:8px;">
-  <button id="adminToggleBtn" title="Admin unlock/lock" style="width:30px; height:30px; border-radius:50%; background:var(--panel-2); border:1.5px solid var(--line); color:var(--muted); font-size:13px; padding:0; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.25);">🔐</button>
+  <button id="adminToggleBtn" title="Scoring access" style="width:30px; height:30px; border-radius:50%; background:var(--panel-2); border:1.5px solid var(--line); color:var(--muted); font-size:13px; padding:0; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.25);">🔐</button>
   <button id="refreshAppBtn" title="Clear cache & refresh app" style="width:30px; height:30px; border-radius:50%; background:var(--panel-2); border:1.5px solid var(--line); color:var(--muted); font-size:13px; padding:0; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.25);">🔄</button>
 </div>
 <div class="wrap">
@@ -835,9 +881,11 @@
 
     <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623);">
       <h2>🔐 Scoring Access</h2>
-      <div class="setupHint" style="margin-top:0;">Simple rule: only UNLOCKED phones can tap the scoring buttons — everyone else can still watch live, view-only. There's no name list to manage — tap the 🔐 icon at the top of any phone and enter the PIN to unlock scoring on THAT phone (any time, even mid-match). Anyone who knows the PIN has full access.</div>
+      <div class="setupHint" id="accessHint" style="margin-top:0;"></div>
       <div id="scorerAccessStatus" style="margin-top:10px; font-weight:700; font-size:13px;"></div>
-      <a href="#" id="changePinLinkSetup" class="hidden" style="display:inline-block; margin-top:8px; color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline;">🔑 Change PIN</a>
+      <div id="deviceAccessList"></div>
+      <button type="button" class="accessBigBtn hidden" id="accessActionBtn"></button>
+      <a href="#" id="changeMyNameLink" style="display:inline-block; margin-top:10px; color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline;">✏️ Change my name on this phone</a>
     </div>
 
     <div class="panel">
@@ -1038,13 +1086,13 @@
 
     <div class="panel" id="scoreAccessStatusPanel" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
       <span id="scoreAccessStatusText" style="font-weight:800; font-size:13px;"></span>
-      <a href="#" id="changePinLinkMatch" class="hidden" style="color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline; white-space:nowrap;">🔑 Change PIN</a>
+      <a href="#" id="accessActionLinkMatch" style="color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline; white-space:nowrap;"></a>
     </div>
 
     <div class="panel" id="scoringPanel">
       <div class="scoringLockBanner" id="scoringLockBanner">
         <div>🔒 View only on this phone</div>
-        <div style="font-weight:600; font-size:11.5px;">Ask admin to unlock scoring here — tap the 🔐 icon at the top and enter the PIN.</div>
+        <div style="font-weight:600; font-size:11.5px;">Admin ko bolo ki aapke phone ko unlock kare — ya 🔐 icon tap karke access maang lo.</div>
       </div>
       <h2 id="thisOverHeading">This Over</h2>
       <div class="ballLog" id="ballLog"></div>
@@ -1158,20 +1206,48 @@
 
 </div>
 
+<!-- Who's on this phone? Asked once, then remembered — this is the name the admin sees
+     in the Scoring Access list when deciding which phones get to score. -->
+<div class="idOverlay" id="idOverlay">
+  <div class="idBox">
+    <h2>👋 Is phone par kaun hai?</h2>
+    <div class="setupHint" style="margin-top:0;">Apna naam chuno. Admin isi naam se aapke phone ko scoring ke liye unlock karega. Baaki sab live score dekh sakte hain.</div>
+    <div class="idNames" id="idNameChips"></div>
+    <input type="text" id="idNameInput" placeholder="Ya apna naam type karo" maxlength="20" style="width:100%;">
+    <button type="button" class="accessBigBtn" id="idSaveBtn" style="background:var(--led,#16a34a); color:#fff;">✔ Save</button>
+  </div>
+</div>
+
 <script>
 const STORAGE_KEY = 'box-cricket-match-v1';
 const ROSTER_KEY = 'box-cricket-roster-v1';
 const MATCH_HISTORY_KEY = 'box-cricket-history-v1';
 const SCHEDULED_KEY = 'box-cricket-scheduled-v1'; // matches saved with a future date/time, waiting to be loaded
-const ADMIN_KEY = 'box-cricket-admin-v1'; // per-device only — whether THIS phone has unlocked scoring/admin access
-const ADMIN_PIN_KEY = 'box-cricket-admin-pin-v1'; // shared (cloud-synced) — the current PIN, changeable from inside the app
-const DEFAULT_ADMIN_PIN = '2580'; // used only the very first time, before anyone has set their own PIN
+const DEVICE_ID_KEY = 'box-cricket-device-id-v1';   // this phone's own permanent id — never changes, never shown
+const DEVICE_NAME_KEY = 'box-cricket-device-name-v1'; // the name this phone shows up as in the admin's access list
+const LEGACY_ADMIN_KEY = 'box-cricket-admin-v1';    // old PIN-era flag — read once, only to spot the phone that used to be unlocked
 const DEFAULT_ROSTER = ['DEVENDRA','DINESH','DIPPU','KAMLESH','MAHAVIR','NAVIN','PAWAN','PRAMOD','RAJENDRA','RAJESH','SANJAY','SHANKAR','SUBHASH','SURESH','VIBHAW','VISHAL','VISHNU'];
 
 let state = null;
 let roster = null; // { names: [...], absent: [...] } — persists across matches, separate from the live match state
-let isAdmin = localStorage.getItem(ADMIN_KEY) === '1'; // whether THIS phone has unlocked scoring — local only, never synced. No per-name list to manage — the PIN is the only gate.
-let adminPin = localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_ADMIN_PIN; // the current PIN — shared/cloud-synced so a change on one phone applies everywhere, changeable any time by whoever is already unlocked
+// ---- Who this phone is. The id is generated once and kept forever; the name is picked by
+// whoever uses the phone, and is only there so the admin knows which row to unlock. ----
+let deviceId = '';
+try { deviceId = localStorage.getItem(DEVICE_ID_KEY) || ''; } catch (e) {}
+if (!deviceId) {
+  deviceId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  try { localStorage.setItem(DEVICE_ID_KEY, deviceId); } catch (e) {}
+}
+let myName = '';
+try { myName = localStorage.getItem(DEVICE_NAME_KEY) || ''; } catch (e) {}
+let wasUnlockedBefore = false; // this phone was already unlocked back when the app used a PIN
+try { wasUnlockedBefore = localStorage.getItem(LEGACY_ADMIN_KEY) === '1'; } catch (e) {}
+
+// access = the cloud-synced list of every phone and what it's allowed to do:
+//   { devices: { <deviceId>: { name, allowed, admin, wants, lastSeen } } }
+let access = { devices: {} };
+let accessLoaded = false;
+let isAdmin = false; // computed from `access` — true when THIS phone has been approved (or is an admin phone)
 
 // ---- "Add to Home Screen" support: builds a manifest on the fly so this stays a single HTML
 // file (no separate manifest.json / icon file to host) but still installs like a real app. ----
@@ -1316,6 +1392,10 @@ const cricketDb = firebase.firestore();
 // it this way means the existing Firestore security rules (already set up and working for that
 // collection) cover this too, with no extra Firebase Console configuration needed.
 const liveMatchRef = cricketDb.collection('disc_team').doc('box_cricket_live_match');
+// Scoring access lives in its OWN document, deliberately separate from the live match. The match
+// doc gets fully overwritten on every ball; keeping the phone list apart means a flurry of scoring
+// can never wipe out who's allowed to score.
+const accessRef = cricketDb.collection('disc_team').doc('box_cricket_access');
 
 function showSyncErrorBanner(msg) {
   console.error('[Cloud sync]', msg);
@@ -1344,7 +1424,6 @@ function pushStateToCloud() {
         state: JSON.parse(JSON.stringify(state)),
         roster: JSON.parse(JSON.stringify(roster)),
         teamsState: JSON.parse(JSON.stringify(teamsState)),
-        adminPin: adminPin,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       liveMatchRef.set(payload)
@@ -1378,10 +1457,6 @@ function startCloudSync() {
       teamsState = data.teamsState;
       try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teamsState)); } catch (e) {}
     }
-    if (typeof data.adminPin === 'string' && data.adminPin) {
-      adminPin = data.adminPin;
-      try { localStorage.setItem(ADMIN_PIN_KEY, adminPin); } catch (e) {}
-    }
     render();
     applyingRemoteUpdate = false;
     cloudSyncStarted = true;
@@ -1407,31 +1482,213 @@ function saveRoster() {
   pushStateToCloud();
 }
 
-// ---------------- SCORING ACCESS (simple PIN gate, no name list) ----------------
-// Scoring is either unlocked or locked on THIS phone — that's the whole model. Whoever knows the
-// PIN can unlock scoring (and everything else) on any phone by tapping the 🔐 icon at the top.
-// There's no separate "who am I" / named-scorer list to keep in sync, so a phone can never show
-// the wrong person's access by mistake — it's simply this phone's own unlocked/locked state.
-function renderScoreAccessStatus() {
-  const statusEl = document.getElementById('scorerAccessStatus');
-  if (statusEl) {
-    if (isAdmin) {
-      statusEl.textContent = '✅ This phone can score.';
-      statusEl.style.color = 'var(--led, #2fa84f)';
-    } else {
-      statusEl.textContent = '🔒 View only on this phone — unlock with the 🔐 icon at the top.';
-      statusEl.style.color = '#a01f1f';
-    }
+// ---------------- SCORING ACCESS (admin approves each phone — no PIN anywhere) ----------------
+// How it works: every phone registers itself under the name its owner picked. The admin sees that
+// list and flips each phone ON or OFF. Only the phones the admin switched ON can score — everyone
+// else watches live, view-only. Nothing to type, nothing to remember, and a phone can be turned
+// off again mid-match the moment it's misused.
+
+// Names are typed by hand, so anything going into innerHTML gets escaped first.
+function esc(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function deviceEntries() {
+  const d = (access && access.devices) || {};
+  return Object.keys(d).map((id) => Object.assign({ id: id }, d[id] || {}));
+}
+function anyAdminExists() {
+  return deviceEntries().some((d) => d.admin);
+}
+function myEntry() {
+  return (access && access.devices && access.devices[deviceId]) || null;
+}
+function computeAdmin() {
+  const me = myEntry();
+  isAdmin = !!(me && (me.admin || me.allowed));
+}
+function amOwnerAdmin() { // full admin — can hand out and take back access
+  const me = myEntry();
+  return !!(me && me.admin);
+}
+
+// ---- Every write to the access doc is a MERGE on just the keys being changed, so two phones
+// updating at the same time can never blank out each other's entries. ----
+function writeAccess(devicePatches) {
+  return accessRef.set({ devices: devicePatches }, { merge: true })
+    .catch((err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'access list blocked by Firestore rules (permission-denied)' : (err.message || 'access write failed')));
+}
+
+function registerMyDevice() {
+  if (!myName || !accessLoaded) return;
+  const me = myEntry();
+  const patch = { name: myName, lastSeen: Date.now() };
+  // Bootstrapping: if the cloud list has no admin at all yet (very first use, or the old admin
+  // phone was wiped), the phone that was already unlocked under the old PIN system takes over as
+  // admin automatically. Any other phone gets a "Make this phone Admin" button instead, so a
+  // random viewer never becomes admin silently.
+  if (!anyAdminExists() && wasUnlockedBefore) { patch.admin = true; patch.allowed = true; }
+  if (!me || me.name !== myName || patch.admin) writeAccess({ [deviceId]: patch });
+}
+
+function claimAdmin() {
+  if (anyAdminExists()) { alert('Admin pehle se set hai — unse apne phone ko unlock karwao.'); return; }
+  if (!confirm('Is phone ko ADMIN banayein?\n\nAdmin hi decide karta hai ki kaun-kaun se phone score kar sakte hain.')) return;
+  writeAccess({ [deviceId]: { name: myName, admin: true, allowed: true, wants: false, lastSeen: Date.now() } });
+}
+
+function requestAccess() {
+  if (!myName) { openIdentityModal(); return; }
+  writeAccess({ [deviceId]: { name: myName, wants: true, lastSeen: Date.now() } });
+  alert('\u2705 Request bhej di — admin ke phone par aapka naam dikh jayega. Unlock hote hi scoring buttons chalu ho jayenge.');
+}
+
+// ---- Admin-only controls over other phones ----
+function setDeviceAllowed(id, allowed) {
+  if (!amOwnerAdmin()) return;
+  if (id === deviceId && !allowed) { alert('Apna hi access band nahi kar sakte.'); return; }
+  writeAccess({ [id]: { allowed: allowed, wants: false } });
+}
+function setDeviceAdmin(id, makeAdmin) {
+  if (!amOwnerAdmin()) return;
+  if (!makeAdmin && id === deviceId && deviceEntries().filter((d) => d.admin).length <= 1) {
+    alert('Aap akele admin ho — pehle kisi aur ko admin banao, phir apna admin hatao.');
+    return;
   }
+  writeAccess(makeAdmin ? { [id]: { admin: true, allowed: true, wants: false } } : { [id]: { admin: false } });
+}
+function removeDevice(id) {
+  if (!amOwnerAdmin()) return;
+  if (id === deviceId) { alert('Apna hi phone list se nahi hata sakte.'); return; }
+  const d = (access.devices || {})[id] || {};
+  if (!confirm('"' + (d.name || 'Phone') + '" ko list se hata dein? Wo dobara app kholenge to naye sire se dikhenge (view-only).')) return;
+  accessRef.update({ ['devices.' + id]: firebase.firestore.FieldValue.delete() }).catch(() => {});
+}
+
+function lastSeenText(ts) {
+  if (!ts) return '';
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 2) return 'abhi online';
+  if (mins < 60) return mins + ' min pehle';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + ' ghante pehle';
+  return Math.floor(hrs / 24) + ' din pehle';
+}
+
+function renderDeviceAccessList() {
+  const wrap = document.getElementById('deviceAccessList');
+  if (!wrap) return;
+  if (!amOwnerAdmin()) { wrap.innerHTML = ''; return; }
+  const rows = deviceEntries().sort((a, b) => {
+    const rank = (d) => (d.wants && !d.allowed ? 0 : d.admin ? 1 : d.allowed ? 2 : 3);
+    return rank(a) - rank(b) || String(a.name || '').localeCompare(String(b.name || ''));
+  });
+  if (!rows.length) { wrap.innerHTML = '<div class="setupHint">Abhi tak koi phone register nahi hua.</div>'; return; }
+  wrap.innerHTML = rows.map((d) => {
+    const tag = d.admin ? '\uD83D\uDC51 ADMIN' : (d.allowed ? '\u2705 SCORE KAR SAKTA HAI' : (d.wants ? '\uD83D\uDE4B ACCESS MAANGA HAI' : '\uD83D\uDC41 VIEW ONLY'));
+    const seen = lastSeenText(d.lastSeen);
+    return '<div class="devRow ' + (d.id === deviceId ? 'isMe' : '') + ' ' + (d.wants && !d.allowed ? 'wants' : '') + '">'
+      + '<div class="devMain">'
+      + '<div class="devName">' + esc(d.name || 'Phone') + (d.id === deviceId ? ' <span style="color:var(--muted); font-weight:700; font-size:10px;">(yeh phone)</span>' : '') + '</div>'
+      + '<div class="devMeta">' + tag + (seen ? ' \u00B7 ' + seen : '') + '</div>'
+      + '</div>'
+      + '<div class="devBtns">'
+      + '<button type="button" class="devBtn ' + (d.allowed ? 'on' : 'off') + '" data-acc-toggle="' + d.id + '">' + (d.allowed ? 'ON' : 'OFF') + '</button>'
+      + '<button type="button" class="devBtn" data-acc-admin="' + d.id + '" title="Admin banao/hatao">' + (d.admin ? '\uD83D\uDC51\u2715' : '\uD83D\uDC51') + '</button>'
+      + (d.id === deviceId ? '' : '<button type="button" class="devBtn" data-acc-remove="' + d.id + '">\u2715</button>')
+      + '</div></div>';
+  }).join('');
+}
+
+document.getElementById('deviceAccessList').addEventListener('click', (e) => {
+  const on = e.target.closest('[data-acc-toggle]');
+  if (on) {
+    const id = on.getAttribute('data-acc-toggle');
+    const d = (access.devices || {})[id] || {};
+    setDeviceAllowed(id, !d.allowed);
+    return;
+  }
+  const ad = e.target.closest('[data-acc-admin]');
+  if (ad) {
+    const id = ad.getAttribute('data-acc-admin');
+    const d = (access.devices || {})[id] || {};
+    if (!d.admin && !confirm('"' + (d.name || 'Phone') + '" ko ADMIN bana dein? Phir wo bhi doosron ka access on/off kar payenge.')) return;
+    setDeviceAdmin(id, !d.admin);
+    return;
+  }
+  const rm = e.target.closest('[data-acc-remove]');
+  if (rm) removeDevice(rm.getAttribute('data-acc-remove'));
+});
+
+function renderScoreAccessStatus() {
+  const hintEl = document.getElementById('accessHint');
+  const statusEl = document.getElementById('scorerAccessStatus');
+  const btn = document.getElementById('accessActionBtn');
+  const me = myEntry();
+  const pending = !!(me && me.wants && !me.allowed);
+
+  if (hintEl) {
+    hintEl.textContent = amOwnerAdmin()
+      ? 'Neeche har phone ki list hai. ON = wo phone score kar sakta hai, OFF = sirf dekh sakta hai. Jab chaho, match ke beech mein bhi badal sakte ho. \uD83D\uDC51 se kisi aur ko admin bana sakte ho.'
+      : 'Sirf wahi phone score kar sakte hain jinhe admin ne ON kiya hai — baaki sab live score dekh sakte hain. Access chahiye to neeche request bhejo, aapka naam admin ke phone par dikh jayega.';
+  }
+  if (statusEl) {
+    const name = myName ? ' (' + myName + ')' : '';
+    if (amOwnerAdmin()) { statusEl.textContent = '\uD83D\uDC51 Yeh phone ADMIN hai' + name + ' — scoring aur access dono aapke paas.'; statusEl.style.color = 'var(--led, #2fa84f)'; }
+    else if (isAdmin) { statusEl.textContent = '\u2705 Yeh phone score kar sakta hai' + name + '.'; statusEl.style.color = 'var(--led, #2fa84f)'; }
+    else if (pending) { statusEl.textContent = '\u23F3 Request bheji hui hai' + name + ' — admin ke approve karte hi chalu ho jayega.'; statusEl.style.color = '#b26a00'; }
+    else { statusEl.textContent = '\uD83D\uDD12 View only' + name + ' — admin se unlock karwao.'; statusEl.style.color = '#a01f1f'; }
+  }
+  if (btn) {
+    if (!accessLoaded) { btn.classList.add('hidden'); }
+    else if (!anyAdminExists()) {
+      btn.classList.remove('hidden');
+      btn.textContent = '\uD83D\uDC51 Is phone ko Admin banayein';
+      btn.style.background = 'var(--amber, #f5a623)';
+      btn.style.color = '#3a2600';
+    } else if (!isAdmin) {
+      btn.classList.remove('hidden');
+      btn.textContent = pending ? '\u23F3 Request bheji ja chuki hai — dobara bhejein' : '\uD83D\uDE4B Admin se scoring access maango';
+      btn.style.background = 'var(--led, #16a34a)';
+      btn.style.color = '#fff';
+    } else { btn.classList.add('hidden'); }
+  }
+
   const matchStatusEl = document.getElementById('scoreAccessStatusText');
   if (matchStatusEl) {
-    matchStatusEl.textContent = isAdmin ? '✅ This phone can score' : '🔒 View only on this phone';
+    matchStatusEl.textContent = isAdmin ? (amOwnerAdmin() ? '\uD83D\uDC51 Admin — yeh phone score kar sakta hai' : '\u2705 Yeh phone score kar sakta hai') : '\uD83D\uDD12 View only on this phone';
     matchStatusEl.style.color = isAdmin ? 'var(--led, #2fa84f)' : '#a01f1f';
   }
-  const changePinSetupEl = document.getElementById('changePinLinkSetup');
-  if (changePinSetupEl) changePinSetupEl.classList.toggle('hidden', !isAdmin);
-  const changePinMatchEl = document.getElementById('changePinLinkMatch');
-  if (changePinMatchEl) changePinMatchEl.classList.toggle('hidden', !isAdmin);
+  const matchLink = document.getElementById('accessActionLinkMatch');
+  if (matchLink) {
+    if (amOwnerAdmin()) { matchLink.textContent = '\uD83D\uDD10 Access manage'; matchLink.classList.remove('hidden'); }
+    else if (!isAdmin) { matchLink.textContent = pending ? '\u23F3 Request pending' : '\uD83D\uDE4B Access maango'; matchLink.classList.remove('hidden'); }
+    else matchLink.classList.add('hidden');
+  }
+
+  // Pending requests deserve a nudge on the admin's phone — they're usually mid-match, not
+  // staring at the setup screen.
+  const badgeCount = amOwnerAdmin() ? deviceEntries().filter((d) => d.wants && !d.allowed).length : 0;
+  const topBtn = document.getElementById('adminToggleBtn');
+  if (topBtn) topBtn.textContent = badgeCount ? '\uD83D\uDE4B' : (isAdmin ? '\uD83D\uDD13' : '\uD83D\uDD10');
+
+  renderDeviceAccessList();
+}
+
+document.getElementById('accessActionBtn').addEventListener('click', () => {
+  if (!anyAdminExists()) claimAdmin(); else requestAccess();
+});
+document.getElementById('accessActionLinkMatch').addEventListener('click', (e) => {
+  e.preventDefault();
+  if (amOwnerAdmin()) { state.screen = 'setup'; render(); scrollToAccessPanel(); }
+  else requestAccess();
+});
+
+function scrollToAccessPanel() {
+  const el = document.getElementById('scorerAccessPanel');
+  if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
 }
 
 function applyScoringLock() {
@@ -1447,61 +1704,74 @@ function applyScoringLock() {
 // everyone; call this first in any handler that writes data, and bail out if it returns false. ----
 function requireAdmin(actionLabel) {
   if (isAdmin) return true;
-  alert('🔒 View only on this phone — unlock with the 🔐 icon at the top' + (actionLabel ? ' to ' + actionLabel : '') + '.');
+  alert('\uD83D\uDD12 View only — admin ne abhi is phone ko unlock nahi kiya' + (actionLabel ? ' (' + actionLabel + ')' : '') + '.\n\nTop par \uD83D\uDD10 icon tap karke access maang lo.');
   return false;
 }
 
-// ---- PIN unlock/lock — the ONLY gate in the app. Unlocking on a phone gives it full scoring
-// access immediately; there's nothing else to configure. ----
-function setAdmin(val) {
-  isAdmin = val;
-  try { localStorage.setItem(ADMIN_KEY, val ? '1' : '0'); } catch (e) {}
-  applyAdminButtonUI();
-  render();
-}
 function applyAdminButtonUI() {
   const btn = document.getElementById('adminToggleBtn');
   if (!btn) return;
-  btn.textContent = isAdmin ? '🔓' : '🔐';
-  btn.title = isAdmin ? 'This phone can score — tap to lock' : 'View only — tap to unlock with PIN';
+  btn.textContent = isAdmin ? '\uD83D\uDD13' : '\uD83D\uDD10';
+  btn.title = amOwnerAdmin() ? 'Admin — kaun score kare, yahan set karo' : (isAdmin ? 'Yeh phone score kar sakta hai' : 'View only — access maango');
   btn.style.color = isAdmin ? 'var(--led, #16a34a)' : 'var(--muted)';
   btn.style.borderColor = isAdmin ? 'var(--led, #16a34a)' : 'var(--line)';
 }
 document.getElementById('adminToggleBtn').addEventListener('click', () => {
-  if (isAdmin) {
-    const choice = confirm('This phone can already score.\n\nOK = Lock this phone\nCancel = keep it unlocked (you can change the PIN from the Scoring Access panel on Setup, or the strip on the Match screen)');
-    if (choice) setAdmin(false);
-    return;
-  }
-  const pin = prompt('Enter PIN to unlock scoring on this phone:');
-  if (pin === null) return;
-  if (pin === adminPin) {
-    setAdmin(true);
-    alert('✅ Unlocked — this phone can score now.');
-  } else {
-    alert('❌ Wrong PIN.');
-  }
+  if (amOwnerAdmin()) { if (state && state.screen !== 'setup') { state.screen = 'setup'; render(); } scrollToAccessPanel(); return; }
+  if (isAdmin) { alert('\u2705 Yeh phone score kar sakta hai. Band karna ho to admin OFF kar dega.'); return; }
+  if (!anyAdminExists()) { claimAdmin(); return; }
+  requestAccess();
 });
-applyAdminButtonUI();
 
-// ---- Change PIN — only offered once a phone is already unlocked, since knowing the CURRENT PIN
-// is what proves you're allowed to set a new one. The new PIN syncs to every phone immediately. ----
-function changeAdminPin() {
-  if (!isAdmin) { alert('🔒 Unlock scoring on this phone first (🔐 icon at the top) before changing the PIN.'); return; }
-  const current = prompt('Enter the CURRENT PIN to confirm:');
-  if (current === null) return;
-  if (current !== adminPin) { alert('❌ That\'s not the current PIN.'); return; }
-  const next = prompt('Enter the NEW PIN:');
-  if (next === null) return;
-  const trimmed = next.trim();
-  if (!trimmed) { alert('PIN can\'t be empty.'); return; }
-  adminPin = trimmed;
-  try { localStorage.setItem(ADMIN_PIN_KEY, adminPin); } catch (e) {}
-  pushStateToCloud();
-  alert(`✅ PIN changed to "${adminPin}" — this applies on every phone.`);
+// ---------------- WHO'S ON THIS PHONE ----------------
+// Asked once and remembered. Purely a label for the admin's list — picking a name grants nothing
+// by itself, so nobody can get scoring rights just by choosing someone else's name.
+function openIdentityModal() {
+  const overlay = document.getElementById('idOverlay');
+  const chips = document.getElementById('idNameChips');
+  const input = document.getElementById('idNameInput');
+  if (!overlay) return;
+  const names = (roster && roster.names ? roster.names.slice() : []).sort();
+  chips.innerHTML = names.map((n) => '<button type="button" class="idName' + (n === myName ? ' sel' : '') + '" data-id-name="' + esc(n) + '">' + esc(n) + '</button>').join('');
+  input.value = names.includes(myName) ? '' : myName;
+  overlay.classList.add('show');
 }
-document.getElementById('changePinLinkSetup').addEventListener('click', (e) => { e.preventDefault(); changeAdminPin(); });
-document.getElementById('changePinLinkMatch').addEventListener('click', (e) => { e.preventDefault(); changeAdminPin(); });
+document.getElementById('idNameChips').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-id-name]');
+  if (!b) return;
+  document.querySelectorAll('#idNameChips .idName').forEach((el) => el.classList.remove('sel'));
+  b.classList.add('sel');
+  document.getElementById('idNameInput').value = '';
+});
+document.getElementById('idSaveBtn').addEventListener('click', () => {
+  const typed = document.getElementById('idNameInput').value.trim();
+  const picked = document.querySelector('#idNameChips .idName.sel');
+  const name = (typed || (picked ? picked.getAttribute('data-id-name') : '')).trim();
+  if (!name) { alert('Naam chuno ya type karo.'); return; }
+  myName = name.toUpperCase();
+  try { localStorage.setItem(DEVICE_NAME_KEY, myName); } catch (e) {}
+  document.getElementById('idOverlay').classList.remove('show');
+  registerMyDevice();
+  render();
+});
+document.getElementById('changeMyNameLink').addEventListener('click', (e) => { e.preventDefault(); openIdentityModal(); });
+
+// ---------------- ACCESS LIST SYNC ----------------
+function startAccessSync() {
+  accessRef.onSnapshot((doc) => {
+    const data = doc.exists ? (doc.data() || {}) : {};
+    access = { devices: data.devices || {} };
+    accessLoaded = true;
+    registerMyDevice();
+    computeAdmin();
+    applyAdminButtonUI();
+    if (state) render();
+    if (!myName) openIdentityModal();
+  }, (err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'access list blocked by Firestore rules (permission-denied)' : (err.message || 'access sync failed')));
+}
+
+// A quiet heartbeat so the admin's list shows who's actually around right now.
+setInterval(() => { if (myName && accessLoaded) writeAccess({ [deviceId]: { lastSeen: Date.now() } }); }, 120000);
 
 function shuffleArr(arr) {
   const a = arr.slice();
@@ -3083,6 +3353,8 @@ loadTeams();
 loadState();
 render();
 startCloudSync();
+startAccessSync();
+if (!myName) openIdentityModal();
 
 // ---- Manual "clear cache & refresh" — for anyone stuck seeing an old/stale version of the app
 // even after a new one's been uploaded to GitHub. Only clears the BROWSER's cached copy of the
