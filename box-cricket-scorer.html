@@ -192,8 +192,16 @@
   #scoringPanel.scoringLocked {
     position: relative;
     pointer-events: none;
-    opacity: 0.45;
-    filter: grayscale(0.3);
+    filter: grayscale(1) brightness(0.8) contrast(0.9);
+    opacity: 0.65;
+  }
+  #scoringPanel.scoringLocked::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 46, 69, 0.15);
+    border-radius: inherit;
+    pointer-events: none;
   }
   .scoringLockBanner {
     display: none;
