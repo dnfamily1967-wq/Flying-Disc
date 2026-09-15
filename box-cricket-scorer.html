@@ -818,6 +818,15 @@
   .devName { font-weight: 800; font-size: 13px; letter-spacing: 0.3px; }
   .devMeta { font-size: 10px; color: var(--muted); font-weight: 700; margin-top: 2px; letter-spacing: 0.4px; }
   .devBtns { display: flex; gap: 6px; flex-shrink: 0; }
+  .devBox {
+    width: 26px; height: 26px; flex-shrink: 0;
+    border: 2px solid var(--line); border-radius: 7px;
+    background: var(--panel); cursor: pointer;
+    font-size: 14px; font-weight: 900; line-height: 1;
+    color: #fff; padding: 0;
+  }
+  .devBox.on { background: var(--led, #16a34a); border-color: var(--led, #16a34a); }
+  .devBox:disabled { opacity: 0.55; cursor: default; }
   .devBtn {
     border: 1.5px solid var(--line); background: var(--panel);
     border-radius: 9px; padding: 7px 9px; font-size: 12px;
@@ -880,7 +889,7 @@
     </div>
 
     <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623);">
-      <h2>🔐 Scoring Access <span style="font-size:9.5px; letter-spacing:1px; color:var(--muted); font-weight:700;">· ADMIN-APPROVAL v2</span></h2>
+      <h2>🔐 Scoring Access <span style="font-size:9.5px; letter-spacing:1px; color:var(--muted); font-weight:700;">· ADMIN TICK-LIST v3</span></h2>
       <div class="setupHint" id="accessHint" style="margin-top:0;"></div>
       <div id="scorerAccessStatus" style="margin-top:10px; font-weight:700; font-size:13px;"></div>
       <div id="deviceAccessList"></div>
@@ -1092,7 +1101,7 @@
     <div class="panel" id="scoringPanel">
       <div class="scoringLockBanner" id="scoringLockBanner">
         <div>🔒 View only on this phone</div>
-        <div style="font-weight:600; font-size:11.5px;">Admin ko bolo ki aapke phone ko unlock kare — ya 🔐 icon tap karke access maang lo.</div>
+        <div style="font-weight:600; font-size:11.5px;">PAWAN / SHANKAR / DIPPU mein se koi aapka box tick kare — ya 🔐 icon tap karke request bhejo.</div>
       </div>
       <h2 id="thisOverHeading">This Over</h2>
       <div class="ballLog" id="ballLog"></div>
@@ -1223,31 +1232,23 @@ const STORAGE_KEY = 'box-cricket-match-v1';
 const ROSTER_KEY = 'box-cricket-roster-v1';
 const MATCH_HISTORY_KEY = 'box-cricket-history-v1';
 const SCHEDULED_KEY = 'box-cricket-scheduled-v1'; // matches saved with a future date/time, waiting to be loaded
-const DEVICE_ID_KEY = 'box-cricket-device-id-v1';   // this phone's own permanent id — never changes, never shown
 const DEVICE_NAME_KEY = 'box-cricket-device-name-v1'; // the name this phone shows up as in the admin's access list
-const LEGACY_ADMIN_KEY = 'box-cricket-admin-v1';    // old PIN-era flag — read once, only to spot the phone that used to be unlocked
 const DEFAULT_ROSTER = ['DEVENDRA','DINESH','DIPPU','KAMLESH','MAHAVIR','NAVIN','PAWAN','PRAMOD','RAJENDRA','RAJESH','SANJAY','SHANKAR','SUBHASH','SURESH','VIBHAW','VISHAL','VISHNU'];
 
 let state = null;
 let roster = null; // { names: [...], absent: [...] } — persists across matches, separate from the live match state
-// ---- Who this phone is. The id is generated once and kept forever; the name is picked by
-// whoever uses the phone, and is only there so the admin knows which row to unlock. ----
-let deviceId = '';
-try { deviceId = localStorage.getItem(DEVICE_ID_KEY) || ''; } catch (e) {}
-if (!deviceId) {
-  deviceId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
-  try { localStorage.setItem(DEVICE_ID_KEY, deviceId); } catch (e) {}
-}
+// ---- Who's using this phone. Everything hangs off this one name: PAWAN / SHANKAR / DIPPU are
+// permanent admins, and the admins tick the boxes for whoever else is allowed to score today. ----
+const ADMIN_NAMES = ['PAWAN', 'SHANKAR', 'DIPPU']; // same three as the Flying Disc app — always admin, can't be switched off
 let myName = '';
 try { myName = localStorage.getItem(DEVICE_NAME_KEY) || ''; } catch (e) {}
-let wasUnlockedBefore = false; // this phone was already unlocked back when the app used a PIN
-try { wasUnlockedBefore = localStorage.getItem(LEGACY_ADMIN_KEY) === '1'; } catch (e) {}
 
-// access = the cloud-synced list of every phone and what it's allowed to do:
-//   { devices: { <deviceId>: { name, allowed, admin, wants, lastSeen } } }
-let access = { devices: {} };
+// access = the cloud-synced list of who may score, keyed by PLAYER NAME (not by phone), so a
+// player keeps their access even if they switch phones:
+//   { scorers: { VISHAL: true, ... }, requests: { NAME: timestamp }, seen: { NAME: timestamp } }
+let access = { scorers: {}, requests: {}, seen: {} };
 let accessLoaded = false;
-let isAdmin = false; // computed from `access` — true when THIS phone has been approved (or is an admin phone)
+let isAdmin = false; // true when this phone's name is an admin, or an admin has ticked that name
 
 // ---- "Add to Home Screen" support: builds a manifest on the fly so this stays a single HTML
 // file (no separate manifest.json / icon file to host) but still installs like a real app. ----
@@ -1482,11 +1483,14 @@ function saveRoster() {
   pushStateToCloud();
 }
 
-// ---------------- SCORING ACCESS (admin approves each phone — no PIN anywhere) ----------------
-// How it works: every phone registers itself under the name its owner picked. The admin sees that
-// list and flips each phone ON or OFF. Only the phones the admin switched ON can score — everyone
-// else watches live, view-only. Nothing to type, nothing to remember, and a phone can be turned
-// off again mid-match the moment it's misused.
+// ---------------- SCORING ACCESS (fixed admins + tick-box per player) ----------------
+// Two layers, nothing to type or remember:
+//   1. PAWAN, SHANKAR and DIPPU are permanent admins — whichever phone they're on can score, and
+//      only they can hand out access. Their boxes can't be unticked by anyone.
+//   2. Admins tick the box next to any other player's name to give THAT player scoring rights.
+//      Rights are stored against the NAME, so the player keeps them even on a different phone,
+//      and untick takes them away instantly — mid-match too.
+// Everyone else can still watch the live score; only the buttons are locked.
 
 // Names are typed by hand, so anything going into innerHTML gets escaped first.
 function esc(str) {
@@ -1495,76 +1499,50 @@ function esc(str) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function deviceEntries() {
-  const d = (access && access.devices) || {};
-  return Object.keys(d).map((id) => Object.assign({ id: id }, d[id] || {}));
+function isAdminName(name) {
+  return !!name && ADMIN_NAMES.indexOf(String(name).toUpperCase()) !== -1;
 }
-function anyAdminExists() {
-  return deviceEntries().some((d) => d.admin);
+function canScoreName(name) {
+  if (!name) return false;
+  if (isAdminName(name)) return true;
+  return (access.scorers || {})[String(name).toUpperCase()] === true;
 }
-function myEntry() {
-  return (access && access.devices && access.devices[deviceId]) || null;
-}
-function computeAdmin() {
-  const me = myEntry();
-  isAdmin = !!(me && (me.admin || me.allowed));
-}
-function amOwnerAdmin() { // full admin — can hand out and take back access
-  const me = myEntry();
-  return !!(me && me.admin);
-}
+function computeAdmin() { isAdmin = canScoreName(myName); }
+function amOwnerAdmin() { return isAdminName(myName); } // only the three names can hand out access
 
-// ---- Every write to the access doc is a MERGE on just the keys being changed, so two phones
-// updating at the same time can never blank out each other's entries. ----
-function writeAccess(devicePatches) {
-  return accessRef.set({ devices: devicePatches }, { merge: true })
+// ---- Every write is a MERGE of just the keys being changed, so two admins tapping at the same
+// moment can never blank out each other's ticks. ----
+function writeAccess(patch) {
+  return accessRef.set(patch, { merge: true })
     .catch((err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'access list blocked by Firestore rules (permission-denied)' : (err.message || 'access write failed')));
 }
 
-function registerMyDevice() {
+let lastSeenWriteAt = 0;
+function markMeSeen(force) {
   if (!myName || !accessLoaded) return;
-  const me = myEntry();
-  const patch = { name: myName, lastSeen: Date.now() };
-  // Bootstrapping: if the cloud list has no admin at all yet (very first use, or the old admin
-  // phone was wiped), the phone that was already unlocked under the old PIN system takes over as
-  // admin automatically. Any other phone gets a "Make this phone Admin" button instead, so a
-  // random viewer never becomes admin silently.
-  if (!anyAdminExists() && wasUnlockedBefore) { patch.admin = true; patch.allowed = true; }
-  if (!me || me.name !== myName || patch.admin) writeAccess({ [deviceId]: patch });
+  // Writing here retriggers our own snapshot listener, so this is throttled — without the guard
+  // a heartbeat write would bounce back and fire another one, forever.
+  const now = Date.now();
+  if (!force && now - lastSeenWriteAt < 120000) return;
+  lastSeenWriteAt = now;
+  writeAccess({ seen: { [myName]: now } });
 }
 
-function claimAdmin() {
-  if (anyAdminExists()) { alert('Admin pehle se set hai — unse apne phone ko unlock karwao.'); return; }
-  if (!confirm('Is phone ko ADMIN banayein?\n\nAdmin hi decide karta hai ki kaun-kaun se phone score kar sakte hain.')) return;
-  writeAccess({ [deviceId]: { name: myName, admin: true, allowed: true, wants: false, lastSeen: Date.now() } });
+function setNameAllowed(name, allowed) {
+  if (!amOwnerAdmin()) return;
+  const key = String(name).toUpperCase();
+  if (isAdminName(key)) { alert(key + ' permanent admin hai — inka access band nahi ho sakta.'); return; }
+  const patch = { scorers: { [key]: allowed } };
+  if (!allowed) patch.scorers[key] = false;
+  patch.requests = { [key]: firebase.firestore.FieldValue.delete() };
+  writeAccess(patch);
 }
 
 function requestAccess() {
   if (!myName) { openIdentityModal(); return; }
-  writeAccess({ [deviceId]: { name: myName, wants: true, lastSeen: Date.now() } });
-  alert('\u2705 Request bhej di — admin ke phone par aapka naam dikh jayega. Unlock hote hi scoring buttons chalu ho jayenge.');
-}
-
-// ---- Admin-only controls over other phones ----
-function setDeviceAllowed(id, allowed) {
-  if (!amOwnerAdmin()) return;
-  if (id === deviceId && !allowed) { alert('Apna hi access band nahi kar sakte.'); return; }
-  writeAccess({ [id]: { allowed: allowed, wants: false } });
-}
-function setDeviceAdmin(id, makeAdmin) {
-  if (!amOwnerAdmin()) return;
-  if (!makeAdmin && id === deviceId && deviceEntries().filter((d) => d.admin).length <= 1) {
-    alert('Aap akele admin ho — pehle kisi aur ko admin banao, phir apna admin hatao.');
-    return;
-  }
-  writeAccess(makeAdmin ? { [id]: { admin: true, allowed: true, wants: false } } : { [id]: { admin: false } });
-}
-function removeDevice(id) {
-  if (!amOwnerAdmin()) return;
-  if (id === deviceId) { alert('Apna hi phone list se nahi hata sakte.'); return; }
-  const d = (access.devices || {})[id] || {};
-  if (!confirm('"' + (d.name || 'Phone') + '" ko list se hata dein? Wo dobara app kholenge to naye sire se dikhenge (view-only).')) return;
-  accessRef.update({ ['devices.' + id]: firebase.firestore.FieldValue.delete() }).catch(() => {});
+  if (isAdmin) { alert('\u2705 Aapke paas pehle se scoring access hai.'); return; }
+  writeAccess({ requests: { [myName]: Date.now() } });
+  alert('\u2705 Request bhej di — ' + ADMIN_NAMES.join(' / ') + ' ke phone par aapke naam ke aage \uD83D\uDE4B dikh jayega.');
 }
 
 function lastSeenText(ts) {
@@ -1577,75 +1555,69 @@ function lastSeenText(ts) {
   return Math.floor(hrs / 24) + ' din pehle';
 }
 
+// ---- The admin's tick-list: every roster name, plus anyone who's been given access or asked for
+// it but isn't on the roster, so nobody can quietly hold rights without showing up here. ----
+function accessNameList() {
+  const names = {};
+  (roster && roster.names ? roster.names : []).forEach((n) => { names[String(n).toUpperCase()] = true; });
+  ADMIN_NAMES.forEach((n) => { names[n] = true; });
+  Object.keys(access.scorers || {}).forEach((n) => { if (access.scorers[n]) names[n] = true; });
+  Object.keys(access.requests || {}).forEach((n) => { names[n] = true; });
+  if (myName) names[myName] = true;
+  return Object.keys(names).sort((a, b) => {
+    const rank = (n) => (isAdminName(n) ? 0 : ((access.requests || {})[n] && !canScoreName(n) ? 1 : (canScoreName(n) ? 2 : 3)));
+    return rank(a) - rank(b) || a.localeCompare(b);
+  });
+}
+
 function renderDeviceAccessList() {
   const wrap = document.getElementById('deviceAccessList');
   if (!wrap) return;
   if (!amOwnerAdmin()) { wrap.innerHTML = ''; return; }
-  const rows = deviceEntries().sort((a, b) => {
-    const rank = (d) => (d.wants && !d.allowed ? 0 : d.admin ? 1 : d.allowed ? 2 : 3);
-    return rank(a) - rank(b) || String(a.name || '').localeCompare(String(b.name || ''));
-  });
-  if (!rows.length) { wrap.innerHTML = '<div class="setupHint">Abhi tak koi phone register nahi hua.</div>'; return; }
-  wrap.innerHTML = rows.map((d) => {
-    const tag = d.admin ? '\uD83D\uDC51 ADMIN' : (d.allowed ? '\u2705 SCORE KAR SAKTA HAI' : (d.wants ? '\uD83D\uDE4B ACCESS MAANGA HAI' : '\uD83D\uDC41 VIEW ONLY'));
-    const seen = lastSeenText(d.lastSeen);
-    return '<div class="devRow ' + (d.id === deviceId ? 'isMe' : '') + ' ' + (d.wants && !d.allowed ? 'wants' : '') + '">'
+  wrap.innerHTML = accessNameList().map((n) => {
+    const admin = isAdminName(n);
+    const on = canScoreName(n);
+    const wants = !!(access.requests || {})[n] && !on;
+    const seen = lastSeenText((access.seen || {})[n]);
+    const tag = admin ? '\uD83D\uDC51 PERMANENT ADMIN' : (on ? '\u2705 SCORE KAR SAKTA HAI' : (wants ? '\uD83D\uDE4B ACCESS MAANGA HAI' : '\uD83D\uDC41 VIEW ONLY'));
+    return '<div class="devRow ' + (n === myName ? 'isMe' : '') + ' ' + (wants ? 'wants' : '') + '">'
+      + '<button type="button" class="devBox ' + (on ? 'on' : '') + '" data-acc-name="' + esc(n) + '"' + (admin ? ' disabled' : '') + '>' + (on ? '\u2714' : '') + '</button>'
       + '<div class="devMain">'
-      + '<div class="devName">' + esc(d.name || 'Phone') + (d.id === deviceId ? ' <span style="color:var(--muted); font-weight:700; font-size:10px;">(yeh phone)</span>' : '') + '</div>'
+      + '<div class="devName">' + esc(n) + (n === myName ? ' <span style="color:var(--muted); font-weight:700; font-size:10px;">(aap)</span>' : '') + '</div>'
       + '<div class="devMeta">' + tag + (seen ? ' \u00B7 ' + seen : '') + '</div>'
-      + '</div>'
-      + '<div class="devBtns">'
-      + '<button type="button" class="devBtn ' + (d.allowed ? 'on' : 'off') + '" data-acc-toggle="' + d.id + '">' + (d.allowed ? 'ON' : 'OFF') + '</button>'
-      + '<button type="button" class="devBtn" data-acc-admin="' + d.id + '" title="Admin banao/hatao">' + (d.admin ? '\uD83D\uDC51\u2715' : '\uD83D\uDC51') + '</button>'
-      + (d.id === deviceId ? '' : '<button type="button" class="devBtn" data-acc-remove="' + d.id + '">\u2715</button>')
       + '</div></div>';
   }).join('');
 }
 
 document.getElementById('deviceAccessList').addEventListener('click', (e) => {
-  const on = e.target.closest('[data-acc-toggle]');
-  if (on) {
-    const id = on.getAttribute('data-acc-toggle');
-    const d = (access.devices || {})[id] || {};
-    setDeviceAllowed(id, !d.allowed);
-    return;
-  }
-  const ad = e.target.closest('[data-acc-admin]');
-  if (ad) {
-    const id = ad.getAttribute('data-acc-admin');
-    const d = (access.devices || {})[id] || {};
-    if (!d.admin && !confirm('"' + (d.name || 'Phone') + '" ko ADMIN bana dein? Phir wo bhi doosron ka access on/off kar payenge.')) return;
-    setDeviceAdmin(id, !d.admin);
-    return;
-  }
-  const rm = e.target.closest('[data-acc-remove]');
-  if (rm) removeDevice(rm.getAttribute('data-acc-remove'));
+  const b = e.target.closest('[data-acc-name]');
+  if (!b || b.disabled) return;
+  const name = b.getAttribute('data-acc-name');
+  setNameAllowed(name, !canScoreName(name));
 });
 
 function renderScoreAccessStatus() {
   const hintEl = document.getElementById('accessHint');
   const statusEl = document.getElementById('scorerAccessStatus');
   const btn = document.getElementById('accessActionBtn');
-  const me = myEntry();
-  const pending = !!(me && me.wants && !me.allowed);
+  const pending = !!myName && !!(access.requests || {})[myName] && !isAdmin;
 
   if (hintEl) {
     hintEl.textContent = amOwnerAdmin()
-      ? 'Neeche har phone ki list hai. ON = wo phone score kar sakta hai, OFF = sirf dekh sakta hai. Jab chaho, match ke beech mein bhi badal sakte ho. \uD83D\uDC51 se kisi aur ko admin bana sakte ho.'
-      : 'Sirf wahi phone score kar sakte hain jinhe admin ne ON kiya hai — baaki sab live score dekh sakte hain. Access chahiye to neeche request bhejo, aapka naam admin ke phone par dikh jayega.';
+      ? 'Admin: ' + ADMIN_NAMES.join(', ') + '. Neeche kisi bhi naam ka box tick kar do — us player ko scoring ka access mil jayega, untick karte hi wapas view-only. Match ke beech mein bhi chalega.'
+      : 'Sirf ' + ADMIN_NAMES.join(' / ') + ' admin hain. Wo jis player ka box tick karenge, sirf usi ko scoring buttons milenge — baaki sab live score dekh sakte hain.';
   }
   if (statusEl) {
-    const name = myName ? ' (' + myName + ')' : '';
-    if (amOwnerAdmin()) { statusEl.textContent = '\uD83D\uDC51 Yeh phone ADMIN hai' + name + ' — scoring aur access dono aapke paas.'; statusEl.style.color = 'var(--led, #2fa84f)'; }
-    else if (isAdmin) { statusEl.textContent = '\u2705 Yeh phone score kar sakta hai' + name + '.'; statusEl.style.color = 'var(--led, #2fa84f)'; }
-    else if (pending) { statusEl.textContent = '\u23F3 Request bheji hui hai' + name + ' — admin ke approve karte hi chalu ho jayega.'; statusEl.style.color = '#b26a00'; }
-    else { statusEl.textContent = '\uD83D\uDD12 View only' + name + ' — admin se unlock karwao.'; statusEl.style.color = '#a01f1f'; }
+    const who = myName ? myName : '—';
+    if (amOwnerAdmin()) { statusEl.textContent = '\uD83D\uDC51 ' + who + ' — aap admin ho.'; statusEl.style.color = 'var(--led, #2fa84f)'; }
+    else if (isAdmin) { statusEl.textContent = '\u2705 ' + who + ' — aap score kar sakte ho.'; statusEl.style.color = 'var(--led, #2fa84f)'; }
+    else if (pending) { statusEl.textContent = '\u23F3 ' + who + ' — request bheji hui hai, admin ke tick karte hi chalu.'; statusEl.style.color = '#b26a00'; }
+    else { statusEl.textContent = '\uD83D\uDD12 ' + who + ' — view only. Admin se apna box tick karwao.'; statusEl.style.color = '#a01f1f'; }
   }
   if (btn) {
-    if (!accessLoaded) { btn.classList.add('hidden'); }
-    else if (!anyAdminExists()) {
+    if (!myName) {
       btn.classList.remove('hidden');
-      btn.textContent = '\uD83D\uDC51 Is phone ko Admin banayein';
+      btn.textContent = '\uD83D\uDC4B Apna naam chuno';
       btn.style.background = 'var(--amber, #f5a623)';
       btn.style.color = '#3a2600';
     } else if (!isAdmin) {
@@ -1658,7 +1630,9 @@ function renderScoreAccessStatus() {
 
   const matchStatusEl = document.getElementById('scoreAccessStatusText');
   if (matchStatusEl) {
-    matchStatusEl.textContent = isAdmin ? (amOwnerAdmin() ? '\uD83D\uDC51 Admin — yeh phone score kar sakta hai' : '\u2705 Yeh phone score kar sakta hai') : '\uD83D\uDD12 View only on this phone';
+    matchStatusEl.textContent = isAdmin
+      ? (amOwnerAdmin() ? '\uD83D\uDC51 ' + myName + ' — admin' : '\u2705 ' + myName + ' — score kar sakte ho')
+      : '\uD83D\uDD12 View only' + (myName ? ' (' + myName + ')' : '');
     matchStatusEl.style.color = isAdmin ? 'var(--led, #2fa84f)' : '#a01f1f';
   }
   const matchLink = document.getElementById('accessActionLinkMatch');
@@ -1668,9 +1642,9 @@ function renderScoreAccessStatus() {
     else matchLink.classList.add('hidden');
   }
 
-  // Pending requests deserve a nudge on the admin's phone — they're usually mid-match, not
+  // Pending requests deserve a nudge on the admins' phones — they're usually mid-match, not
   // staring at the setup screen.
-  const badgeCount = amOwnerAdmin() ? deviceEntries().filter((d) => d.wants && !d.allowed).length : 0;
+  const badgeCount = amOwnerAdmin() ? accessNameList().filter((n) => (access.requests || {})[n] && !canScoreName(n)).length : 0;
   const topBtn = document.getElementById('adminToggleBtn');
   if (topBtn) topBtn.textContent = badgeCount ? '\uD83D\uDE4B' : (isAdmin ? '\uD83D\uDD13' : '\uD83D\uDD10');
 
@@ -1678,7 +1652,7 @@ function renderScoreAccessStatus() {
 }
 
 document.getElementById('accessActionBtn').addEventListener('click', () => {
-  if (!anyAdminExists()) claimAdmin(); else requestAccess();
+  if (!myName) openIdentityModal(); else requestAccess();
 });
 document.getElementById('accessActionLinkMatch').addEventListener('click', (e) => {
   e.preventDefault();
@@ -1704,7 +1678,7 @@ function applyScoringLock() {
 // everyone; call this first in any handler that writes data, and bail out if it returns false. ----
 function requireAdmin(actionLabel) {
   if (isAdmin) return true;
-  alert('\uD83D\uDD12 View only — admin ne abhi is phone ko unlock nahi kiya' + (actionLabel ? ' (' + actionLabel + ')' : '') + '.\n\nTop par \uD83D\uDD10 icon tap karke access maang lo.');
+  alert('\uD83D\uDD12 View only — ' + (myName || 'is phone') + ' ko abhi scoring access nahi hai' + (actionLabel ? ' (' + actionLabel + ')' : '') + '.\n\n' + ADMIN_NAMES.join(' / ') + ' mein se koi aapka box tick kar de, ya top par \uD83D\uDD10 tap karke request bhejo.');
   return false;
 }
 
@@ -1712,28 +1686,29 @@ function applyAdminButtonUI() {
   const btn = document.getElementById('adminToggleBtn');
   if (!btn) return;
   btn.textContent = isAdmin ? '\uD83D\uDD13' : '\uD83D\uDD10';
-  btn.title = amOwnerAdmin() ? 'Admin — kaun score kare, yahan set karo' : (isAdmin ? 'Yeh phone score kar sakta hai' : 'View only — access maango');
+  btn.title = amOwnerAdmin() ? 'Admin — kis player ko scoring dena hai, yahan tick karo' : (isAdmin ? 'Aap score kar sakte ho' : 'View only — access maango');
   btn.style.color = isAdmin ? 'var(--led, #16a34a)' : 'var(--muted)';
   btn.style.borderColor = isAdmin ? 'var(--led, #16a34a)' : 'var(--line)';
 }
 document.getElementById('adminToggleBtn').addEventListener('click', () => {
   if (amOwnerAdmin()) { if (state && state.screen !== 'setup') { state.screen = 'setup'; render(); } scrollToAccessPanel(); return; }
-  if (isAdmin) { alert('\u2705 Yeh phone score kar sakta hai. Band karna ho to admin OFF kar dega.'); return; }
-  if (!anyAdminExists()) { claimAdmin(); return; }
+  if (isAdmin) { alert('\u2705 Aap score kar sakte ho (' + myName + ').'); return; }
   requestAccess();
 });
 
 // ---------------- WHO'S ON THIS PHONE ----------------
-// Asked once and remembered. Purely a label for the admin's list — picking a name grants nothing
-// by itself, so nobody can get scoring rights just by choosing someone else's name.
+// Asked once and remembered — this name is what the admins tick against. Change it any time from
+// the Scoring Access panel (handy when someone hands their phone to another player).
 function openIdentityModal() {
   const overlay = document.getElementById('idOverlay');
   const chips = document.getElementById('idNameChips');
   const input = document.getElementById('idNameInput');
   if (!overlay) return;
-  const names = (roster && roster.names ? roster.names.slice() : []).sort();
-  chips.innerHTML = names.map((n) => '<button type="button" class="idName' + (n === myName ? ' sel' : '') + '" data-id-name="' + esc(n) + '">' + esc(n) + '</button>').join('');
-  input.value = names.includes(myName) ? '' : myName;
+  const names = (roster && roster.names ? roster.names.slice() : []).map((n) => String(n).toUpperCase());
+  ADMIN_NAMES.forEach((n) => { if (names.indexOf(n) === -1) names.push(n); });
+  names.sort();
+  chips.innerHTML = names.map((n) => '<button type="button" class="idName' + (n === myName ? ' sel' : '') + '" data-id-name="' + esc(n) + '">' + esc(n) + (isAdminName(n) ? ' \uD83D\uDC51' : '') + '</button>').join('');
+  input.value = names.indexOf(myName) !== -1 ? '' : myName;
   overlay.classList.add('show');
 }
 document.getElementById('idNameChips').addEventListener('click', (e) => {
@@ -1751,7 +1726,9 @@ document.getElementById('idSaveBtn').addEventListener('click', () => {
   myName = name.toUpperCase();
   try { localStorage.setItem(DEVICE_NAME_KEY, myName); } catch (e) {}
   document.getElementById('idOverlay').classList.remove('show');
-  registerMyDevice();
+  markMeSeen(true);
+  computeAdmin();
+  applyAdminButtonUI();
   render();
 });
 document.getElementById('changeMyNameLink').addEventListener('click', (e) => { e.preventDefault(); openIdentityModal(); });
@@ -1760,9 +1737,9 @@ document.getElementById('changeMyNameLink').addEventListener('click', (e) => { e
 function startAccessSync() {
   accessRef.onSnapshot((doc) => {
     const data = doc.exists ? (doc.data() || {}) : {};
-    access = { devices: data.devices || {} };
+    access = { scorers: data.scorers || {}, requests: data.requests || {}, seen: data.seen || {} };
     accessLoaded = true;
-    registerMyDevice();
+    markMeSeen();
     computeAdmin();
     applyAdminButtonUI();
     if (state) render();
@@ -1770,8 +1747,8 @@ function startAccessSync() {
   }, (err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'access list blocked by Firestore rules (permission-denied)' : (err.message || 'access sync failed')));
 }
 
-// A quiet heartbeat so the admin's list shows who's actually around right now.
-setInterval(() => { if (myName && accessLoaded) writeAccess({ [deviceId]: { lastSeen: Date.now() } }); }, 120000);
+// A quiet heartbeat so the admins' list shows who's actually around right now.
+setInterval(markMeSeen, 120000);
 
 function shuffleArr(arr) {
   const a = arr.slice();
