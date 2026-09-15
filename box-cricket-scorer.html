@@ -189,7 +189,7 @@
   .btn-ghost:hover { color: var(--ink); border-color: var(--muted); }
 
   .playerChips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
-  #scorerChips { display: flex; flex-wrap: wrap; gap: 8px; }
+  #scorerChips, #scorerChipsMatch { display: flex; flex-wrap: wrap; gap: 8px; }
   .scorerChip {
     background: var(--panel-2);
     border: 1.5px solid var(--line);
@@ -205,6 +205,10 @@
     background: var(--amber, #f5a623);
     border-color: var(--amber, #f5a623);
     color: #1a1200;
+  }
+  .scorerChip.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
   #scoringPanel.scoringLocked {
     position: relative;
@@ -848,6 +852,7 @@
   <div class="hdr" style="position:relative;">
     <div class="eyebrow">🏏 Live Scorer</div>
     <h1>BOX <span>CRICKET</span></h1>
+    <button id="adminToggleBtn" title="Admin unlock/lock" style="position:absolute; top:0; right:34px; width:26px; height:26px; border-radius:50%; background:var(--panel-2); border:1.5px solid var(--line); color:var(--muted); font-size:12px; padding:0; cursor:pointer;">🔐</button>
     <button id="refreshAppBtn" title="Clear cache & refresh app" style="position:absolute; top:0; right:0; width:26px; height:26px; border-radius:50%; background:var(--panel-2); border:1.5px solid var(--line); color:var(--muted); font-size:12px; padding:0; cursor:pointer;">🔄</button>
   </div>
 
@@ -864,13 +869,14 @@
 
     <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623);">
       <h2>🔐 Who's Scoring?</h2>
-      <div class="setupHint" style="margin-top:0;">Pick your own name below (saved just on this phone), then choose one or more people who are allowed to actually score the match. Only names checked below can score — everyone else can watch the live score, but their scoring buttons stay locked until an admin adds them here (you can add someone new any time, even mid-match, from this same panel on the Match screen).</div>
+      <div class="setupHint" style="margin-top:0;">Pick your own name below (saved just on this phone). Only names checked below can score — everyone else can watch the live score, but their scoring buttons stay locked. Only the ADMIN (unlock with the 🔐 icon at the top) can add or remove scorers — any time, even mid-match, from this same panel on the Match screen.</div>
       <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin:10px 0 6px; font-weight:700;">Who are you? (this phone)</label>
       <select id="whoAmISelect" style="width:100%; margin-bottom:12px;">
         <option value="">— Just watching —</option>
       </select>
       <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-weight:700;">Who's allowed to score?</label>
       <div class="rosterList" id="scorerChips"></div>
+      <div id="scorerChipsLockedHint" class="setupHint hidden" style="margin-top:8px; color:#a01f1f;">🔒 Only admin can add/remove scorers — unlock with the 🔐 icon at the top.</div>
       <div id="scorerAccessStatus" style="margin-top:10px; font-weight:700; font-size:13px;"></div>
     </div>
 
@@ -1076,8 +1082,9 @@
         <span id="scorerManageToggleIcon">▼</span>
       </h2>
       <div id="scorerManageBody" style="display:none; margin-top:10px;">
-        <div class="setupHint" style="margin-top:0; margin-bottom:10px;">Add anyone from the roster as a scorer, any time — even mid-match. Everyone else stays view-only until added here.</div>
+        <div class="setupHint" style="margin-top:0; margin-bottom:10px;">Add anyone from the roster as a scorer, any time — even mid-match. Everyone else stays view-only. Only the ADMIN (unlock with the 🔐 icon at the top) can change this list.</div>
         <div class="rosterList" id="scorerChipsMatch"></div>
+        <div id="scorerChipsMatchLockedHint" class="setupHint hidden" style="margin-top:8px; color:#a01f1f;">🔒 Only admin can add/remove scorers — unlock with the 🔐 icon at the top.</div>
       </div>
     </div>
 
@@ -1208,12 +1215,15 @@ const MATCH_HISTORY_KEY = 'box-cricket-history-v1';
 const SCHEDULED_KEY = 'box-cricket-scheduled-v1'; // matches saved with a future date/time, waiting to be loaded
 const SCORERS_KEY = 'box-cricket-scorers-v1'; // shared (cloud-synced) list of who's allowed to score
 const WHOAMI_KEY = 'box-cricket-whoami-v1'; // per-device only — which roster name is using THIS phone
+const ADMIN_KEY = 'box-cricket-admin-v1'; // per-device only — whether THIS phone has unlocked admin access
+const ADMIN_PIN = '2580'; // change this to whatever PIN you want admins to know — only PIN-holders can add/remove scorers
 const DEFAULT_ROSTER = ['DEVENDRA','DINESH','DIPPU','KAMLESH','MAHAVIR','NAVIN','PAWAN','PRAMOD','RAJENDRA','RAJESH','SANJAY','SHANKAR','SUBHASH','SURESH','VIBHAW','VISHAL','VISHNU'];
 
 let state = null;
 let roster = null; // { names: [...], absent: [...] } — persists across matches, separate from the live match state
-let scorers = []; // roster names allowed to actually score — empty array means "open to everyone" (unchanged old behaviour)
+let scorers = []; // roster names allowed to actually score — locked for everyone until admin adds a name here
 let whoAmI = localStorage.getItem(WHOAMI_KEY) || ''; // which roster name THIS phone belongs to — local only, never synced
+let isAdmin = localStorage.getItem(ADMIN_KEY) === '1'; // whether THIS phone can add/remove scorers — local only, never synced
 
 // ---- "Add to Home Screen" support: builds a manifest on the fly so this stays a single HTML
 // file (no separate manifest.json / icon file to host) but still installs like a real app. ----
@@ -1474,7 +1484,7 @@ function isScorer(name) {
 
 function scorerChipsHTML(names) {
   return names.map((n) =>
-    `<span class="scorerChip${scorers.includes(n) ? ' on' : ''}" data-name="${n}">${scorers.includes(n) ? '✅ ' : ''}${n}</span>`
+    `<span class="scorerChip${scorers.includes(n) ? ' on' : ''}${isAdmin ? '' : ' locked'}" data-name="${n}">${scorers.includes(n) ? '✅ ' : ''}${n}</span>`
   ).join('') || '<span style="color:var(--muted); font-size:13px;">Add roster names below first.</span>';
 }
 
@@ -1492,6 +1502,10 @@ function renderScorerAccess() {
   // without needing to back out to Setup (which is hidden once a match is live).
   const chipsMatchEl = document.getElementById('scorerChipsMatch');
   if (chipsMatchEl) chipsMatchEl.innerHTML = scorerChipsHTML(names);
+  const lockedHintEl = document.getElementById('scorerChipsLockedHint');
+  if (lockedHintEl) lockedHintEl.classList.toggle('hidden', isAdmin);
+  const lockedHintMatchEl = document.getElementById('scorerChipsMatchLockedHint');
+  if (lockedHintMatchEl) lockedHintMatchEl.classList.toggle('hidden', isAdmin);
   const countTag = document.getElementById('scorerManageCountTag');
   if (countTag) countTag.textContent = scorers.length ? `(${scorers.length})` : '';
   const statusEl = document.getElementById('scorerAccessStatus');
@@ -1545,6 +1559,7 @@ document.getElementById('scoringLockWhoAmI').addEventListener('change', function
 });
 
 function toggleScorer(name) {
+  if (!isAdmin) { alert('🔒 Only admin can add or remove scorers — unlock with the 🔐 icon at the top.'); return; }
   const i = scorers.indexOf(name);
   if (i === -1) scorers.push(name); else scorers.splice(i, 1);
   saveScorers();
@@ -1559,6 +1574,39 @@ document.getElementById('scorerChipsMatch').addEventListener('click', (e) => {
   const chip = e.target.closest('.scorerChip');
   if (chip) toggleScorer(chip.dataset.name);
 });
+
+// ---- Admin lock/unlock — a simple PIN gate (local to this phone) so only whoever knows the PIN
+// can decide who's allowed to score. Everyone else can still watch/select "who am I" freely; only
+// adding/removing SCORERS is gated. ----
+function setAdmin(val) {
+  isAdmin = val;
+  try { localStorage.setItem(ADMIN_KEY, val ? '1' : '0'); } catch (e) {}
+  applyAdminButtonUI();
+  renderScorerAccess();
+}
+function applyAdminButtonUI() {
+  const btn = document.getElementById('adminToggleBtn');
+  if (!btn) return;
+  btn.textContent = isAdmin ? '🔓' : '🔐';
+  btn.title = isAdmin ? 'Admin unlocked — tap to lock' : 'Admin locked — tap to unlock with PIN';
+  btn.style.color = isAdmin ? 'var(--led, #16a34a)' : 'var(--muted)';
+  btn.style.borderColor = isAdmin ? 'var(--led, #16a34a)' : 'var(--line)';
+}
+document.getElementById('adminToggleBtn').addEventListener('click', () => {
+  if (isAdmin) {
+    if (confirm('Lock admin access on this phone?')) setAdmin(false);
+    return;
+  }
+  const pin = prompt('Enter Admin PIN to manage scorers:');
+  if (pin === null) return;
+  if (pin === ADMIN_PIN) {
+    setAdmin(true);
+    alert('✅ Admin unlocked on this phone.');
+  } else {
+    alert('❌ Wrong PIN.');
+  }
+});
+applyAdminButtonUI();
 
 let scorerManageExpanded = false;
 function applyScorerManageExpanded() {
