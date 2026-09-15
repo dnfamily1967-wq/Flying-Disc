@@ -1442,14 +1442,22 @@ function applyScoringLock() {
   if (banner) banner.classList.toggle('show', locked);
 }
 
+// ---- The single gate for every action that CHANGES something (roster, teams, scores, history,
+// schedule) — not just the run/wicket buttons. Browsing/expanding/filtering stays open to
+// everyone; call this first in any handler that writes data, and bail out if it returns false. ----
+function requireAdmin(actionLabel) {
+  if (isAdmin) return true;
+  alert('🔒 View only on this phone — unlock with the 🔐 icon at the top' + (actionLabel ? ' to ' + actionLabel : '') + '.');
+  return false;
+}
+
 // ---- PIN unlock/lock — the ONLY gate in the app. Unlocking on a phone gives it full scoring
 // access immediately; there's nothing else to configure. ----
 function setAdmin(val) {
   isAdmin = val;
   try { localStorage.setItem(ADMIN_KEY, val ? '1' : '0'); } catch (e) {}
   applyAdminButtonUI();
-  renderScoreAccessStatus();
-  applyScoringLock();
+  render();
 }
 function applyAdminButtonUI() {
   const btn = document.getElementById('adminToggleBtn');
@@ -1584,6 +1592,7 @@ function renderRoster() {
 rosterChipsEl.addEventListener('click', (e) => {
   const delBtn = e.target.closest('[data-del-name]');
   if (delBtn) {
+    if (!requireAdmin('remove roster names')) return;
     const name = delBtn.dataset.delName;
     if (!confirm(`Remove ${name} from the roster for good? (You can always add them back later.)`)) return;
     roster.names = roster.names.filter((n) => n !== name);
@@ -1595,12 +1604,14 @@ rosterChipsEl.addEventListener('click', (e) => {
   }
   const editBtn = e.target.closest('[data-edit-rating]');
   if (editBtn) {
+    if (!requireAdmin('edit skill ratings')) return;
     editingRatingName = editBtn.dataset.editRating;
     renderRoster();
     return;
   }
   const btn = e.target.closest('[data-roster-name]');
   if (!btn) return;
+  if (!requireAdmin('mark attendance')) return;
   const name = btn.dataset.rosterName;
   const idx = roster.absent.indexOf(name);
   if (idx >= 0) roster.absent.splice(idx, 1);
@@ -1630,6 +1641,7 @@ rosterChipsEl.addEventListener('blur', (e) => {
   if (editingRatingName !== null) commitRatingEdit(input);
 }, true);
 addRosterBtn.addEventListener('click', () => {
+  if (!requireAdmin('add roster names')) return;
   const name = rosterNameInput.value.trim().toUpperCase();
   if (!name || roster.names.includes(name)) { rosterNameInput.value = ''; return; }
   roster.names.push(name);
@@ -1715,8 +1727,8 @@ function updateTeamLogoBadge(badgeEl, name, logoUrl) {
 }
 let pendingLogoTeam = null; // 1 or 2 — which team's logo is being picked
 const teamLogoInput = document.getElementById('teamLogoInput');
-team1LogoBadge.addEventListener('click', () => { pendingLogoTeam = 1; teamLogoInput.click(); });
-team2LogoBadge.addEventListener('click', () => { pendingLogoTeam = 2; teamLogoInput.click(); });
+team1LogoBadge.addEventListener('click', () => { if (!requireAdmin('change a team logo')) return; pendingLogoTeam = 1; teamLogoInput.click(); });
+team2LogoBadge.addEventListener('click', () => { if (!requireAdmin('change a team logo')) return; pendingLogoTeam = 2; teamLogoInput.click(); });
 teamLogoInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   e.target.value = '';
@@ -1731,6 +1743,7 @@ team1NameInput.addEventListener('input', () => updateTeamLogoBadge(team1LogoBadg
 team2NameInput.addEventListener('input', () => updateTeamLogoBadge(team2LogoBadge, team2NameInput.value, teamsState.logo2));
 
 document.getElementById('makeTwoTeamsBtn').addEventListener('click', () => {
+  if (!requireAdmin('make teams')) return;
   const present = roster.names.filter((n) => !roster.absent.includes(n));
   if (present.length < 2) { alert('Need at least 2 present players in the roster to split into teams.'); return; }
   const { team1, team2 } = balanceTeamsBySkill(present);
@@ -1808,6 +1821,7 @@ function renderTeams() {
 }
 
 document.getElementById('addToTeam1Btn').addEventListener('click', () => {
+  if (!requireAdmin('move players between teams')) return;
   const name = document.getElementById('unassignedSelect').value;
   if (!name || teamsState.team1.includes(name)) return;
   teamsState.team2 = teamsState.team2.filter((n) => n !== name);
@@ -1816,6 +1830,7 @@ document.getElementById('addToTeam1Btn').addEventListener('click', () => {
   renderSetup();
 });
 document.getElementById('addToTeam2Btn').addEventListener('click', () => {
+  if (!requireAdmin('move players between teams')) return;
   const name = document.getElementById('unassignedSelect').value;
   if (!name || teamsState.team2.includes(name)) return;
   teamsState.team1 = teamsState.team1.filter((n) => n !== name);
@@ -1824,11 +1839,12 @@ document.getElementById('addToTeam2Btn').addEventListener('click', () => {
   renderSetup();
 });
 
-team1NameInput.addEventListener('change', () => { if (teamsState) { teamsState.name1 = team1NameInput.value.trim() || 'Team A'; saveTeams(); } });
-team2NameInput.addEventListener('change', () => { if (teamsState) { teamsState.name2 = team2NameInput.value.trim() || 'Team B'; saveTeams(); } });
+team1NameInput.addEventListener('change', () => { if (teamsState) { if (!requireAdmin('rename a team')) { renderSetup(); return; } teamsState.name1 = team1NameInput.value.trim() || 'Team A'; saveTeams(); } });
+team2NameInput.addEventListener('change', () => { if (teamsState) { if (!requireAdmin('rename a team')) { renderSetup(); return; } teamsState.name2 = team2NameInput.value.trim() || 'Team B'; saveTeams(); } });
 
 function removeFromTeam(teamNum, idx) {
   if (!teamsState) return;
+  if (!requireAdmin('remove a player from a team')) return;
   const key = teamNum === '1' ? 'team1' : 'team2';
   teamsState[key].splice(idx, 1);
   saveTeams();
@@ -1861,11 +1877,19 @@ const RETIREMENT_HINTS = {
 
 function renderSetup() {
   const combined = combinedTeamPlayers();
-  startMatchBtn.disabled = combined.length < 2;
+  startMatchBtn.disabled = combined.length < 2 || !isAdmin;
   if (matchNameInput.value !== (state.matchName || '')) matchNameInput.value = state.matchName || '';
   outPenaltyInput.value = String(state.outPenalty);
   extraRunsInput.value = String(state.extraRuns);
   negOutSwapInput.value = state.negOutSwapStrike ? '1' : '0';
+  // Everyone can WATCH these settings; only an unlocked (admin) phone can change them — disable
+  // the actual form controls rather than alerting on every keystroke/change.
+  [matchNameInput, outPenaltyInput, extraRunsInput, negOutSwapInput, tossBowlsFirstInput,
+   retirementRuleInput, oversInput, team1NameInput, team2NameInput, rosterNameInput,
+   addRosterBtn, document.getElementById('makeTwoTeamsBtn'), document.getElementById('unassignedSelect'),
+   document.getElementById('addToTeam1Btn'), document.getElementById('addToTeam2Btn'),
+   document.getElementById('scheduleDateTimeInput'), document.getElementById('saveScheduledBtn')
+  ].forEach((el) => { if (el) el.disabled = !isAdmin; });
   // Toss: label the two options with the actual team names (which can be renamed), and remember
   // whichever side was picked last so it doesn't silently reset.
   if (tossBowlsFirstInput) {
@@ -1926,6 +1950,7 @@ oversInput.addEventListener('change', () => {
 });
 
 startMatchBtn.addEventListener('click', () => {
+  if (!requireAdmin('start the match')) return;
   const combined = combinedTeamPlayers();
   if (combined.length < 2) { alert('Need at least 2 players across both teams to start.'); return; }
   state.matchName = matchNameInput.value.trim();
@@ -2490,6 +2515,7 @@ document.getElementById('undoBtn').addEventListener('click', () => {
 });
 
 document.getElementById('endMatchBtn').addEventListener('click', () => {
+  if (!requireAdmin('end the match')) return;
   if (!confirm('End the match now? Whatever has been scored so far will be the final result.')) return;
   // Count the current partial over into the bowling card too, if it has any balls.
   if (state.thisOverBalls.length && !state.oversLog.find((o) => o.bowler === state.currentBowler)) {
@@ -2600,6 +2626,7 @@ document.getElementById('exportJpegBtn').addEventListener('click', () => {
 
 
 document.getElementById('newMatchBtn').addEventListener('click', () => {
+  if (!requireAdmin('start a new match')) return;
   if (!confirm('Start a brand new match? This clears the current scoreboard and the old team split (roster names and skill levels stay saved).')) return;
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(TEAMS_KEY); // the old 2-team split shouldn't carry over into a new match
@@ -2610,6 +2637,7 @@ document.getElementById('newMatchBtn').addEventListener('click', () => {
 // Same reset, reachable straight from an in-progress match — no need to finish/end it first
 // just to get back to a clean slate (this is what "New Match" on the final screen also does).
 document.getElementById('newMatchBtnMatch').addEventListener('click', () => {
+  if (!requireAdmin('discard this match')) return;
   if (!confirm('Discard this match completely and start a brand new one? Everything scored so far will be lost (roster names and skill levels stay saved).')) return;
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(TEAMS_KEY);
@@ -2667,6 +2695,7 @@ document.getElementById('cancelScheduleEditBtn').addEventListener('click', (e) =
 });
 
 document.getElementById('saveScheduledBtn').addEventListener('click', () => {
+  if (!requireAdmin('save a scheduled match')) return;
   const dtInput = document.getElementById('scheduleDateTimeInput');
   const dtVal = dtInput.value; // 'YYYY-MM-DDTHH:MM', local time
   if (!dtVal) { alert('Pick a date & time to schedule this match for.'); return; }
@@ -2709,6 +2738,7 @@ document.getElementById('saveScheduledBtn').addEventListener('click', () => {
 // changed — the Date & Time field is pre-filled too, and "Save Match For Later" turns into
 // "Update Scheduled Match" so hitting it updates this same entry instead of creating a duplicate.
 function startEditScheduled(id) {
+  if (!requireAdmin('edit a scheduled match')) return;
   const entry = loadScheduledList().find((e) => e.id === id);
   if (!entry) return;
   teamsState = {
@@ -2736,6 +2766,7 @@ function startEditScheduled(id) {
 // Pulls a saved scheduled entry's teams + settings + name back into the live setup — same spot
 // Start Match already reads from, so hitting Start right after this uses exactly what was saved.
 function loadScheduledMatch(id) {
+  if (!requireAdmin('load a scheduled match')) return;
   const entry = loadScheduledList().find((e) => e.id === id);
   if (!entry) return;
   if (!confirm(`Load "${entry.name}"? This replaces the current team setup with what was saved for this scheduled match.`)) return;
@@ -2762,6 +2793,7 @@ function loadScheduledMatch(id) {
 }
 
 function deleteScheduledMatch(id) {
+  if (!requireAdmin('delete a scheduled match')) return;
   if (!confirm('Delete this scheduled match? This cannot be undone.')) return;
   saveScheduledListToStorage(loadScheduledList().filter((e) => e.id !== id));
   renderScheduled();
@@ -2909,6 +2941,7 @@ document.getElementById('historyList').addEventListener('click', (e) => {
   const delBtn = e.target.closest('[data-delete]');
   const expBtn = e.target.closest('[data-export]');
   if (delBtn) {
+    if (!requireAdmin('delete a saved match')) return;
     if (!confirm('Delete this saved match record? This cannot be undone.')) return;
     saveHistoryList(loadHistory().filter((r) => r.id !== delBtn.dataset.delete));
     renderHistory();
@@ -2920,6 +2953,7 @@ document.getElementById('historyList').addEventListener('click', (e) => {
   }
 });
 document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+  if (!requireAdmin('clear match history')) return;
   if (!loadHistory().length) return;
   if (!confirm('Clear ALL saved match history? This cannot be undone.')) return;
   saveHistoryList([]);
