@@ -189,6 +189,45 @@
   .btn-ghost:hover { color: var(--ink); border-color: var(--muted); }
 
   .playerChips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+  #scorerChips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .scorerChip {
+    background: var(--panel-2);
+    border: 1.5px solid var(--line);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-weight: 800;
+    font-size: 13.5px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .scorerChip.on {
+    background: var(--amber, #f5a623);
+    border-color: var(--amber, #f5a623);
+    color: #1a1200;
+  }
+  #scoringPanel.scoringLocked {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.45;
+    filter: grayscale(0.3);
+  }
+  .scoringLockBanner {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #FDECEA;
+    border: 1.5px solid #d32f2f;
+    color: #a01f1f;
+    font-weight: 800;
+    font-size: 13px;
+    text-align: center;
+    padding: 12px 14px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .scoringLockBanner.show { display: flex; }
   .teamBox {
     background: var(--panel-2);
     border: 1px solid var(--line);
@@ -804,6 +843,18 @@
 
   <!-- ================= SETUP SCREEN ================= -->
   <div id="setupScreen">
+    <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623);">
+      <h2>🔐 Who's Scoring?</h2>
+      <div class="setupHint" style="margin-top:0;">Pick your own name below (saved just on this phone), then choose one or more people who are allowed to actually score the match. Everyone else can still watch the live score, but their scoring buttons will be locked. Leave the scorer list empty to let anyone score, like before.</div>
+      <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin:10px 0 6px; font-weight:700;">Who are you? (this phone)</label>
+      <select id="whoAmISelect" style="width:100%; margin-bottom:12px;">
+        <option value="">— Just watching —</option>
+      </select>
+      <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-weight:700;">Who's allowed to score?</label>
+      <div class="rosterList" id="scorerChips"></div>
+      <div id="scorerAccessStatus" style="margin-top:10px; font-weight:700; font-size:13px;"></div>
+    </div>
+
     <div class="panel">
       <h2 id="rosterHeading" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
         <span>Team Roster <span id="rosterCountTag" style="color:var(--muted); font-weight:600;"></span></span>
@@ -962,7 +1013,8 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="scoringPanel">
+      <div class="scoringLockBanner" id="scoringLockBanner">🔒 View only — ask <span id="scoringLockNames">a scorer</span> to update this match</div>
       <h2 id="thisOverHeading">This Over</h2>
       <div class="ballLog" id="ballLog"></div>
 
@@ -1079,10 +1131,14 @@
 const STORAGE_KEY = 'box-cricket-match-v1';
 const ROSTER_KEY = 'box-cricket-roster-v1';
 const MATCH_HISTORY_KEY = 'box-cricket-history-v1';
+const SCORERS_KEY = 'box-cricket-scorers-v1'; // shared (cloud-synced) list of who's allowed to score
+const WHOAMI_KEY = 'box-cricket-whoami-v1'; // per-device only — which roster name is using THIS phone
 const DEFAULT_ROSTER = ['DEVENDRA','DINESH','DIPPU','KAMLESH','MAHAVIR','NAVIN','PAWAN','PRAMOD','RAJENDRA','RAJESH','SANJAY','SHANKAR','SUBHASH','SURESH','VIBHAW','VISHAL','VISHNU'];
 
 let state = null;
 let roster = null; // { names: [...], absent: [...] } — persists across matches, separate from the live match state
+let scorers = []; // roster names allowed to actually score — empty array means "open to everyone" (unchanged old behaviour)
+let whoAmI = localStorage.getItem(WHOAMI_KEY) || ''; // which roster name THIS phone belongs to — local only, never synced
 
 // ---- "Add to Home Screen" support: builds a manifest on the fly so this stays a single HTML
 // file (no separate manifest.json / icon file to host) but still installs like a real app. ----
@@ -1254,6 +1310,7 @@ function pushStateToCloud() {
         state: JSON.parse(JSON.stringify(state)),
         roster: JSON.parse(JSON.stringify(roster)),
         teamsState: JSON.parse(JSON.stringify(teamsState)),
+        scorers: JSON.parse(JSON.stringify(scorers)),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       liveMatchRef.set(payload)
@@ -1287,6 +1344,10 @@ function startCloudSync() {
       teamsState = data.teamsState;
       try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teamsState)); } catch (e) {}
     }
+    if (Array.isArray(data.scorers)) {
+      scorers = data.scorers;
+      try { localStorage.setItem(SCORERS_KEY, JSON.stringify(scorers)); } catch (e) {}
+    }
     render();
     applyingRemoteUpdate = false;
     cloudSyncStarted = true;
@@ -1311,6 +1372,85 @@ function saveRoster() {
   try { localStorage.setItem(ROSTER_KEY, JSON.stringify(roster)); } catch (e) {}
   pushStateToCloud();
 }
+
+// ---------------- WHO CAN SCORE? ----------------
+// `scorers` is the shared (cloud-synced) list of roster names allowed to actually tap the
+// scoring buttons. An empty list means "open to everyone", so nothing changes for groups who
+// never set this up. `whoAmI` is local to this one phone — it just remembers which roster name
+// this device belongs to, so the app can tell whether THIS phone should be locked or not.
+function loadScorers() {
+  try {
+    const raw = localStorage.getItem(SCORERS_KEY);
+    if (raw) { scorers = JSON.parse(raw); return; }
+  } catch (e) {}
+  scorers = [];
+}
+
+function saveScorers() {
+  try { localStorage.setItem(SCORERS_KEY, JSON.stringify(scorers)); } catch (e) {}
+  pushStateToCloud();
+}
+
+function isScorer(name) {
+  return scorers.length === 0 || scorers.includes(name);
+}
+
+function renderScorerAccess() {
+  const names = (roster && Array.isArray(roster.names)) ? roster.names : [];
+  const whoSelect = document.getElementById('whoAmISelect');
+  if (whoSelect) {
+    whoSelect.innerHTML = '<option value="">— Just watching —</option>'
+      + names.map((n) => `<option value="${n}">${n}</option>`).join('');
+    whoSelect.value = names.includes(whoAmI) ? whoAmI : '';
+  }
+  const chipsEl = document.getElementById('scorerChips');
+  if (chipsEl) {
+    chipsEl.innerHTML = names.map((n) =>
+      `<span class="scorerChip${scorers.includes(n) ? ' on' : ''}" data-name="${n}">${scorers.includes(n) ? '✅ ' : ''}${n}</span>`
+    ).join('') || '<span style="color:var(--muted); font-size:13px;">Add roster names below first.</span>';
+  }
+  const statusEl = document.getElementById('scorerAccessStatus');
+  if (statusEl) {
+    if (scorers.length === 0) {
+      statusEl.textContent = '👐 No scorer set yet — anyone can score, same as before.';
+      statusEl.style.color = 'var(--muted)';
+    } else if (isScorer(whoAmI)) {
+      statusEl.textContent = '✅ You can score this match.';
+      statusEl.style.color = 'var(--led, #2fa84f)';
+    } else {
+      statusEl.textContent = '👀 View only — ' + scorers.join(', ') + (scorers.length > 1 ? ' can score.' : ' can score.');
+      statusEl.style.color = '#a01f1f';
+    }
+  }
+}
+
+function applyScoringLock() {
+  const panel = document.getElementById('scoringPanel');
+  const banner = document.getElementById('scoringLockBanner');
+  const namesEl = document.getElementById('scoringLockNames');
+  const locked = !isScorer(whoAmI);
+  if (panel) panel.classList.toggle('scoringLocked', locked);
+  if (banner) banner.classList.toggle('show', locked);
+  if (namesEl) namesEl.textContent = scorers.length ? scorers.join(' / ') : 'a scorer';
+}
+
+document.getElementById('whoAmISelect').addEventListener('change', function () {
+  whoAmI = this.value;
+  try { localStorage.setItem(WHOAMI_KEY, whoAmI); } catch (e) {}
+  renderScorerAccess();
+  applyScoringLock();
+});
+
+document.getElementById('scorerChips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.scorerChip');
+  if (!chip) return;
+  const name = chip.dataset.name;
+  const i = scorers.indexOf(name);
+  if (i === -1) scorers.push(name); else scorers.splice(i, 1);
+  saveScorers();
+  renderScorerAccess();
+  applyScoringLock();
+});
 
 function shuffleArr(arr) {
   const a = arr.slice();
@@ -2556,6 +2696,8 @@ function render() {
   if (state.screen === 'match') renderMatch();
   if (state.screen === 'final') renderFinal();
   if (state.screen === 'match') requestWakeLock(); else releaseWakeLock();
+  renderScorerAccess();
+  applyScoringLock();
 }
 
 let rosterExpanded = false;
@@ -2586,6 +2728,7 @@ applyHistoryExpanded();
 
 applyRosterSortButtons();
 loadRoster();
+loadScorers();
 loadTeams();
 loadState();
 render();
