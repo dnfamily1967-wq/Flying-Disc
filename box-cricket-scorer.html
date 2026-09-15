@@ -214,6 +214,7 @@
   }
   .scoringLockBanner {
     display: none;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 8px;
@@ -228,6 +229,18 @@
     margin-bottom: 12px;
   }
   .scoringLockBanner.show { display: flex; }
+  #scoringLockWhoAmI {
+    width: 100%;
+    max-width: 320px;
+    border: 1.5px solid #d32f2f;
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #a01f1f;
+    background: #fff;
+    pointer-events: auto;
+  }
   .teamBox {
     background: var(--panel-2);
     border: 1px solid var(--line);
@@ -1014,7 +1027,13 @@
     </div>
 
     <div class="panel" id="scoringPanel">
-      <div class="scoringLockBanner" id="scoringLockBanner">🔒 View only — ask <span id="scoringLockNames">a scorer</span> to update this match</div>
+      <div class="scoringLockBanner" id="scoringLockBanner">
+        <div>🔒 View only — ask <span id="scoringLockNames">a scorer</span> to update this match</div>
+        <div style="font-weight:600; font-size:11.5px;">Are you one of them? Pick your name to unlock:</div>
+        <select id="scoringLockWhoAmI">
+          <option value="">— Just watching —</option>
+        </select>
+      </div>
       <h2 id="thisOverHeading">This Over</h2>
       <div class="ballLog" id="ballLog"></div>
 
@@ -1432,13 +1451,31 @@ function applyScoringLock() {
   if (panel) panel.classList.toggle('scoringLocked', locked);
   if (banner) banner.classList.toggle('show', locked);
   if (namesEl) namesEl.textContent = scorers.length ? scorers.join(' / ') : 'a scorer';
+  // Keep the quick "that's me" picker inside the lock banner in sync too — this is the only way
+  // to identify yourself once a match is already underway, since the main picker lives on the
+  // Setup screen which is no longer visible.
+  const lockSelect = document.getElementById('scoringLockWhoAmI');
+  if (lockSelect) {
+    const names = (roster && Array.isArray(roster.names)) ? roster.names : [];
+    lockSelect.innerHTML = '<option value="">— Just watching —</option>'
+      + names.map((n) => `<option value="${n}">${n}</option>`).join('');
+    lockSelect.value = names.includes(whoAmI) ? whoAmI : '';
+  }
 }
 
-document.getElementById('whoAmISelect').addEventListener('change', function () {
-  whoAmI = this.value;
+function setWhoAmI(name) {
+  whoAmI = name;
   try { localStorage.setItem(WHOAMI_KEY, whoAmI); } catch (e) {}
   renderScorerAccess();
   applyScoringLock();
+}
+
+document.getElementById('whoAmISelect').addEventListener('change', function () {
+  setWhoAmI(this.value);
+});
+
+document.getElementById('scoringLockWhoAmI').addEventListener('change', function () {
+  setWhoAmI(this.value);
 });
 
 document.getElementById('scorerChips').addEventListener('click', (e) => {
