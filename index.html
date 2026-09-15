@@ -3972,6 +3972,40 @@ function saveBtnClick() {
 }
 document.getElementById('saveBtn').addEventListener('click', saveBtnClick);
 
+// A new day started since these present/absent/holiday marks were last saved in the cloud —
+// reset everyone to "present" EXCEPT anyone with an approved holiday already recorded for today
+// (e.g. from Bulk Holiday, which writes future days' attendance in advance) — they stay marked
+// "holiday" automatically instead of reverting, so an approved holiday shows correctly here every
+// day up through however far it was approved for. Shared by both the live listener and the
+// explicit startup check below, so the two never duplicate this logic or drift out of sync.
+function performDayRollover(playersData) {
+  const today = todayStr();
+  attendanceDocRef(today).get().then((attnDoc) => {
+    const todaysRecord = (attnDoc.exists && Array.isArray(attnDoc.data().players)) ? attnDoc.data().players : [];
+    const holidayNames = new Set(todaysRecord.filter((r) => normalizeAttnStatus(r) === 'holiday').map((r) => r.name));
+    players = playersData.map((p) => ({ ...p, status: holidayNames.has(p.name) ? 'holiday' : 'present' }));
+    try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
+    render();
+    refreshBdayBanner();
+    updateLoginAvatar();
+    suppressNextSnapshot = true;
+    playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e) => {
+      console.error('Day-rollover save failed', e);
+    });
+  }).catch((e) => {
+    console.error('Day-rollover holiday check failed — defaulting everyone to present', e);
+    players = playersData.map((p) => ({ ...p, status: 'present' }));
+    try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e2) {}
+    render();
+    refreshBdayBanner();
+    updateLoginAvatar();
+    suppressNextSnapshot = true;
+    playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e2) => {
+      console.error('Day-rollover save failed', e2);
+    });
+  });
+}
+
 function load() {
   // Fast local render first (works offline), then live cloud listener keeps everyone in sync
   try {
@@ -3981,6 +4015,19 @@ function load() {
   render();
   refreshBdayBanner();
   updateLoginAvatar(); // login modal may already be open (it's shown before this data loads) — refresh it now that photos are available
+
+  // Belt-and-braces day-rollover check: an app left open overnight, or a `playersDocRef.onSnapshot`
+  // listener whose `fromCache` flag is slow to flip to false on a flaky connection, might not
+  // reliably catch "a new day started" on its own. Forcing one genuine server round-trip right at
+  // load time — independent of the ongoing listener below — guarantees this gets checked at least
+  // once per app open, so yesterday's absent/present marks don't silently linger into today.
+  playersDocRef.get({ source: 'server' }).then((doc) => {
+    if (doc.exists && Array.isArray(doc.data().list) && (doc.data().statusDate || '') !== todayStr()) {
+      performDayRollover(normalizePlayers(doc.data().list));
+    }
+  }).catch((e) => {
+    console.error('Startup day-rollover check failed (will still be caught by the live listener if it recovers):', e);
+  });
 
   playersDocRef.onSnapshot((doc) => {
     cloudReady = true;
@@ -4002,30 +4049,7 @@ function load() {
       // another device. The real server snapshot always arrives right after, so nothing is lost
       // by waiting for it.
       if (serverStatusDate !== today && !doc.metadata.fromCache) {
-        attendanceDocRef(today).get().then((attnDoc) => {
-          const todaysRecord = (attnDoc.exists && Array.isArray(attnDoc.data().players)) ? attnDoc.data().players : [];
-          const holidayNames = new Set(todaysRecord.filter((r) => normalizeAttnStatus(r) === 'holiday').map((r) => r.name));
-          players = players.map((p) => ({ ...p, status: holidayNames.has(p.name) ? 'holiday' : 'present' }));
-          try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
-          render();
-          refreshBdayBanner();
-          updateLoginAvatar();
-          suppressNextSnapshot = true;
-          playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e) => {
-            console.error('Day-rollover save failed', e);
-          });
-        }).catch((e) => {
-          console.error('Day-rollover holiday check failed — defaulting everyone to present', e);
-          players = players.map((p) => ({ ...p, status: 'present' }));
-          try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e2) {}
-          render();
-          refreshBdayBanner();
-          updateLoginAvatar();
-          suppressNextSnapshot = true;
-          playersDocRef.set({ list: players, statusDate: today, updatedAt: Date.now() }).catch((e2) => {
-            console.error('Day-rollover save failed', e2);
-          });
-        });
+        performDayRollover(players);
         return;
       }
       try { localStorage.setItem('disc-team-players', JSON.stringify(players)); } catch (e) {}
