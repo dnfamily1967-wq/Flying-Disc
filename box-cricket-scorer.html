@@ -2187,14 +2187,13 @@ function renderMatch() {
 
   // Batter chips: the team currently BATTING this innings. Anyone already retired — from a
   // Solo/Pair rotation turn ending, OR simply given out in a normal (real fall-of-wicket) match
-  // — stays visible in the list but greyed out/un-tappable, so nobody already dismissed can
-  // accidentally be brought back to bat.
-  const battingCandidates = currentBattingTeamPlayers();
+  // — is hidden from the list entirely (unless they're still the current striker/non-striker),
+  // so nobody already dismissed can accidentally be brought back to bat.
+  const battingCandidates = currentBattingTeamPlayers().filter((p) => !isRetiredBatter(p) || p === state.striker || p === state.nonStriker);
   batterChipsEl.innerHTML = battingCandidates.length ? battingCandidates.map((p) => {
     const role = p === state.striker ? 'striker' : (p === state.nonStriker ? 'nonstriker' : '');
     const tag = p === state.striker ? '<span class="roleTag">🟢 STRIKER</span>' : (p === state.nonStriker ? '<span class="roleTag">🔴 NON-STRIKER</span>' : '');
-    const used = isRetiredBatter(p) && p !== state.striker && p !== state.nonStriker;
-    return `<button type="button" class="tapChip ${role} ${used ? 'usedChip' : ''}" data-batter="${p}" ${used ? 'disabled' : ''}>${p}${tag}</button>`;
+    return `<button type="button" class="tapChip ${role}" data-batter="${p}">${p}${tag}</button>`;
   }).join('') : '<span style="color:var(--muted); font-size:12px;">No batters available</span>';
 
   const bowlerLabel = document.getElementById('bowlerLabel');
