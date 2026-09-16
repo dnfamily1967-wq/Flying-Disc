@@ -548,6 +548,8 @@
   .ballChip.six { background: rgba(24,155,82,0.14); border-color: var(--led); color: #0e6a38; }
   .ballChip.out { background: rgba(211,47,47,0.14); border-color: var(--ball); color: #a01f1f; }
   .ballChip.extra { background: rgba(232,137,12,0.1); border-color: var(--amber); color: #8a5306; font-size: 9px; }
+  .ballChip.wide { background: rgba(232,137,12,0.14); border-color: var(--amber); color: #8a5306; }
+  .ballChip.noball { background: rgba(211,47,47,0.1); border-color: var(--ball); color: #a01f1f; }
   .ballChip.dot { color: var(--muted); }
   /* Distinct color per run value, so every ball's outcome is recognizable by color at a glance,
      not just by the number printed inside it. */
@@ -631,11 +633,19 @@
     font-weight: 800;
   }
   .padBtn:active { transform: scale(0.94); }
+  /* Watercolor-style, distinct per-run colors — matches the ball-log chip colors so the same
+     run always reads as the same color everywhere in the app. */
+  .padBtn.run0 { border-color: var(--muted); color: var(--muted); background: rgba(91,122,147,0.08); }
+  .padBtn.run1 { border-color: #4F9FDB; color: #145A8A; background: rgba(79,159,219,0.1); }
+  .padBtn.run2 { border-color: #0d9488; color: #0f5d54; background: rgba(20,184,166,0.1); }
+  .padBtn.run3 { border-color: #A671C9; color: #6B2E93; background: rgba(166,113,201,0.1); }
   .padBtn.run4 { border-color: var(--amber); color: var(--ink); font-weight: 800; }
   .padBtn.run6 { border-color: var(--led); color: var(--ink); font-weight: 800; background: rgba(24,155,82,0.08); }
   .padBtn.net { border-color: var(--amber); color: var(--ink); font-weight: 800; background: rgba(232,137,12,0.08); font-size: 15px; }
   .padBtn.out { background: linear-gradient(135deg, var(--ball), #a01f1f); border-color: var(--ball); color: #fff; font-size: 14px; letter-spacing: 1px; padding: 12px 0; }
-  .padBtn.extra { grid-column: span 3; background: rgba(232,137,12,0.12); border-color: var(--amber); color: var(--ink); font-weight: 800; font-size: 13px; letter-spacing: 1px; }
+  .padBtn.extra { background: rgba(232,137,12,0.12); border-color: var(--amber); color: var(--ink); font-weight: 800; font-size: 13px; letter-spacing: 1px; }
+  .padBtn.wideBtn { background: rgba(232,137,12,0.12); border-color: var(--amber); color: #8a5306; }
+  .padBtn.noballBtn { background: rgba(211,47,47,0.1); border-color: var(--ball); color: #a01f1f; }
   .padRow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 
   /* ---- OUT and Undo side by side: red OUT box, green Undo box, sized to fit any mobile
@@ -1067,14 +1077,17 @@
       </div>
 
       <div class="padGrid">
-        <button class="padBtn dotBtn" data-run="0">0</button>
-        <button class="padBtn" data-run="1">1</button>
-        <button class="padBtn" data-run="2">2</button>
-        <button class="padBtn" data-run="3">3</button>
+        <button class="padBtn run0" data-run="0">0</button>
+        <button class="padBtn run1" data-run="1">1</button>
+        <button class="padBtn run2" data-run="2">2</button>
+        <button class="padBtn run3" data-run="3">3</button>
         <button class="padBtn run4" data-run="4">4</button>
         <button class="padBtn run6" data-run="6">6</button>
       </div>
-      <button class="padBtn extra" id="extraBtn" style="width:100%; margin-bottom:8px;">WIDE / NO BALL</button>
+      <div class="padGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:8px;">
+        <button class="padBtn extra wideBtn" id="wideBtn">WIDE (W)</button>
+        <button class="padBtn extra noballBtn" id="noballBtn">NO BALL (N)</button>
+      </div>
       <div class="padGrid" style="grid-template-columns: 1fr 1fr; margin-bottom:10px;">
         <button class="padBtn net" data-net="1">1+1</button>
         <button class="padBtn net" data-net="2">1+2</button>
@@ -2213,7 +2226,11 @@ function renderMatch() {
   ballLogEl.innerHTML = state.thisOverBalls.map((b, idx) => {
     const tap = ` data-idx="${idx}" title="Tap to undo back to before this ball"`;
     if (b.type === 'out') return `<div class="ballChip out"${tap}>OUT</div>`;
-    if (b.type === 'extra') return `<div class="ballChip extra"${tap}>+${b.run}</div>`;
+    if (b.type === 'extra') {
+      if (b.extraKind === 'wide') return `<div class="ballChip wide"${tap} title="Wide — tap to undo back to before this ball">W</div>`;
+      if (b.extraKind === 'noball') return `<div class="ballChip noball"${tap} title="No ball — tap to undo back to before this ball">N</div>`;
+      return `<div class="ballChip extra"${tap}>+${b.run}</div>`;
+    }
     if (b.label === 'net') return `<div class="ballChip extra"${tap} title="1 run + net bonus = ${b.run} — tap to undo back to before this ball">1+${b.run - 1}</div>`;
     if (b.run === 0) return `<div class="ballChip dot"${tap}>•</div>`;
     if (b.run === 4) return `<div class="ballChip four"${tap}>4</div>`;
@@ -2516,10 +2533,16 @@ document.getElementById('outBtn').addEventListener('click', () => {
     recordBall({ type: 'out', run: 0 });
   });
 });
-document.getElementById('extraBtn').addEventListener('click', () => {
+document.getElementById('wideBtn').addEventListener('click', () => {
   withScoringLock(() => {
     hapticTap(12);
-    recordBall({ type: 'extra', run: state.extraRuns });
+    recordBall({ type: 'extra', run: state.extraRuns, extraKind: 'wide' });
+  });
+});
+document.getElementById('noballBtn').addEventListener('click', () => {
+  withScoringLock(() => {
+    hapticTap(12);
+    recordBall({ type: 'extra', run: state.extraRuns, extraKind: 'noball' });
   });
 });
 document.querySelectorAll('.padBtn[data-net]').forEach((btn) => {
