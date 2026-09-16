@@ -549,6 +549,11 @@
   .ballChip.out { background: rgba(211,47,47,0.14); border-color: var(--ball); color: #a01f1f; }
   .ballChip.extra { background: rgba(232,137,12,0.1); border-color: var(--amber); color: #8a5306; font-size: 9px; }
   .ballChip.dot { color: var(--muted); }
+  /* Distinct color per run value, so every ball's outcome is recognizable by color at a glance,
+     not just by the number printed inside it. */
+  .ballChip.run1 { background: rgba(79,159,219,0.16); border-color: #4F9FDB; color: #145A8A; }
+  .ballChip.run2 { background: rgba(20,184,166,0.16); border-color: #0d9488; color: #0f5d54; }
+  .ballChip.run3 { background: rgba(166,113,201,0.16); border-color: #A671C9; color: #6B2E93; }
 
   /* ---- Setup screen's out-penalty / wide-ball settings row ---- */
   .matchupRow { display: flex; gap: 10px; margin-bottom: 4px; }
@@ -1050,6 +1055,7 @@
       <h2 id="thisOverHeading">This Over</h2>
       <div style="font-size:10.5px; color:var(--muted); margin:-4px 0 6px;">Tap any ball below to undo back to right before it</div>
       <div class="ballLog" id="ballLog"></div>
+      <div id="ballsProgressText" style="font-family:'Share Tech Mono', monospace; font-size:11px; font-weight:700; color:var(--muted); margin:0 0 6px;"></div>
 
       <div class="matchupBlock">
         <label id="bowlerLabel">Bowler — tap to set</label>
@@ -2212,8 +2218,20 @@ function renderMatch() {
     if (b.run === 0) return `<div class="ballChip dot"${tap}>•</div>`;
     if (b.run === 4) return `<div class="ballChip four"${tap}>4</div>`;
     if (b.run === 6) return `<div class="ballChip six"${tap}>6</div>`;
+    if (b.run === 1) return `<div class="ballChip run1"${tap}>1</div>`;
+    if (b.run === 2) return `<div class="ballChip run2"${tap}>2</div>`;
+    if (b.run === 3) return `<div class="ballChip run3"${tap}>3</div>`;
     return `<div class="ballChip"${tap}>${b.run}</div>`;
   }).join('') || '<span style="color:var(--muted); font-size:12px;">No balls bowled yet this over</span>';
+
+  // Legal balls bowled vs remaining in this over — wides/no-balls don't count toward either,
+  // same as legalBallsThisOver itself.
+  const ballsProgressEl = document.getElementById('ballsProgressText');
+  if (ballsProgressEl) {
+    const done = state.legalBallsThisOver;
+    const remaining = Math.max(6 - done, 0);
+    ballsProgressEl.textContent = `${done} of 6 balls bowled · ${remaining} to go`;
+  }
 
   const innings1Len = innings1OversCount();
   const inn1Label = innings1Len ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Innings 1 — ${state.team1Name || 'Team A'} bowling</div>` : '';
