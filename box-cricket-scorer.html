@@ -140,9 +140,9 @@
   }
   .hdr h1 span { color: var(--ball); }
 
-  /* ---- Top action bar (admin lock + refresh) — moved down out of the old fixed floating
-         corner into a normal watercolor + bordered box, same design language as the bowler/
-         batter chips elsewhere in the app. ---- */
+  /* ---- Top action bar (admin lock + refresh) — moved out of the old fixed floating corner
+         all the way down to the bottom of whichever screen is showing, into a normal watercolor
+         + bordered box, same design language as the bowler/batter chips elsewhere in the app. ---- */
   #topActionBar {
     display: flex;
     justify-content: center;
@@ -151,7 +151,7 @@
     border: 1.5px solid var(--bowl-border);
     border-radius: 14px;
     padding: 8px 12px;
-    margin-bottom: 10px;
+    margin-top: 10px;
   }
   #topActionBar button {
     width: 34px;
@@ -428,35 +428,53 @@
 
   /* ---- Mini score bar: the only score visible at the very top now (the full orange
          scoreboard moved below the Retire Batter row) — stays pinned while scrolling through
-         the scoring pad so the live total is never out of sight. ---- */
+         the scoring pad so the live total is never out of sight. Same carnival-orange gradient
+         as the full scoreboard, now with a bold black border, both teams shown side by side
+         (whichever is currently batting reads bold and bright, the other stays a touch dimmed). ---- */
   .miniScoreBar {
     position: sticky;
     top: 0;
     z-index: 40;
+    display: flex;
+    align-items: stretch;
     background: linear-gradient(135deg, #FFD166 0%, #FDA84B 40%, #F97B57 100%);
+    border: 2px solid #1a1a1a;
     border-radius: 12px;
-    padding: 6px 14px;
+    padding: 6px 10px;
     margin-bottom: 8px;
-    text-align: center;
-    box-shadow: 0 6px 14px rgba(200,80,110,0.28);
+    box-shadow: 0 6px 14px rgba(200,80,110,0.3);
   }
+  .miniScoreCol {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+    opacity: 0.55;
+  }
+  .miniScoreCol.isBatting { opacity: 1; }
+  .miniScoreDivider { width: 2px; background: rgba(58,20,10,0.3); margin: 2px 8px; border-radius: 2px; }
   .miniScoreBar .miniScoreTeam {
     font-family: 'Share Tech Mono', monospace;
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
     color: rgba(58,20,10,0.7);
-    margin-right: 10px;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+  .miniScoreCol.isBatting .miniScoreTeam { color: #3A0F04; }
   .miniScoreBar .miniScoreRuns {
     font-family: 'Share Tech Mono', monospace;
-    font-size: 19px;
+    font-size: 21px;
     font-weight: 800;
     color: #3A0F04;
     letter-spacing: 0.5px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.45);
   }
-  body.onMatch .miniScoreBar { padding: 5px 12px; margin-bottom: 5px; }
+  body.onMatch .miniScoreBar { padding: 5px 10px; margin-bottom: 5px; }
+  body.onMatch .miniScoreBar .miniScoreRuns { font-size: 18px; }
 
   /* ---- Scoreboard: multi-color carnival gradient with colorful accents — playful and
          attractive, while keeping bold dark text for strong readability. ---- */
@@ -903,6 +921,22 @@
 
   .hidden { display: none !important; }
   .footNote { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 18px; line-height: 1.6; }
+
+  /* ---- One consistent dark border color for every tappable "key" across the whole app — run
+         pad, bowler/batter chips, OUT/Undo/Retire, ball-log chips, sort/history buttons, team
+         logo badges, etc. Each element keeps its own fill color (that's what tells them apart),
+         but now every border reads as the same bold, deliberate outline instead of a different
+         faint shade per button type. Greyed-out/disabled chips are excluded further below so
+         they still read as "can't tap". ---- */
+  .tapChip, .padBtn, .ballChip, .sortBtn2, .historyActionBtn, .overBadge, .chip,
+  #undoBtn, #retireBtn, #topActionBar button, #adminToggleBtn, #refreshAppBtn,
+  .teamLogoBadge, .btn-ghost, .rosterChip, .skillDot {
+    border-color: #1a1a1a !important;
+  }
+  #bowlerChips .tapChip.usedChip, #batterChips .tapChip.usedChip,
+  .overBadge.done {
+    border-color: #D7E0E8 !important;
+  }
 </style>
 </head>
 <body>
@@ -914,13 +948,6 @@
     <h1>BOX <span>CRICKET</span></h1>
   </div>
 
-  <!-- Moved down out of the old fixed top-right floating corner into a normal watercolor +
-       border box, same design language as the rest of the app — sits right under the header on
-       every screen (setup, match, final) since the admin lock/unlock is needed on all of them. -->
-  <div id="topActionBar">
-    <button id="adminToggleBtn" title="Admin unlock/lock">🔐</button>
-    <button id="refreshAppBtn" title="Clear cache & refresh app">🔄</button>
-  </div>
 
   <!-- Offscreen JPEG-export render target -->
   <div id="exportCard"></div>
@@ -1142,15 +1169,19 @@
   <div id="matchScreen" class="hidden">
   <div id="matchScaleWrap">
 
-    <!-- Slim sticky run line — the full orange scoreboard now lives further down (below the
-         Retire Batter row), so this is the only score visible without scrolling while scoring. -->
+    <!-- Slim sticky score line — the full scoreboard now lives further down (below the Retire
+         Batter row), so this is the only score visible without scrolling while scoring. Both
+         teams shown side by side; whichever is currently batting is highlighted. -->
     <div class="miniScoreBar" id="miniScoreBar">
-      <span class="miniScoreTeam" id="miniScoreLabel">Team B</span><span class="miniScoreRuns" id="miniScoreRuns">0/0</span>
-    </div>
-
-    <div class="panel" id="scoreAccessStatusPanel" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:linear-gradient(135deg, rgba(232,137,12,0.1) 0%, rgba(255,209,102,0.12) 100%); border:1.5px solid var(--amber, #f5a623);">
-      <span id="scoreAccessStatusText" style="font-weight:800; font-size:13px;"></span>
-      <a href="#" id="changePinLinkMatch" class="hidden" style="color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline; white-space:nowrap;">🔑 Change PIN</a>
+      <div class="miniScoreCol" id="miniScoreColA">
+        <span class="miniScoreTeam" id="miniScoreLabelA">Team A</span>
+        <span class="miniScoreRuns" id="miniScoreRunsA">0/0</span>
+      </div>
+      <div class="miniScoreDivider"></div>
+      <div class="miniScoreCol" id="miniScoreColB">
+        <span class="miniScoreTeam" id="miniScoreLabelB">Team B</span>
+        <span class="miniScoreRuns" id="miniScoreRunsB">0/0</span>
+      </div>
     </div>
 
     <div class="panel" id="scoringPanel">
@@ -1252,6 +1283,11 @@
       </table>
     </div>
 
+    <div class="panel" id="scoreAccessStatusPanel" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:linear-gradient(135deg, rgba(232,137,12,0.1) 0%, rgba(255,209,102,0.12) 100%); border:1.5px solid var(--amber, #f5a623);">
+      <span id="scoreAccessStatusText" style="font-weight:800; font-size:13px;"></span>
+      <a href="#" id="changePinLinkMatch" class="hidden" style="color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline; white-space:nowrap;">🔑 Change PIN</a>
+    </div>
+
     <button class="btn-ghost" id="endMatchBtn" style="width:100%; margin-bottom:8px;">🏁 End Match Now</button>
     <button class="btn-ghost" id="newMatchBtnMatch" style="width:100%; color:var(--ball); border-color:var(--ball);">🔄 Discard &amp; Start New Match</button>
   </div>
@@ -1306,6 +1342,15 @@
     </div>
 
     <button class="btn-primary" id="newMatchBtn">🔄 Start New Match</button>
+  </div>
+
+  <!-- Sits at the very bottom of whichever screen (setup/match/final) is showing, since the
+       other two screens are display:none and take no space — a normal watercolor + border box,
+       not a floating corner overlay. Admin lock/unlock still needs to reach every screen, so it
+       stays a single shared element rather than being duplicated per screen. -->
+  <div id="topActionBar">
+    <button id="adminToggleBtn" title="Admin unlock/lock">🔐</button>
+    <button id="refreshAppBtn" title="Clear cache & refresh app">🔄</button>
   </div>
 
 </div>
@@ -2425,15 +2470,27 @@ function renderMatch() {
   const team2Name = state.team2Name || 'Team B';
   document.getElementById('sbTeamAName').textContent = team1Name;
   document.getElementById('sbTeamBName').textContent = team2Name;
-  // Sticky mini score line at the very top — shows just the batting side's live total, since
-  // the full scoreboard box now sits further down, below the Retire Batter row. Updates on
-  // every render (so it's always live — a ball scored here, or a ball synced in from another
-  // phone) — it blinks continuously via CSS, same as the balls-bowled line above.
-  const miniLabelEl = document.getElementById('miniScoreLabel');
-  const miniRunsEl = document.getElementById('miniScoreRuns');
-  if (miniLabelEl && miniRunsEl) {
-    miniLabelEl.textContent = isInnings1 ? team2Name : team1Name;
-    miniRunsEl.textContent = `${state.totalRuns}/${state.totalWkts}`;
+  // Sticky mini score line at the very top — both teams side by side, since the full scoreboard
+  // box now sits further down, below the Retire Batter row. Updates on every render (so it's
+  // always live — a ball scored here, or a ball synced in from another phone) — it blinks
+  // continuously via CSS, same as the balls-bowled line above. Team B always bats first, Team A
+  // chases — same fixed order the full scoreboard below uses.
+  const miniColAEl = document.getElementById('miniScoreColA');
+  const miniColBEl = document.getElementById('miniScoreColB');
+  if (miniColAEl && miniColBEl) {
+    document.getElementById('miniScoreLabelA').textContent = team1Name;
+    document.getElementById('miniScoreLabelB').textContent = team2Name;
+    if (isInnings1) {
+      document.getElementById('miniScoreRunsA').textContent = '0/0';
+      document.getElementById('miniScoreRunsB').textContent = `${state.totalRuns}/${state.totalWkts}`;
+      miniColAEl.classList.remove('isBatting');
+      miniColBEl.classList.add('isBatting');
+    } else {
+      document.getElementById('miniScoreRunsB').textContent = `${state.firstInningsRuns !== undefined ? state.firstInningsRuns : 0}/${state.firstInningsWkts !== undefined ? state.firstInningsWkts : 0}`;
+      document.getElementById('miniScoreRunsA').textContent = `${state.totalRuns}/${state.totalWkts}`;
+      miniColBEl.classList.remove('isBatting');
+      miniColAEl.classList.add('isBatting');
+    }
   }
   const colA = document.getElementById('sbScoreColA');
   const colB = document.getElementById('sbScoreColB');
