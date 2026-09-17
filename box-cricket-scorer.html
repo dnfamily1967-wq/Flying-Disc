@@ -1543,13 +1543,15 @@ function doCloudPush() {
   if (!firebaseReady) return; // cloud sync unavailable this session — localStorage save already happened
   try {
     // Firestore rejects `undefined` values — a clean JSON round-trip strips those out safely.
-    // Roster (master player list) and teamsState (this match's Team A/B split) are synced
-    // alongside the live match itself, so setup screens match on every phone too — not just
-    // the scoring once a match is underway.
+    // Roster (master player list), teamsState (this match's Team A/B split), and the scheduled-
+    // matches list are all synced alongside the live match itself, so setup screens — and
+    // scheduled matches saved on one phone — match on every phone too, not just the scoring
+    // once a match is underway.
     const payload = {
       state: JSON.parse(JSON.stringify(state)),
       roster: JSON.parse(JSON.stringify(roster)),
       teamsState: JSON.parse(JSON.stringify(teamsState)),
+      scheduled: JSON.parse(JSON.stringify(loadScheduledList())),
       adminPin: adminPin,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -3325,7 +3327,8 @@ document.getElementById('newMatchBtnMatch').addEventListener('click', () => {
 // ---------------- SCHEDULED MATCHES ----------------
 // Lets a team save today's line-up + settings against a FUTURE date/time, under a match name —
 // so it's waiting right here (with a "today" banner) instead of having to be rebuilt from
-// scratch when that day actually arrives. Local-only (like Match History), one list per phone.
+// scratch when that day actually arrives. Synced via the cloud (like roster/teamsState) so a
+// match scheduled on one phone shows up on every other phone too — not local-only.
 function loadScheduledList() {
   try {
     const raw = localStorage.getItem(SCHEDULED_KEY);
@@ -3334,6 +3337,7 @@ function loadScheduledList() {
 }
 function saveScheduledListToStorage(list) {
   try { localStorage.setItem(SCHEDULED_KEY, JSON.stringify(list)); } catch (e) {}
+  pushStateToCloud();
 }
 function isSameLocalDay(isoStr) {
   const d = new Date(isoStr);
