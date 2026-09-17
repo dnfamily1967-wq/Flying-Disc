@@ -2590,7 +2590,7 @@ function recordBall(entry) {
       // is cricket's "all out" — you can't continue with a single batter and no non-striker.
       // Flag it so we end the innings right after this ball's bookkeeping below, instead of
       // leaving the scorer stuck waiting on a non-striker pick that has no name left to offer.
-      if (!hasReplacementBatter([state.striker])) {
+      if (!hasPickableReplacement([state.striker])) {
         state.allOutThisBall = true;
       }
     }
@@ -2628,7 +2628,7 @@ function recordBall(entry) {
     // Also: don't force the retirement at all if there's nobody left to replace them (e.g. this
     // is the last pair standing) — they just keep batting past the quota instead of the innings
     // getting stuck waiting for a hand-pick that has no fresh name to offer.
-    if (!isRetiredBatter(facingBatter) && hasReplacementBatter([state.striker, state.nonStriker])) {
+    if (!isRetiredBatter(facingBatter) && hasPickableReplacement([state.striker, state.nonStriker])) {
       if (!state.retiredBatters.includes(facingBatter)) state.retiredBatters.push(facingBatter);
       markRetireEligibility(facingBatter);
       snapshotRetireBaseline(facingBatter);
@@ -2817,12 +2817,31 @@ function isGenuinelyOut(p) {
   return !!(state.genuineOutBatters && state.genuineOutBatters.includes(p));
 }
 // True if at least one OTHER player (not currently batting) is still around to come in as a
-// replacement — i.e. not genuinely OUT. Used to skip forcing a retirement (auto-retire quota, or
-// Solo/Pair rotation) on whoever's batting right now when they're the last one(s) left, so the
-// innings doesn't grind to a halt waiting on a hand-pick with no fresh name to offer.
+// replacement — i.e. not genuinely OUT. Used to skip forcing a retirement (Solo/Pair rotation)
+// on whoever's batting right now when they're the last one(s) left, so the innings doesn't
+// grind to a halt waiting on a hand-pick with no fresh name to offer. Solo/Pair rotation is
+// safe using this looser check because getSoloBatterForOver()/getFreshPairForOver() have their
+// own "bring back a RETIRED (not genuinely OUT) player" comeback fallback that ignores the
+// return-threshold entirely — see hasPickableReplacement() below for the stricter check that
+// the manually-picked cases (quota retirement, Pair's fresh-pair pick) actually need.
 function hasReplacementBatter(currentlyBatting) {
   const candidates = currentBattingTeamPlayers();
   return candidates.some((p) => !currentlyBatting.includes(p) && !isGenuinelyOut(p));
+}
+// True if a batter could actually be TAPPED right now to fill the vacancy once the quota-hit
+// batter retires — i.e. someone not already batting AND not currently retired (isRetiredBatter,
+// which respects the "Retired Batter Returns After" wicket-count threshold). This is the check
+// the ball/run quota retirement needs: unlike Solo/Pair rotation, nobody auto-picks the next
+// batter here — the scorer taps a name from the chips, and those chips only ever offer
+// non-retired names while anyone is still actively batting (eligibleBatters()'s relaxed
+// fallback only kicks in once BOTH batting slots are empty). Using the looser
+// hasReplacementBatter() here would force a batter to retire even when the only "available"
+// name left is a teammate still short of their return threshold — leaving the vacant slot with
+// no tappable name and the scorer stuck. So the batter simply carries on past their quota
+// instead, exactly like the "last pair standing" case already does.
+function hasPickableReplacement(currentlyBatting) {
+  const candidates = currentBattingTeamPlayers();
+  return candidates.some((p) => !currentlyBatting.includes(p) && !isRetiredBatter(p));
 }
 // The list of batters who can actually be picked right now. Normally this is just "not currently
 // retired" (isRetiredBatter), same as before. But if that leaves NOBODY at all — everyone's either
