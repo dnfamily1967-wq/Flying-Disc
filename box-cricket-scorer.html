@@ -935,8 +935,32 @@
           <label>Overs (per side)</label>
           <input type="number" id="oversInput" min="1" placeholder="Overs">
         </div>
+        <div class="matchupCol">
+          <label>Max Overs/Bowler</label>
+          <input type="number" id="maxOversPerBowlerInput" min="1" placeholder="1">
+        </div>
       </div>
       <div class="setupHint" id="oversHint" style="margin-top:-6px; margin-bottom:10px;"></div>
+      <div class="matchupRow" style="margin-bottom:12px;">
+        <div class="matchupCol">
+          <label>Batter Auto-Retire After (optional)</label>
+          <input type="number" id="maxBallsPerBatterInput" min="1" placeholder="No limit">
+        </div>
+        <div class="matchupCol">
+          <label>Unit</label>
+          <select id="maxBallsPerBatterUnit">
+            <option value="balls" selected>Balls</option>
+            <option value="overs">Overs</option>
+          </select>
+        </div>
+      </div>
+      <div class="matchupRow" style="margin-bottom:12px;">
+        <div class="matchupCol">
+          <label>...Or After Scoring (optional)</label>
+          <input type="number" id="maxRunsPerBatterInput" min="1" placeholder="No limit">
+        </div>
+      </div>
+      <div class="setupHint" id="maxBallsHint" style="margin-top:-6px; margin-bottom:10px;">Leave blank for no limit. A batter is automatically retired the moment EITHER limit is reached (balls/overs faced, or runs scored) — whichever comes first — and the next batter must be picked by hand. Works alongside any Retirement Rule below.</div>
       <div class="matchupRow">
         <div class="matchupCol">
           <label>Out Penalty</label>
@@ -974,6 +998,17 @@
       </div>
       <div class="setupHint" id="negOutSwapHint" style="margin-top:6px;"></div>
       <div class="setupHint" id="retirementHint" style="margin-top:8px;"></div>
+      <div class="matchupRow" style="margin-top:12px;">
+        <div class="matchupCol">
+          <label>Retired Batter Returns After</label>
+          <select id="retireReturnAfterOutsInput">
+            <option value="0" selected>Never (stays out for good)</option>
+            <option value="2">2 more wickets fall</option>
+            <option value="3">3 more wickets fall</option>
+          </select>
+        </div>
+      </div>
+      <div class="setupHint" id="retireReturnHint" style="margin-top:6px;"></div>
     </div>
 
     <div class="panel" id="schedulePanel">
@@ -1304,6 +1339,17 @@ function loadState() {
       if (state.retirementRule === undefined) state.retirementRule = 'none';
       if (state.negOutSwapStrike === undefined) state.negOutSwapStrike = true;
       if (state.matchName === undefined) state.matchName = '';
+      // Migrate older saved matches that predate the bowling/batting quota settings — 1 over per
+      // bowler and no ball limit per batter matches the app's original (pre-quota) behaviour.
+      if (state.maxOversPerBowler === undefined) state.maxOversPerBowler = 1;
+      if (state.maxBallsPerBatter === undefined) state.maxBallsPerBatter = 0;
+      if (state.batterBallQuotaUnit === undefined) state.batterBallQuotaUnit = 'balls';
+      if (state.retireAfterRuns === undefined) state.retireAfterRuns = 0;
+      // Migrate older saved matches that predate the "retired batter can return" rule.
+      if (state.retireReturnAfterOuts === undefined) state.retireReturnAfterOuts = 0;
+      if (state.retireEligibleAgainAt === undefined) state.retireEligibleAgainAt = {};
+      if (state.retireStatBaseline === undefined) state.retireStatBaseline = {};
+      if (state.genuineOutBatters === undefined) state.genuineOutBatters = [];
       // Migrate matches saved before manual bowler/batter selection was added — those had a
       // bowler + pair auto-picked by the app. Clear that one-time so nothing is pre-selected
       // that the team didn't actually tap themselves; future saves are left alone.
@@ -1316,7 +1362,7 @@ function loadState() {
       return;
     }
   } catch (e) {}
-  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true, manualPickMigrated: true, matchName: '' };
+  state = { screen: 'setup', players: [], overs: null, outPenalty: -3, extraRuns: 1, retirementRule: 'none', negOutSwapStrike: true, manualPickMigrated: true, matchName: '', maxOversPerBowler: 1, maxBallsPerBatter: 0, batterBallQuotaUnit: 'balls', retireAfterRuns: 0, retireReturnAfterOuts: 0, retireEligibleAgainAt: {}, retireStatBaseline: {}, genuineOutBatters: [] };
 }
 
 function saveState() {
@@ -1555,7 +1601,12 @@ const extraRunsInput = document.getElementById('extraRunsInput');
 const negOutSwapInput = document.getElementById('negOutSwapInput');
 const retirementRuleInput = document.getElementById('retirementRuleInput');
 const retirementHintEl = document.getElementById('retirementHint');
+const retireReturnAfterOutsInput = document.getElementById('retireReturnAfterOutsInput');
 const oversInput = document.getElementById('oversInput');
+const maxOversPerBowlerInput = document.getElementById('maxOversPerBowlerInput');
+const maxBallsPerBatterInput = document.getElementById('maxBallsPerBatterInput');
+const maxBallsPerBatterUnit = document.getElementById('maxBallsPerBatterUnit');
+const maxRunsPerBatterInput = document.getElementById('maxRunsPerBatterInput');
 const tossBowlsFirstInput = document.getElementById('tossBowlsFirst');
 const matchNameInput = document.getElementById('matchNameInput');
 matchNameInput.addEventListener('input', () => { state.matchName = matchNameInput.value; saveState(); });
@@ -1921,7 +1972,7 @@ function renderSetup() {
   // Everyone can WATCH these settings; only an unlocked (admin) phone can change them — disable
   // the actual form controls rather than alerting on every keystroke/change.
   [matchNameInput, outPenaltyInput, extraRunsInput, negOutSwapInput, tossBowlsFirstInput,
-   retirementRuleInput, oversInput, team1NameInput, team2NameInput, rosterNameInput,
+   retirementRuleInput, retireReturnAfterOutsInput, oversInput, maxOversPerBowlerInput, maxBallsPerBatterInput, maxBallsPerBatterUnit, maxRunsPerBatterInput, team1NameInput, team2NameInput, rosterNameInput,
    addRosterBtn, document.getElementById('makeTwoTeamsBtn'), document.getElementById('unassignedSelect'),
    document.getElementById('addToTeam1Btn'), document.getElementById('addToTeam2Btn'),
    document.getElementById('scheduleDateTimeInput'), document.getElementById('saveScheduledBtn')
@@ -1953,12 +2004,36 @@ function renderSetup() {
   }
   retirementRuleInput.value = state.retirementRule || 'none';
   retirementHintEl.textContent = RETIREMENT_HINTS[state.retirementRule || 'none'];
-  const perSideMax = Math.max(teamsState.team1.length, teamsState.team2.length, 1);
+  if (retireReturnAfterOutsInput) {
+    retireReturnAfterOutsInput.value = String(state.retireReturnAfterOuts || 0);
+    const retireReturnHintEl = document.getElementById('retireReturnHint');
+    if (retireReturnHintEl) {
+      retireReturnHintEl.textContent = state.retireReturnAfterOuts
+        ? `A batter who auto-retires (ball/run limit) or rotates out (Pair/Solo) becomes pickable again once ${state.retireReturnAfterOuts} more wickets fall. Applies only to retirements, not to a genuine OUT.`
+        : 'Once a batter auto-retires or rotates out (Pair/Solo), they cannot be picked again this innings.';
+    }
+  }
+  maxOversPerBowlerInput.value = String(state.maxOversPerBowler || 1);
+  // The stored quota is always in BALLS internally (simplest for the recordBall() check) — when
+  // the unit is "Overs", show it back divided by 6 so the admin sees the same number they typed.
+  maxBallsPerBatterUnit.value = state.batterBallQuotaUnit || 'balls';
+  if (!state.maxBallsPerBatter) {
+    maxBallsPerBatterInput.value = '';
+  } else if (state.batterBallQuotaUnit === 'overs') {
+    maxBallsPerBatterInput.value = String(Math.round(state.maxBallsPerBatter / 6));
+  } else {
+    maxBallsPerBatterInput.value = String(state.maxBallsPerBatter);
+  }
+  maxRunsPerBatterInput.value = state.retireAfterRuns ? String(state.retireAfterRuns) : '';
+  const quota = Math.max(parseInt(maxOversPerBowlerInput.value, 10) || 1, 1);
+  const perSideMax = Math.max(teamsState.team1.length, teamsState.team2.length, 1) * quota;
   oversInput.value = String(state.overs || perSideMax || '');
   oversInput.max = String(perSideMax);
   const oversHintEl = document.getElementById('oversHint');
   if (oversHintEl) {
-    oversHintEl.textContent = `Each side bowls this many overs (max ${perSideMax}, based on your bigger team) — the match ends once BOTH sides have batted.`;
+    oversHintEl.textContent = quota > 1
+      ? `Each side bowls this many overs (max ${perSideMax} = bigger team × ${quota} overs/bowler) — the match ends once BOTH sides have batted.`
+      : `Each side bowls this many overs (max ${perSideMax}, based on your bigger team — 1 over per bowler) — the match ends once BOTH sides have batted.`;
   }
   renderRoster();
   renderTeams();
@@ -1975,12 +2050,57 @@ retirementRuleInput.addEventListener('change', () => {
   saveState();
   renderSetup();
 });
+if (retireReturnAfterOutsInput) {
+  retireReturnAfterOutsInput.addEventListener('change', () => {
+    state.retireReturnAfterOuts = Number(retireReturnAfterOutsInput.value) || 0;
+    saveState();
+    renderSetup();
+  });
+}
 oversInput.addEventListener('change', () => {
   let val = parseInt(oversInput.value, 10);
-  const maxOvers = Math.max(teamsState.team1.length, teamsState.team2.length, 1);
+  const quota = Math.max(parseInt(maxOversPerBowlerInput.value, 10) || 1, 1);
+  const maxOvers = Math.max(teamsState.team1.length, teamsState.team2.length, 1) * quota;
   if (isNaN(val) || val < 1) val = 1;
   if (val > maxOvers) val = maxOvers;
   state.overs = val;
+  saveState();
+  renderSetup();
+});
+maxOversPerBowlerInput.addEventListener('change', () => {
+  let val = parseInt(maxOversPerBowlerInput.value, 10);
+  if (isNaN(val) || val < 1) val = 1;
+  state.maxOversPerBowler = val;
+  saveState();
+  renderSetup();
+});
+maxBallsPerBatterInput.addEventListener('change', () => {
+  const raw = maxBallsPerBatterInput.value.trim();
+  let val = parseInt(raw, 10);
+  if (!raw || isNaN(val) || val < 1) {
+    state.maxBallsPerBatter = 0;
+  } else {
+    // Store internally as balls regardless of which unit the admin typed in.
+    state.maxBallsPerBatter = maxBallsPerBatterUnit.value === 'overs' ? val * 6 : val;
+  }
+  saveState();
+  renderSetup();
+});
+maxBallsPerBatterUnit.addEventListener('change', () => {
+  // Switching units re-interprets whatever's currently in the box (e.g. typed "2" meaning overs,
+  // then switched to Balls — that becomes a 2-ball quota, not silently converted) so the admin's
+  // last keystroke always wins; then renderSetup() redraws the box in the new unit's own terms.
+  const raw = maxBallsPerBatterInput.value.trim();
+  const val = parseInt(raw, 10);
+  state.batterBallQuotaUnit = maxBallsPerBatterUnit.value;
+  state.maxBallsPerBatter = (!raw || isNaN(val) || val < 1) ? 0 : (state.batterBallQuotaUnit === 'overs' ? val * 6 : val);
+  saveState();
+  renderSetup();
+});
+maxRunsPerBatterInput.addEventListener('change', () => {
+  const raw = maxRunsPerBatterInput.value.trim();
+  let val = parseInt(raw, 10);
+  state.retireAfterRuns = (!raw || isNaN(val) || val < 1) ? 0 : val;
   saveState();
   renderSetup();
 });
@@ -2007,10 +2127,14 @@ startMatchBtn.addEventListener('click', () => {
   // "Overs" is PER INNINGS — each side gets this many overs to bowl (capped at how many
   // players that side actually has, since every bowler only gets one over). The match only
   // ends once BOTH innings are complete, not after a combined total.
-  const perSideCap = Math.max(state.team1Players.length, state.team2Players.length, 1);
+  // "Overs" is PER INNINGS — each side gets this many overs to bowl (capped at how many overs
+  // that side's bowlers can actually cover: team size × max overs allowed per bowler). The match
+  // only ends once BOTH innings are complete, not after a combined total.
+  const quota = Math.max(state.maxOversPerBowler || 1, 1);
+  const perSideCap = Math.max(state.team1Players.length, state.team2Players.length, 1) * quota;
   state.overs = Math.min(Math.max(state.overs || perSideCap, 1), perSideCap);
-  state.innings1Overs = Math.min(state.overs, state.team1Players.length);
-  state.innings2Overs = Math.min(state.overs, state.team2Players.length);
+  state.innings1Overs = Math.min(state.overs, state.team1Players.length * quota);
+  state.innings2Overs = Math.min(state.overs, state.team2Players.length * quota);
   // Bowling order is grouped by team, not mixed — every one of Team A's players bowls (with Team
   // B batting throughout) before Team B gets a turn to bowl (with Team A batting) — like two
   // proper innings, instead of the team on strike flipping every single over.
@@ -2030,6 +2154,9 @@ startMatchBtn.addEventListener('click', () => {
   state.firstInningsWkts = undefined;
   state.battingStats = {};
   state.retiredBatters = []; // reset each new match — nobody's had a turn yet
+  state.retireEligibleAgainAt = {}; // reset each new match — no pending return-eligibility
+  state.retireStatBaseline = {}; // reset each new match — no prior-stint quota baselines
+  state.genuineOutBatters = []; // reset each new match — nobody's genuinely dismissed yet
   state.bowlingStats = {};
   state.oversLog = []; // finished overs: [{bowler, runsConceded, wkts}]
   state.history = [];
@@ -2201,25 +2328,56 @@ function renderMatch() {
   document.getElementById('sbBatterRuns').textContent = `${batterRuns} run${batterRuns === 1 ? '' : 's'}`;
 
   // Bowler chips: the CURRENT innings' bowling team — everyone stays visible, but whoever has
-  // already bowled their over shows up disabled (greyed, un-tappable) instead of disappearing,
-  // so the full roster is always visible at a glance.
+  // already bowled their full quota of overs shows up disabled (greyed, un-tappable) instead of
+  // disappearing, so the full roster is always visible at a glance. A bowler who still has overs
+  // left in their quota (Max Overs/Bowler on setup) stays tappable to bowl again, EXCEPT right
+  // after their own over — same as real cricket, a bowler can't bowl two overs back-to-back, so
+  // they go grey for exactly one over and become eligible again once anyone else has bowled.
   const currentInningsTeam = currentBowlingTeamPlayers();
-  const bowledAlready = new Set(state.oversLog.map((o) => o.bowler));
+  const bowlerOversCount = {};
+  state.oversLog.forEach((o) => { bowlerOversCount[o.bowler] = (bowlerOversCount[o.bowler] || 0) + 1; });
+  const bowlerQuota = Math.max(state.maxOversPerBowler || 1, 1);
+  const lastOver = state.oversLog.length ? state.oversLog[state.oversLog.length - 1] : null;
+  const lastBowler = (lastOver && currentInningsTeam.includes(lastOver.bowler)) ? lastOver.bowler : null;
+  // If banning the last bowler would leave NOBODY else under quota (e.g. a very small team),
+  // don't lock the match up — allow them straight back on rather than getting stuck with no
+  // legal bowler to pick.
+  const anyoneElseEligible = currentInningsTeam.some((p) => p !== lastBowler && (bowlerOversCount[p] || 0) < bowlerQuota);
+  // Once the current bowler has actually bowled at least one ball this over, the bowler is
+  // locked in for the rest of it — real cricket only lets a new bowler come on at the start of
+  // an over. Every other name greys out until this over is complete (thisOverBalls empties out).
+  const overLockedIn = state.thisOverBalls.length > 0;
   bowlerChipsEl.innerHTML = currentInningsTeam.map((p) => {
-    const used = bowledAlready.has(p) && p !== state.currentBowler;
-    return `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''} ${used ? 'usedChip' : ''}" data-bowler="${p}" ${used ? 'disabled' : ''}>${p}</button>`;
+    const oversBowled = bowlerOversCount[p] || 0;
+    const consecutiveBlocked = anyoneElseEligible && p === lastBowler;
+    const lockedThisOver = overLockedIn && p !== state.currentBowler;
+    const used = (oversBowled >= bowlerQuota || consecutiveBlocked || lockedThisOver) && p !== state.currentBowler;
+    const quotaTag = bowlerQuota > 1 ? ` <span style="opacity:0.7; font-size:10px;">(${oversBowled}/${bowlerQuota})</span>` : '';
+    const title = lockedThisOver
+      ? ' title="This over is already in progress — bowler is locked until it\'s complete"'
+      : (consecutiveBlocked && p !== state.currentBowler ? ' title="Just bowled the last over — can\'t bowl consecutive overs"' : '');
+    return `<button type="button" class="tapChip ${p === state.currentBowler ? 'bowlerActive' : ''} ${used ? 'usedChip' : ''}" data-bowler="${p}"${title} ${used ? 'disabled' : ''}>${p}${quotaTag}</button>`;
   }).join('');
 
   // Batter chips: the team currently BATTING this innings. Anyone already retired — from a
   // Solo/Pair rotation turn ending, OR simply given out in a normal (real fall-of-wicket) match
   // — stays visible in the list but greyed out/un-tappable, so nobody already dismissed can
-  // accidentally be brought back to bat.
+  // accidentally be brought back to bat. On top of that, once BOTH the striker and non-striker
+  // slots are filled — the pair is set and actually out there batting — everyone else greys out
+  // too, same as the bowler lock: there's no pending pick to make, so a stray tap can't swap in
+  // a third name and bump a not-out batter off the crease by mistake. The moment a wicket (or a
+  // retirement) opens up a slot, those names light back up so the replacement can be tapped.
   const battingCandidates = currentBattingTeamPlayers();
+  const eligibleNow = eligibleBatters(battingCandidates);
+  const partnershipSet = !!(state.striker && state.nonStriker);
   batterChipsEl.innerHTML = battingCandidates.length ? battingCandidates.map((p) => {
     const role = p === state.striker ? 'striker' : (p === state.nonStriker ? 'nonstriker' : '');
     const tag = p === state.striker ? '<span class="roleTag">🟢 STRIKER</span>' : (p === state.nonStriker ? '<span class="roleTag">🔴 NON-STRIKER</span>' : '');
-    const used = isRetiredBatter(p) && p !== state.striker && p !== state.nonStriker;
-    return `<button type="button" class="tapChip ${role} ${used ? 'usedChip' : ''}" data-batter="${p}" ${used ? 'disabled' : ''}>${p}${tag}</button>`;
+    const isCurrentPair = p === state.striker || p === state.nonStriker;
+    const lockedNow = partnershipSet && !isCurrentPair;
+    const used = (!eligibleNow.includes(p) && !isCurrentPair) || lockedNow;
+    const title = lockedNow ? ' title="Both batters are already set for this partnership — locked until a wicket falls"' : '';
+    return `<button type="button" class="tapChip ${role} ${used ? 'usedChip' : ''}" data-batter="${p}"${title} ${used ? 'disabled' : ''}>${p}${tag}</button>`;
   }).join('') : '<span style="color:var(--muted); font-size:12px;">No batters available</span>';
 
   const bowlerLabel = document.getElementById('bowlerLabel');
@@ -2258,13 +2416,16 @@ function renderMatch() {
 
   const innings1Len = innings1OversCount();
   const inn1Label = innings1Len ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Innings 1 — ${state.team1Name || 'Team A'} bowling</div>` : '';
+  const badgeQuota = Math.max(state.maxOversPerBowler || 1, 1);
   overBadgesEl.innerHTML = inn1Label + state.bowlerOrder.map((p, i) => {
-    const done = state.oversLog.find((o) => o.bowler === p);
+    const oversBowled = bowlerOversCount[p] || 0;
+    const done = oversBowled >= badgeQuota;
     const cur = p === state.currentBowler; // whoever is ACTUALLY selected right now, not just "next in the fixed order" — bowler picks are manual, so this can be any player on the bowling side
     const divider = (i === (state.team1Players ? state.team1Players.length : 0) && i > 0)
       ? `<div style="font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin:8px 0 4px;">Innings 2 — ${state.team2Name || 'Team B'} bowling</div>`
       : '';
-    return `${divider}<span class="overBadge ${done ? 'done' : ''}" style="${cur ? 'border-color:var(--amber); color:var(--amber);' : ''}">${p}${done ? ' ✓' : cur ? ' •' : ''}</span>`;
+    const countTag = badgeQuota > 1 ? ` ${oversBowled}/${badgeQuota}` : '';
+    return `${divider}<span class="overBadge ${done ? 'done' : ''}" style="${cur ? 'border-color:var(--amber); color:var(--amber);' : ''}">${p}${countTag}${done ? ' ✓' : cur ? ' •' : ''}</span>`;
   }).join('');
 
   const battingRows = Object.keys(state.battingStats)
@@ -2311,7 +2472,16 @@ function currentOverWkts() {
 bowlerChipsEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-bowler]');
   if (!btn) return;
-  state.currentBowler = btn.dataset.bowler;
+  const picked = btn.dataset.bowler;
+  if (picked === state.currentBowler) return; // already the current bowler — nothing to do
+  // Once a ball has been bowled this over, the bowler is locked in for the rest of it — a
+  // different bowler can only be picked once the over is complete (matches the greyed-out
+  // chips above, and guards against a stray tap on a disabled chip still going through).
+  if (state.thisOverBalls.length > 0) {
+    alert("This over is still in progress — you can change the bowler once it's complete.");
+    return;
+  }
+  state.currentBowler = picked;
   // Batting team is fixed by which innings we're in, not by who's bowling, so the batter list
   // doesn't need to change here — striker/non-striker stay exactly as the scorer set them.
   saveState();
@@ -2328,6 +2498,13 @@ batterChipsEl.addEventListener('click', (e) => {
     state.striker = state.nonStriker;
     state.nonStriker = tmp;
   } else {
+    // Both slots are already filled by the current pair, and this name is neither of them —
+    // there's no vacancy to fill, so don't let a stray tap swap a third batter in mid-partnership
+    // (matches the greyed-out chips above; this is just the defensive backstop for it).
+    if (state.striker && state.nonStriker) {
+      alert("Both batters are already set — this pair is locked in until a wicket falls.");
+      return;
+    }
     state.nonStriker = state.striker;
     state.striker = name;
   }
@@ -2366,6 +2543,14 @@ function recordBall(entry) {
   }
   pushHistory();
   state.thisOverBalls.push(entry);
+  // A wide/no-ball is never actually faced by the striker (it doesn't count as a legal delivery),
+  // so only a non-extra ball counts toward this batter's ball-count for the Max Balls/Batter quota.
+  const isLegalBall = entry.type !== 'extra';
+  const facingBatter = isLegalBall ? state.striker : null;
+  if (isLegalBall && facingBatter) {
+    if (!state.battingStats[facingBatter]) state.battingStats[facingBatter] = { runs: 0 };
+    state.battingStats[facingBatter].balls = (state.battingStats[facingBatter].balls || 0) + 1;
+  }
   if (entry.run) {
     state.totalRuns += entry.run;
     if (entry.type !== 'extra') {
@@ -2392,20 +2577,105 @@ function recordBall(entry) {
       // No penalty configured — real fall of wicket: the batter who's out leaves the crease for
       // good (marked retired so they can never be picked again this match), non-striker takes
       // strike. Who comes in next is picked by hand — tap a name below.
+      // Also tracked separately in genuineOutBatters — unlike a plain RETIREMENT (auto-retire
+      // quota / Solo-Pair rotation), a genuine OUT must never come back, even under the "nobody
+      // left to bat" fallback below.
       if (!state.retiredBatters) state.retiredBatters = [];
       if (!state.retiredBatters.includes(state.striker)) state.retiredBatters.push(state.striker);
+      if (!state.genuineOutBatters) state.genuineOutBatters = [];
+      if (!state.genuineOutBatters.includes(state.striker)) state.genuineOutBatters.push(state.striker);
       state.striker = state.nonStriker;
       state.nonStriker = null;
+      // If nobody else on the batting side is left un-dismissed to come in as a partner, this
+      // is cricket's "all out" — you can't continue with a single batter and no non-striker.
+      // Flag it so we end the innings right after this ball's bookkeeping below, instead of
+      // leaving the scorer stuck waiting on a non-striker pick that has no name left to offer.
+      if (!hasReplacementBatter([state.striker])) {
+        state.allOutThisBall = true;
+      }
     }
   }
   if (entry.type !== 'extra') {
     state.legalBallsThisOver += 1;
+  }
+  if (state.allOutThisBall) {
+    state.allOutThisBall = false;
+    endInningsAllOut();
+    saveState();
+    renderMatch();
+    return;
+  }
+  // Batter Auto-Retire quota: once the batter who just faced this ball reaches EITHER configured
+  // limit — balls/overs faced, or runs scored — they're forcibly retired, same "leaves the crease
+  // for good, next batter picked by hand" treatment as a real fall of wicket. This overrides even
+  // a negative Out Penalty match (where getting OUT alone wouldn't normally send them off), since
+  // both quotas are hard caps.
+  // battingStats[].runs/.balls are the batter's INNINGS-LONG total (carries across a return after
+  // a "Retired Batter Returns After" comeback), so the quota must be measured from a baseline
+  // snapshot taken at their last retirement, not from that raw total — otherwise a returning
+  // batter who already had e.g. 15 runs on the books would hit a 15-run quota on their very next
+  // run back at the crease.
+  const runBaseline = (state.retireStatBaseline && state.retireStatBaseline[facingBatter] && state.retireStatBaseline[facingBatter].runs) || 0;
+  const ballBaseline = (state.retireStatBaseline && state.retireStatBaseline[facingBatter] && state.retireStatBaseline[facingBatter].balls) || 0;
+  const reachedBallQuota = isLegalBall && facingBatter && state.maxBallsPerBatter && (state.battingStats[facingBatter].balls - ballBaseline) >= state.maxBallsPerBatter;
+  const reachedRunQuota = isLegalBall && facingBatter && state.retireAfterRuns && ((state.battingStats[facingBatter].runs || 0) - runBaseline) >= state.retireAfterRuns;
+  if (reachedBallQuota || reachedRunQuota) {
+    if (!state.retiredBatters) state.retiredBatters = [];
+    // Use isRetiredBatter() rather than a raw array-includes check, so a batter who already
+    // returned once (their earlier retirement's return-threshold was met) can be sent off again
+    // on hitting the quota a second time, instead of being silently skipped because their name
+    // was still sitting in the retiredBatters list from before.
+    // Also: don't force the retirement at all if there's nobody left to replace them (e.g. this
+    // is the last pair standing) — they just keep batting past the quota instead of the innings
+    // getting stuck waiting for a hand-pick that has no fresh name to offer.
+    if (!isRetiredBatter(facingBatter) && hasReplacementBatter([state.striker, state.nonStriker])) {
+      if (!state.retiredBatters.includes(facingBatter)) state.retiredBatters.push(facingBatter);
+      markRetireEligibility(facingBatter);
+      snapshotRetireBaseline(facingBatter);
+      if (state.striker === facingBatter) { state.striker = state.nonStriker; state.nonStriker = null; }
+      else if (state.nonStriker === facingBatter) { state.nonStriker = null; }
+    }
   }
   if (state.legalBallsThisOver >= 6) {
     finishOver();
   }
   saveState();
   renderMatch();
+}
+
+// Ends the current innings immediately because the batting side is ALL OUT (a genuine wicket
+// just fell and no un-dismissed player is left to come in as the not-out batter's partner).
+// Mirrors the innings-transition bookkeeping that finishOver() does when the over count runs
+// out, but is triggered by a wicket instead, and jumps straight to the innings boundary even
+// if this over — or this whole innings — still had overs left unbowled.
+function endInningsAllOut() {
+  const finishedBowler = state.currentBowler;
+  const finishedRuns = currentOverRunsConceded();
+  const finishedWkts = currentOverWkts();
+  state.oversLog.push({ bowler: finishedBowler, runsConceded: finishedRuns, wkts: finishedWkts });
+  if (!state.bowlingStats[finishedBowler]) state.bowlingStats[finishedBowler] = { runsConceded: 0, wkts: 0 };
+  state.bowlingStats[finishedBowler].runsConceded += finishedRuns;
+  state.bowlingStats[finishedBowler].wkts += finishedWkts;
+  state.bowlingStats[finishedBowler].bowled = true;
+  state.legalBallsThisOver = 0;
+  state.thisOverBalls = [];
+  if (currentOverIdxIsTeam1()) {
+    // First innings all out — freeze its score as the target for the chase, skip straight to
+    // the start of the second innings (any first-innings overs left unbowled are forfeited,
+    // same as real cricket), and clear the bowler/batters for the fresh side coming in.
+    state.currentOverIdx = innings1OversCount();
+    state.firstInningsRuns = state.totalRuns;
+    state.firstInningsWkts = state.totalWkts;
+    state.totalRuns = 0;
+    state.totalWkts = 0;
+    state.currentBowler = null;
+    state.striker = null;
+    state.nonStriker = null;
+  } else {
+    // Second innings all out — the match is over right now regardless of overs left.
+    state.currentOverIdx = totalOvers();
+    goToFinal();
+  }
 }
 
 function finishOver() {
@@ -2445,17 +2715,22 @@ function finishOver() {
   state.currentBowler = null;
   if (state.retirementRule === 'single1') {
     // Solo-batting format: a fresh batter takes over every single over (like the bowlers do) —
-    // picked automatically in order, no tapping needed.
-    retireCurrentBatters();
-    const solo = getSoloBatterForOver();
-    state.striker = solo;
-    state.nonStriker = solo;
+    // picked automatically in order, no tapping needed. But if nobody else is left to take the
+    // next over, don't force a pointless retire-then-reselect — the same batter just carries on.
+    if (hasReplacementBatter([state.striker, state.nonStriker])) {
+      retireCurrentBatters();
+      const solo = getSoloBatterForOver();
+      state.striker = solo;
+      state.nonStriker = solo;
+    }
   } else if (state.retirementRule === 'pair2') {
     // A pair bats together for 2 overs, then retires as a pair and a completely FRESH pair must
     // be tapped by hand (the old pair's names go disabled in the list so they can't be re-picked)
     // — the pair itself is chosen manually, only the "no repeats" restriction is automatic.
+    // If this is the last pair standing with nobody left to replace them, they simply continue
+    // batting for another 2-over stint instead of being force-retired with no one to bring in.
     const local = localInningsOverIdx(state.currentOverIdx);
-    if (local % 2 === 0) {
+    if (local % 2 === 0 && hasReplacementBatter([state.striker, state.nonStriker])) {
       retireCurrentBatters();
       state.striker = null;
       state.nonStriker = null;
@@ -2474,6 +2749,17 @@ function finishOver() {
       state.nonStriker = null;
     }
   }
+  // Ends change after every over (the bowler comes from the other end), so whoever was
+  // non-striker for the last ball faces the first ball of the new over. Applies whenever the
+  // same two batters are carrying on into the next over — not in Solo mode (striker === non-
+  // striker there, nothing to swap) and naturally skipped when a slot is empty (innings just
+  // switched, a new pair/solo batter is being picked, or a partner is still pending after a
+  // wicket) since there's nothing valid to swap in that case.
+  if (state.retirementRule !== 'single1' && state.striker && state.nonStriker) {
+    const tmp = state.striker;
+    state.striker = state.nonStriker;
+    state.nonStriker = tmp;
+  }
   state.legalBallsThisOver = 0;
   state.thisOverBalls = [];
   showOverCompleteAlert();
@@ -2487,10 +2773,66 @@ function retireCurrentBatters() {
   if (!state.retiredBatters) state.retiredBatters = [];
   [state.striker, state.nonStriker].forEach((p) => {
     if (p && !state.retiredBatters.includes(p)) state.retiredBatters.push(p);
+    if (p) {
+      markRetireEligibility(p);
+      snapshotRetireBaseline(p);
+    }
   });
 }
+// Records the wicket-count threshold at which a RETIRED (not OUT) batter becomes pickable again
+// — "Retired Batter Returns After" setting. Only called for auto-retire (ball/run quota) and
+// Solo/Pair rotation retirements, never for a genuine OUT, which stays gone for the innings.
+function markRetireEligibility(p) {
+  if (!state.retireReturnAfterOuts) return; // setting is "Never" — no return
+  if (!state.retireEligibleAgainAt) state.retireEligibleAgainAt = {};
+  state.retireEligibleAgainAt[p] = state.totalWkts + state.retireReturnAfterOuts;
+}
+// Snapshots a batter's innings-long runs/balls total at the moment they retire, so that if they
+// come back later, the Auto-Retire ball/run quota is measured from THIS stint's runs/balls only
+// (current total minus this baseline) instead of their full-innings total — otherwise a returning
+// batter who already had, say, 15 runs on the books would hit a 15-run quota the moment they
+// scored their next single.
+function snapshotRetireBaseline(p) {
+  if (!state.retireStatBaseline) state.retireStatBaseline = {};
+  const st = state.battingStats[p] || {};
+  state.retireStatBaseline[p] = { runs: st.runs || 0, balls: st.balls || 0 };
+}
 function isRetiredBatter(p) {
-  return !!(state.retiredBatters && state.retiredBatters.includes(p));
+  if (!state.retiredBatters || !state.retiredBatters.includes(p)) return false;
+  // A genuine fall-of-wicket dismissal is permanent no matter what — checked BEFORE the
+  // return-threshold below, otherwise a player who retired earlier (picking up a threshold),
+  // came back, and later got genuinely OUT could wrongly look "pickable again" once enough
+  // further wickets had fallen to satisfy that stale, unrelated retirement threshold.
+  if (isGenuinelyOut(p)) return true;
+  // A retired (not out) batter becomes pickable again once enough further wickets have fallen —
+  // checked live against current totalWkts rather than mutating state here.
+  const threshold = state.retireEligibleAgainAt && state.retireEligibleAgainAt[p];
+  if (threshold !== undefined && state.totalWkts >= threshold) return false;
+  return true;
+}
+// A genuine fall-of-wicket dismissal — unlike a plain RETIREMENT (auto-retire quota / Solo-Pair
+// rotation), this player is gone for the innings no matter what, including under the "nobody
+// left to bat" fallback below.
+function isGenuinelyOut(p) {
+  return !!(state.genuineOutBatters && state.genuineOutBatters.includes(p));
+}
+// True if at least one OTHER player (not currently batting) is still around to come in as a
+// replacement — i.e. not genuinely OUT. Used to skip forcing a retirement (auto-retire quota, or
+// Solo/Pair rotation) on whoever's batting right now when they're the last one(s) left, so the
+// innings doesn't grind to a halt waiting on a hand-pick with no fresh name to offer.
+function hasReplacementBatter(currentlyBatting) {
+  const candidates = currentBattingTeamPlayers();
+  return candidates.some((p) => !currentlyBatting.includes(p) && !isGenuinelyOut(p));
+}
+// The list of batters who can actually be picked right now. Normally this is just "not currently
+// retired" (isRetiredBatter), same as before. But if that leaves NOBODY at all — everyone's either
+// genuinely out or still short of their return-threshold — the match would get stuck with no one
+// to bring in. In that case, relax the wicket-count threshold for anyone who merely RETIRED (never
+// for a genuine OUT) so at least one of them can come back out rather than the innings jamming up.
+function eligibleBatters(candidates) {
+  const normal = candidates.filter((p) => !isRetiredBatter(p));
+  if (normal.length) return normal;
+  return candidates.filter((p) => !isGenuinelyOut(p));
 }
 
 // The one batter facing this whole over, for "Solo — 1 batter/over" matches — picks the next
@@ -2502,6 +2844,10 @@ function getSoloBatterForOver() {
   if (!candidates.length) return null;
   const fresh = candidates.find((p) => !isRetiredBatter(p));
   if (fresh) return fresh;
+  // Nobody fresh (or return-eligible) left — bring back the first RETIRED (not genuinely OUT)
+  // batter rather than jamming up on a full team of dismissals.
+  const comeback = candidates.find((p) => !isGenuinelyOut(p));
+  if (comeback) return comeback;
   const local = localInningsOverIdx(state.currentOverIdx);
   return candidates[local % candidates.length];
 }
@@ -2515,6 +2861,11 @@ function getFreshPairForOver() {
   const freshOnes = candidates.filter((p) => !isRetiredBatter(p));
   if (freshOnes.length >= 2) return [freshOnes[0], freshOnes[1]];
   if (freshOnes.length === 1) return [freshOnes[0], candidates.find((p) => p !== freshOnes[0]) || freshOnes[0]];
+  // Nobody fresh (or return-eligible) left — bring back RETIRED (not genuinely OUT) batters
+  // instead of jamming up.
+  const comebacks = candidates.filter((p) => !isGenuinelyOut(p));
+  if (comebacks.length >= 2) return [comebacks[0], comebacks[1]];
+  if (comebacks.length === 1) return [comebacks[0], candidates.find((p) => p !== comebacks[0]) || comebacks[0]];
   const local = localInningsOverIdx(state.currentOverIdx);
   const idx = Math.floor(local / 2) * 2;
   const a = candidates[idx % candidates.length];
@@ -2791,6 +3142,9 @@ document.getElementById('saveScheduledBtn').addEventListener('click', () => {
     logo1: teamsState.logo1 || '', logo2: teamsState.logo2 || '',
     overs: state.overs, outPenalty: state.outPenalty, extraRuns: state.extraRuns,
     negOutSwapStrike: state.negOutSwapStrike, retirementRule: state.retirementRule,
+    maxOversPerBowler: state.maxOversPerBowler, maxBallsPerBatter: state.maxBallsPerBatter,
+    batterBallQuotaUnit: state.batterBallQuotaUnit, retireAfterRuns: state.retireAfterRuns,
+    retireReturnAfterOuts: state.retireReturnAfterOuts,
     tossBowlsFirst: state.tossBowlsFirst || 'team1'
   };
   const list = loadScheduledList();
@@ -2830,6 +3184,11 @@ function startEditScheduled(id) {
   state.extraRuns = entry.extraRuns;
   state.negOutSwapStrike = entry.negOutSwapStrike;
   state.retirementRule = entry.retirementRule;
+  state.maxOversPerBowler = entry.maxOversPerBowler || 1;
+  state.maxBallsPerBatter = entry.maxBallsPerBatter || 0;
+  state.batterBallQuotaUnit = entry.batterBallQuotaUnit || 'balls';
+  state.retireAfterRuns = entry.retireAfterRuns || 0;
+  state.retireReturnAfterOuts = entry.retireReturnAfterOuts || 0;
   state.tossBowlsFirst = entry.tossBowlsFirst || 'team1';
   saveState();
   editingScheduledId = id;
@@ -2859,6 +3218,11 @@ function loadScheduledMatch(id) {
   state.extraRuns = entry.extraRuns;
   state.negOutSwapStrike = entry.negOutSwapStrike;
   state.retirementRule = entry.retirementRule;
+  state.maxOversPerBowler = entry.maxOversPerBowler || 1;
+  state.maxBallsPerBatter = entry.maxBallsPerBatter || 0;
+  state.batterBallQuotaUnit = entry.batterBallQuotaUnit || 'balls';
+  state.retireAfterRuns = entry.retireAfterRuns || 0;
+  state.retireReturnAfterOuts = entry.retireReturnAfterOuts || 0;
   state.tossBowlsFirst = entry.tossBowlsFirst || 'team1';
   saveState();
   editingScheduledId = null;
