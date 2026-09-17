@@ -67,7 +67,7 @@
          horizontally) and tightens vertical spacing so the scoreboard + This Over panel (down
          through Undo last ball) fit on one screen without needing to scroll. Everything below
          that (Overs Bowled, stats tables, End Match) scrolls normally. ---- */
-  body.onMatch .scoreboard { padding: 10px 12px; margin-bottom: 5px; border-radius: 14px; }
+  body.onMatch .scoreboard { padding: 10px 12px; margin-bottom: 5px; }
   body.onMatch .scoreboard .teamsHeaderRowIn { margin-bottom: 3px; }
   body.onMatch .sbOver { font-size: 9.5px; margin-bottom: 2px; }
   body.onMatch .sbScoreBig { font-size: clamp(24px, 8.5vw, 32px); }
@@ -100,7 +100,7 @@
     max-width: 452px;
   }
   .overToast {
-    background: linear-gradient(135deg, var(--amber), #b5670a);
+    background: var(--amber);
     color: #fff;
     border-radius: 12px;
     padding: 12px 16px;
@@ -149,23 +149,23 @@
     display: flex;
     justify-content: center;
     gap: 10px;
-    background: linear-gradient(135deg, var(--bowl-bg) 0%, var(--bat-bg) 100%);
-    border: 1.5px solid var(--bowl-border);
-    border-radius: 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
     padding: 8px 12px;
     margin-top: 10px;
+    box-shadow: 0 2px 10px rgba(20,46,69,0.06);
   }
   #topActionBar button {
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: var(--panel);
+    background: var(--panel-2);
     border: 1.5px solid var(--line);
     color: var(--muted);
     font-size: 14px;
     padding: 0;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
   }
   #topActionBar button:active { transform: scale(0.93); }
 
@@ -173,7 +173,7 @@
   .panel {
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: 12px;
     padding: 13px;
     margin-bottom: 10px;
     box-shadow: 0 2px 10px rgba(20,46,69,0.06);
@@ -210,11 +210,11 @@
     font-size: 15px;
   }
   .btn-primary {
-    background: linear-gradient(135deg, var(--pitch) 0%, var(--pitch-deep) 100%);
+    background: var(--pitch);
     color: #fff;
     padding: 13px 18px;
     width: 100%;
-    box-shadow: 0 4px 14px rgba(22,163,74,0.35);
+    box-shadow: 0 3px 10px rgba(22,163,74,0.25);
   }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
   .btn-ghost {
@@ -439,12 +439,12 @@
     z-index: 40;
     display: flex;
     align-items: stretch;
-    background: linear-gradient(135deg, #FFD166 0%, #FDA84B 40%, #F97B57 100%);
+    background: #FDA84B;
     border: 2px solid #a0500e;
     border-radius: 12px;
     padding: 6px 10px;
     margin-bottom: 8px;
-    box-shadow: 0 6px 14px rgba(200,80,110,0.3);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
   }
   .miniScoreCol {
     flex: 1 1 0;
@@ -478,34 +478,17 @@
   body.onMatch .miniScoreBar { padding: 5px 10px; margin-bottom: 5px; }
   body.onMatch .miniScoreBar .miniScoreRuns { font-size: 18px; }
 
-  /* ---- Scoreboard: multi-color carnival gradient with colorful accents — playful and
-         attractive, while keeping bold dark text for strong readability. ---- */
+  /* ---- Scoreboard: flat solid orange, crisp bordered card — clean/professional, no gradient
+         blend or decorative blur circles. ---- */
   .scoreboard {
-    background: linear-gradient(135deg, #FFD166 0%, #FDA84B 35%, #F97B57 65%, #E85D8A 100%);
-    border: none;
-    border-radius: 18px;
+    background: #FDA84B;
+    border: 2px solid #a0500e;
+    border-radius: 12px;
     padding: 16px 14px;
     text-align: center;
     margin-bottom: 10px;
-    box-shadow: 0 10px 24px rgba(200,80,110,0.28), inset 0 1px 0 rgba(255,255,255,0.45);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
     position: relative;
-    overflow: hidden;
-  }
-  .scoreboard::before {
-    content: '';
-    position: absolute;
-    top: -30px; right: -30px;
-    width: 110px; height: 110px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.14);
-  }
-  .scoreboard::after {
-    content: '';
-    position: absolute;
-    bottom: -40px; left: -20px;
-    width: 90px; height: 90px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.1);
   }
   .scoreboard .teamsHeaderRowIn { margin-bottom: 6px; position: relative; z-index: 1; }
   .scoreboard .teamsHeaderSide { color: rgba(58,20,10,0.55); }
@@ -673,7 +656,7 @@
     background: var(--panel-2);
     border: 1.5px solid var(--line);
     color: var(--muted);
-    border-radius: 16px;
+    border-radius: 10px;
     padding: 7px 12px;
     font-family: 'Rajdhani', sans-serif;
     font-size: 13px;
@@ -713,7 +696,7 @@
     background: var(--panel-2);
     border: 1.5px solid var(--line);
     color: var(--ink);
-    border-radius: 11px;
+    border-radius: 10px;
     padding: 13px 0;
     font-family: 'Share Tech Mono', monospace;
     font-size: 19px;
@@ -729,7 +712,7 @@
   .padBtn.run4 { border-color: var(--amber); color: var(--ink); font-weight: 800; }
   .padBtn.run6 { border-color: var(--led); color: var(--ink); font-weight: 800; background: rgba(24,155,82,0.08); }
   .padBtn.net { border-color: var(--amber); color: var(--ink); font-weight: 800; background: rgba(232,137,12,0.08); font-size: 15px; }
-  .padBtn.out { background: linear-gradient(135deg, var(--ball), #a01f1f); border-color: var(--ball); color: #fff; font-size: 14px; letter-spacing: 1px; padding: 12px 0; }
+  .padBtn.out { background: var(--ball); border-color: var(--ball); color: #fff; font-size: 14px; letter-spacing: 1px; padding: 12px 0; }
   .padBtn.extra { background: rgba(232,137,12,0.12); border-color: var(--amber); color: var(--ink); font-weight: 800; font-size: 13px; letter-spacing: 1px; }
   .padBtn.wideBtn { background: rgba(232,137,12,0.12); border-color: var(--amber); color: #8a5306; }
   .padBtn.noballBtn { background: rgba(211,47,47,0.1); border-color: var(--ball); color: #a01f1f; }
@@ -747,7 +730,7 @@
     font-weight: 800;
     font-size: 13px;
     letter-spacing: 0.5px;
-    border-radius: 11px;
+    border-radius: 10px;
     padding: 12px 0;
   }
   .outUndoRow #undoBtn:active { transform: scale(0.96); }
@@ -760,7 +743,7 @@
     font-weight: 800;
     font-size: 13px;
     letter-spacing: 0.3px;
-    border-radius: 11px;
+    border-radius: 10px;
     padding: 11px 0;
   }
   .retireRow #retireBtn:active { transform: scale(0.97); }
@@ -962,7 +945,7 @@
       <button class="btn-primary" id="loadScheduledBannerBtn" style="width:100%;">▶ Load This Match</button>
     </div>
 
-    <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623); background:linear-gradient(135deg, rgba(232,137,12,0.1) 0%, rgba(255,209,102,0.12) 100%);">
+    <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623); background:rgba(232,137,12,0.08);">
       <h2>🔐 Scoring Access</h2>
       <div class="setupHint" style="margin-top:0;">Simple rule: only UNLOCKED phones can tap the scoring buttons — everyone else can still watch live, view-only. There's no name list to manage — tap the 🔐 icon at the top of any phone and enter the PIN to unlock scoring on THAT phone (any time, even mid-match). Anyone who knows the PIN has full access.</div>
       <div id="scorerAccessStatus" style="margin-top:10px; font-weight:700; font-size:13px;"></div>
@@ -992,7 +975,7 @@
     <div class="panel">
       <h2>Split Into 2 Teams</h2>
       <div class="setupHint" style="margin-top:0; margin-bottom:10px;">Splits today's present players into two random, even-ish teams — give each a name, and tap ✕ on anyone who shouldn't be on that side. This is today's actual lineup — each player bowls one over and bats too.</div>
-      <button class="btn-primary" id="makeTwoTeamsBtn" style="background:linear-gradient(135deg, var(--amber), #c9820f); box-shadow:0 4px 14px rgba(245,166,35,0.3);">🎲 MAKE 2 TEAMS</button>
+      <button class="btn-primary" id="makeTwoTeamsBtn" style="background:var(--amber); box-shadow:0 3px 10px rgba(245,166,35,0.25);">🎲 MAKE 2 TEAMS</button>
       <div id="twoTeamsBlock" class="hidden" style="margin-top:14px;">
         <label style="display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-weight:700;">Or pick someone by hand</label>
         <div class="addRow" style="margin-bottom:12px;">
@@ -1285,7 +1268,7 @@
       </table>
     </div>
 
-    <div class="panel" id="scoreAccessStatusPanel" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:linear-gradient(135deg, rgba(232,137,12,0.1) 0%, rgba(255,209,102,0.12) 100%); border:1.5px solid var(--amber, #f5a623);">
+    <div class="panel" id="scoreAccessStatusPanel" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(232,137,12,0.08); border:1.5px solid var(--amber, #f5a623);">
       <span id="scoreAccessStatusText" style="font-weight:800; font-size:13px;"></span>
       <a href="#" id="changePinLinkMatch" class="hidden" style="color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline; white-space:nowrap;">🔑 Change PIN</a>
     </div>
