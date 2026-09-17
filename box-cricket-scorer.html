@@ -992,7 +992,9 @@
           <select id="retirementRuleInput">
             <option value="none" selected>None</option>
             <option value="pair2">Pair — every 2 overs</option>
+            <option value="pair4">Pair — every 4 overs</option>
             <option value="single1">Solo — 1 batter/over</option>
+            <option value="single2">Solo — every 2 overs</option>
           </select>
         </div>
       </div>
@@ -1314,7 +1316,7 @@ state = {
   outPenalty: -3,
   extraRuns: 1,
   negOutSwapStrike: true,     // when outPenalty < 0: does strike swap to the non-striker on OUT?
-  retirementRule: 'none',     // 'none' | 'pair2' (pair retires every 2 overs) | 'single1' (1 new batter every over)
+  retirementRule: 'none',     // 'none' | 'pair2'/'pair4' (pair retires every 2/4 overs) | 'single1'/'single2' (1 fresh batter every 1/2 overs)
   currentOverIdx: 0,          // 0-based index into players[] for whose turn to bowl
   bowlerOrder: [...players],  // fixed bowling order, one per over
   currentBowler: 'NAME',
@@ -1959,7 +1961,9 @@ function combinedTeamPlayers() {
 const RETIREMENT_HINTS = {
   none: 'Batters stay in until out (or the match ends) — no automatic swaps.',
   pair2: 'The current pair retires together every 2 overs and the next fresh pair comes in.',
-  single1: 'Solo batting: one batter faces the whole over alone (strike never swaps) — best with negative Out Penalty. A fresh batter takes the next over, same as bowlers.'
+  pair4: 'The current pair retires together every 4 overs and the next fresh pair comes in.',
+  single1: 'Solo batting: one batter faces the whole over alone (strike never swaps) — best with negative Out Penalty. A fresh batter takes the next over, same as bowlers.',
+  single2: 'Solo batting: one batter faces 2 whole overs alone (strike never swaps) — best with negative Out Penalty. A fresh batter takes over every 2 overs.'
 };
 
 function renderSetup() {
@@ -2227,15 +2231,33 @@ function localInningsOverIdx(overIdx) {
   return overIdx < innings1Len ? overIdx : overIdx - innings1Len;
 }
 
-// Auto-picks the batting pair for a retirement-rule match: 'single1' brings in one fresh
-// batter every over (the pair slides by 1 each time), 'pair2' keeps the same pair for 2
-// overs then swaps in a completely fresh, non-overlapping pair (advances by 2 at a time).
+// How many overs a batter/pair stays at the crease before rotating, per the Retirement Rule —
+// 1 or 2 for Solo, 2 or 4 for Pair. Centralized here so every rotation check (which over counts
+// as a rotation boundary, and the legacy pair-suggestion helper below) reads the same number
+// instead of each site hard-coding its own 1/2.
+function retirementStepOvers() {
+  if (state.retirementRule === 'pair2') return 2;
+  if (state.retirementRule === 'pair4') return 4;
+  if (state.retirementRule === 'single2') return 2;
+  if (state.retirementRule === 'single1') return 1;
+  return 1;
+}
+function isSoloRetirementRule() {
+  return state.retirementRule === 'single1' || state.retirementRule === 'single2';
+}
+function isPairRetirementRule() {
+  return state.retirementRule === 'pair2' || state.retirementRule === 'pair4';
+}
+
+// Auto-picks the batting pair for a retirement-rule match: Solo brings in one fresh batter
+// every retirementStepOvers() overs (the pair slides by 1 each time), Pair keeps the same pair
+// for retirementStepOvers() overs then swaps in a completely fresh, non-overlapping pair.
 function getBattingPairForOver(overIdx) {
   const bowler = state.bowlerOrder[overIdx];
   const candidates = opposingTeamPlayers(bowler).filter((p) => p !== bowler);
   if (!candidates.length) return [state.players[0], state.players[0]];
   const local = localInningsOverIdx(overIdx);
-  const step = state.retirementRule === 'pair2' ? 2 : 1;
+  const step = isPairRetirementRule() ? retirementStepOvers() : 1;
   const idx = Math.floor(local / step) * step;
   const a = candidates[idx % candidates.length];
   let b = candidates[(idx + 1) % candidates.length];
@@ -2513,9 +2535,9 @@ batterChipsEl.addEventListener('click', (e) => {
 });
 
 function swapStrike() {
-  // In "Solo — 1 batter/over" mode one batter faces the whole over alone — strike never swaps,
-  // regardless of runs taken or the out setting, since there's no real second batter to swap to.
-  if (state.retirementRule === 'single1') return;
+  // In Solo matches one batter faces the whole stint alone — strike never swaps, regardless of
+  // runs taken or the out setting, since there's no real second batter to swap to.
+  if (isSoloRetirementRule()) return;
   // Negative-penalty match with "Striker stays" chosen: that batter holds the strike no matter
   // what happens — runs taken (even odd ones) or getting out — not just on the out event. This
   // is what "Striker stays" is understood to mean for the whole over, not only at the moment of
@@ -2713,29 +2735,33 @@ function finishOver() {
   // two batters carry on facing the next over, only the bowler changes. They're only cleared
   // if the innings itself just switched (new team now batting).
   state.currentBowler = null;
-  if (state.retirementRule === 'single1') {
-    // Solo-batting format: a fresh batter takes over every single over (like the bowlers do) —
-    // picked automatically in order, no tapping needed. But if nobody else is left to take the
-    // next over, don't force a pointless retire-then-reselect — the same batter just carries on.
-    if (hasReplacementBatter([state.striker, state.nonStriker])) {
+  if (isSoloRetirementRule()) {
+    // Solo-batting format: a fresh batter takes over every retirementStepOvers() over(s) (like
+    // the bowlers do for a 1-over stint) — picked automatically in order, no tapping needed.
+    // But if nobody else is left to take the next stint, don't force a pointless
+    // retire-then-reselect — the same batter just carries on.
+    const local = localInningsOverIdx(state.currentOverIdx);
+    if (local % retirementStepOvers() === 0 && hasReplacementBatter([state.striker, state.nonStriker])) {
       retireCurrentBatters();
       const solo = getSoloBatterForOver();
       state.striker = solo;
       state.nonStriker = solo;
     }
-  } else if (state.retirementRule === 'pair2') {
-    // A pair bats together for 2 overs, then retires as a pair and a completely FRESH pair must
-    // be tapped by hand (the old pair's names go disabled in the list so they can't be re-picked)
-    // — the pair itself is chosen manually, only the "no repeats" restriction is automatic.
-    // If this is the last pair standing with nobody left to replace them, they simply continue
-    // batting for another 2-over stint instead of being force-retired with no one to bring in.
+    // else: still mid-stint (or nobody left to swap in) — striker/non-striker carry on unchanged.
+  } else if (isPairRetirementRule()) {
+    // A pair bats together for retirementStepOvers() overs, then retires as a pair and a
+    // completely FRESH pair must be tapped by hand (the old pair's names go disabled in the
+    // list so they can't be re-picked) — the pair itself is chosen manually, only the "no
+    // repeats" restriction is automatic. If this is the last pair standing with nobody left to
+    // replace them, they simply continue batting for another stint instead of being
+    // force-retired with no one to bring in.
     const local = localInningsOverIdx(state.currentOverIdx);
-    if (local % 2 === 0 && hasReplacementBatter([state.striker, state.nonStriker])) {
+    if (local % retirementStepOvers() === 0 && hasReplacementBatter([state.striker, state.nonStriker])) {
       retireCurrentBatters();
       state.striker = null;
       state.nonStriker = null;
     }
-    // else: second over of this pair's 2-over stint — striker/non-striker carry on unchanged.
+    // else: still mid-stint for this pair — striker/non-striker carry on unchanged.
   } else {
     // Only clear the pair if the innings itself just switched (the current striker no longer
     // belongs to the batting team). A null non-striker on its own does NOT mean that — it just
@@ -2755,7 +2781,7 @@ function finishOver() {
   // striker there, nothing to swap) and naturally skipped when a slot is empty (innings just
   // switched, a new pair/solo batter is being picked, or a partner is still pending after a
   // wicket) since there's nothing valid to swap in that case.
-  if (state.retirementRule !== 'single1' && state.striker && state.nonStriker) {
+  if (!isSoloRetirementRule() && state.striker && state.nonStriker) {
     const tmp = state.striker;
     state.striker = state.nonStriker;
     state.nonStriker = tmp;
