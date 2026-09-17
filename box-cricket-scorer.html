@@ -42,6 +42,15 @@
     --bat-text: #6B2E93;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* Whole app set to Arial, bold — the JPEG export card keeps its own font (separate, printable design). */
+  body, body *:not(.exportCardInner):not(.exportCardInner *) {
+    font-family: Arial, sans-serif !important;
+    font-weight: 700 !important;
+  }
+  /* All text in capital letters — inputs excluded so typed names stay editable as typed. */
+  body *:not(.exportCardInner):not(.exportCardInner *):not(input):not(textarea) {
+    text-transform: uppercase !important;
+  }
   html { overscroll-behavior-y: contain; } /* stops an accidental pull-down mid-over from triggering a browser refresh */
   body {
     margin: 0;
