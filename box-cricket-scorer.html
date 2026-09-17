@@ -2120,20 +2120,30 @@ function renderTeams() {
   team2NameInput.value = teamsState.name2;
   updateTeamLogoBadge(team1LogoBadge, teamsState.name1, teamsState.logo1);
   updateTeamLogoBadge(team2LogoBadge, teamsState.name2, teamsState.logo2);
-  team1ChipsEl.innerHTML = teamsState.team1.map((name, i) => `
+  // Shown lowest-skill-first (rating 1 at the top, working down to the highest) in both team
+  // lists — display order only. data-i still points at each name's real index in
+  // teamsState.team1/team2, so remove/move-between-teams keeps working off the actual array,
+  // not this sorted view.
+  const team1Sorted = teamsState.team1
+    .map((name, i) => ({ name, i }))
+    .sort((a, b) => (roster.ratings[a.name] || 5) - (roster.ratings[b.name] || 5));
+  const team2Sorted = teamsState.team2
+    .map((name, i) => ({ name, i }))
+    .sort((a, b) => (roster.ratings[a.name] || 5) - (roster.ratings[b.name] || 5));
+  team1ChipsEl.innerHTML = team1Sorted.map((item, idx) => `
     <div class="teamPlayerRow">
-      <span class="teamPlayerNum">${i + 1}.</span>
-      <span class="teamPlayerName">${name}</span>
-      <span class="teamPlayerSkill">(${roster.ratings[name] || 5})</span>
-      <button type="button" data-team="1" data-i="${i}" class="teamPlayerDel">&times;</button>
+      <span class="teamPlayerNum">${idx + 1}.</span>
+      <span class="teamPlayerName">${item.name}</span>
+      <span class="teamPlayerSkill">(${roster.ratings[item.name] || 5})</span>
+      <button type="button" data-team="1" data-i="${item.i}" class="teamPlayerDel">&times;</button>
     </div>`
   ).join('') || '<span style="color:var(--muted); font-size:13px;">No one on this team</span>';
-  team2ChipsEl.innerHTML = teamsState.team2.map((name, i) => `
+  team2ChipsEl.innerHTML = team2Sorted.map((item, idx) => `
     <div class="teamPlayerRow">
-      <span class="teamPlayerNum">${i + 1}.</span>
-      <span class="teamPlayerName">${name}</span>
-      <span class="teamPlayerSkill">(${roster.ratings[name] || 5})</span>
-      <button type="button" data-team="2" data-i="${i}" class="teamPlayerDel">&times;</button>
+      <span class="teamPlayerNum">${idx + 1}.</span>
+      <span class="teamPlayerName">${item.name}</span>
+      <span class="teamPlayerSkill">(${roster.ratings[item.name] || 5})</span>
+      <button type="button" data-team="2" data-i="${item.i}" class="teamPlayerDel">&times;</button>
     </div>`
   ).join('') || '<span style="color:var(--muted); font-size:13px;">No one on this team</span>';
 
