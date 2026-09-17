@@ -114,10 +114,11 @@
   @keyframes overToastIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes overToastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
   @keyframes ballsProgressBlink { 50% { opacity: 0.3; } }
-  #ballsProgressText { animation: ballsProgressBlink 1s step-start infinite; }
+  #ballsProgressText { animation: ballsProgressBlink 3.5s step-start infinite; }
   /* ---- Mini score bar blinks continuously, exactly like the "X of 6 balls bowled" line above —
-         same step-start blink, so the live total up top is always visibly "live". ---- */
-  .miniScoreBar { animation: ballsProgressBlink 1s step-start infinite; }
+         same step-start blink (slowed down so it reads as "live", not flickery), so the live
+         total up top is always visibly "live". ---- */
+  .miniScoreBar { animation: ballsProgressBlink 3.5s step-start infinite; }
   @media (prefers-reduced-motion: reduce) {
     #ballsProgressText { animation: none; }
   }
@@ -438,7 +439,7 @@
     display: flex;
     align-items: stretch;
     background: linear-gradient(135deg, #FFD166 0%, #FDA84B 40%, #F97B57 100%);
-    border: 2px solid #1a1a1a;
+    border: 2px solid #a0500e;
     border-radius: 12px;
     padding: 6px 10px;
     margin-bottom: 8px;
@@ -453,10 +454,10 @@
   .miniScoreCol.isBatting { opacity: 1; }
   .miniScoreDivider { width: 2px; background: rgba(58,20,10,0.3); margin: 2px 8px; border-radius: 2px; }
   .miniScoreBar .miniScoreTeam {
-    font-family: 'Share Tech Mono', monospace;
+    font-family: Arial, sans-serif;
     font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 1.2px;
+    font-weight: 900;
+    letter-spacing: 1px;
     text-transform: uppercase;
     color: rgba(58,20,10,0.7);
     display: block;
@@ -466,11 +467,11 @@
   }
   .miniScoreCol.isBatting .miniScoreTeam { color: #3A0F04; }
   .miniScoreBar .miniScoreRuns {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 21px;
-    font-weight: 800;
+    font-family: Arial, sans-serif;
+    font-size: 22px;
+    font-weight: 900;
     color: #3A0F04;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     text-shadow: 0 1px 0 rgba(255,255,255,0.45);
   }
   body.onMatch .miniScoreBar { padding: 5px 10px; margin-bottom: 5px; }
@@ -1192,7 +1193,7 @@
       <h2 id="thisOverHeading">This Over</h2>
       <div style="font-size:10.5px; color:var(--muted); margin:-4px 0 6px;">Tap any ball below to undo back to right before it</div>
       <div class="ballLog" id="ballLog"></div>
-      <div id="ballsProgressText" style="display:inline-block; font-family:'Share Tech Mono', monospace; font-size:11px; font-weight:800; color:#000; background:rgba(24,155,82,0.16); border:1.5px solid var(--led); border-radius:8px; padding:4px 10px; margin:0 0 8px;"></div>
+      <div id="ballsProgressText" style="display:inline-block; font-family:Arial, sans-serif; font-size:11.5px; font-weight:900; color:#000; background:rgba(24,155,82,0.16); border:1.5px solid var(--led); border-radius:8px; padding:4px 10px; margin:0 0 8px;"></div>
       <br>
 
       <div class="matchupBlock">
