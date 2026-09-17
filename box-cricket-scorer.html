@@ -448,8 +448,8 @@
     z-index: 40;
     display: flex;
     align-items: stretch;
-    background: #FDA84B;
-    border: 2px solid #a0500e;
+    background: #CFF2A6;
+    border: 2px solid #3F7D20;
     border-radius: 12px;
     padding: 6px 10px;
     margin-bottom: 8px;
@@ -462,25 +462,25 @@
     opacity: 0.55;
   }
   .miniScoreCol.isBatting { opacity: 1; }
-  .miniScoreDivider { width: 2px; background: rgba(58,20,10,0.3); margin: 2px 8px; border-radius: 2px; }
+  .miniScoreDivider { width: 2px; background: rgba(19,58,10,0.3); margin: 2px 8px; border-radius: 2px; }
   .miniScoreBar .miniScoreTeam {
     font-family: Arial, sans-serif;
     font-size: 10px;
     font-weight: 900;
     letter-spacing: 1px;
     text-transform: uppercase;
-    color: rgba(107,26,16,0.75);
+    color: rgba(19,58,10,0.75);
     display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .miniScoreCol.isBatting .miniScoreTeam { color: #6b1a10; }
+  .miniScoreCol.isBatting .miniScoreTeam { color: #143a0a; }
   .miniScoreBar .miniScoreRuns {
     font-family: Arial, sans-serif;
     font-size: 22px;
     font-weight: 900;
-    color: #6b1a10;
+    color: #143a0a;
     letter-spacing: 0.3px;
     text-shadow: 0 1px 0 rgba(255,255,255,0.45);
   }
@@ -490,19 +490,19 @@
   /* ---- Scoreboard: flat solid orange, crisp bordered card — clean/professional, no gradient
          blend or decorative blur circles. ---- */
   .scoreboard {
-    background: #FDA84B;
-    border: 2px solid #a0500e;
+    background: #CFF2A6;
+    border: 2px solid #3F7D20;
     border-radius: 12px;
-    padding: 16px 14px;
+    padding: 18px 14px;
     text-align: center;
     margin-bottom: 10px;
     box-shadow: 0 3px 10px rgba(0,0,0,0.12);
     position: relative;
   }
   .scoreboard .teamsHeaderRowIn { margin-bottom: 6px; position: relative; z-index: 1; }
-  .scoreboard .teamsHeaderSide { color: rgba(58,20,10,0.55); }
-  .scoreboard .teamsHeaderSide.active { color: #3A0F04; }
-  .scoreboard .teamsHeaderVs { color: rgba(58,20,10,0.5); }
+  .scoreboard .teamsHeaderSide { color: rgba(19,58,10,0.55); }
+  .scoreboard .teamsHeaderSide.active { color: #143a0a; }
+  .scoreboard .teamsHeaderVs { color: rgba(19,58,10,0.5); }
   .sbOver {
     display: inline-block;
     position: relative;
@@ -520,26 +520,26 @@
     font-weight: 800;
   }
   .sbScore {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 42px;
-    font-weight: 800;
-    color: #3A0F04;
+    font-family: Arial, sans-serif;
+    font-size: 48px;
+    font-weight: 900;
+    color: #143a0a;
     text-shadow: 0 1px 0 rgba(255,255,255,0.35);
     line-height: 1;
   }
-  .sbScore .wkt { color: #7a1030; }
+  .sbScore .wkt { color: #8a1f1f; }
   /* ---- Two-column score split: Team A on the left, Team B on the right, each in the same
          space the single combined score used to take — bigger and bolder, not smaller. ---- */
   .sbScoreSplit { display: flex; align-items: stretch; margin: 2px 0; position: relative; z-index: 1; }
   .sbScoreCol { flex: 1 1 0; min-width: 0; }
-  .sbScoreDivider { width: 1px; background: rgba(58,20,10,0.25); margin: 4px 10px; }
+  .sbScoreDivider { width: 1px; background: rgba(19,58,10,0.25); margin: 4px 10px; }
   .sbScoreColName {
     display: inline-block;
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 12px;
+    font-weight: 900;
     letter-spacing: 1px;
     text-transform: uppercase;
-    color: rgba(58,20,10,0.65);
+    color: rgba(19,58,10,0.7);
     margin-bottom: 3px;
     padding: 2px 8px;
     border-radius: 10px;
@@ -552,41 +552,41 @@
   #sbScoreColB.isBatting .sbScoreColName { background: #7A1361; color: #fff; border: 2px solid #1a1a1a; }
   #sbScoreColA:not(.isBatting) .sbScoreColName, #sbScoreColB:not(.isBatting) .sbScoreColName { border: 2px solid rgba(26,26,26,0.4); }
   .sbScoreBig {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: clamp(28px, 10vw, 44px);
-    font-weight: 800;
-    color: #3A0F04;
-    text-shadow: 0 2px 3px rgba(58,20,10,0.18);
+    font-family: Arial, sans-serif;
+    font-size: clamp(34px, 11vw, 54px);
+    font-weight: 900;
+    color: #143a0a;
+    text-shadow: 0 2px 3px rgba(19,58,10,0.18);
     line-height: 1;
     letter-spacing: 0.5px;
   }
   #sbScoreColA .sbScoreBig { color: #123E7A; text-shadow: 0 2px 4px rgba(18,62,122,0.25); }
   #sbScoreColB .sbScoreBig { color: #7A1361; text-shadow: 0 2px 4px rgba(122,19,97,0.25); }
-  .sbScoreBig .wkt { color: #7a1030; }
+  .sbScoreBig .wkt { color: #8a1f1f; }
   .sbScoreCol:not(.isBatting) .sbScoreBig { opacity: 0.5; filter: saturate(0.6); }
   .sbScoreCol.isBatting .sbScoreBig { text-shadow: 0 2px 6px rgba(0,0,0,0.2); }
   .sbScoreColSub {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    font-weight: 800;
-    color: rgba(58,20,10,0.6);
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 900;
+    color: rgba(19,58,10,0.65);
     margin-top: 2px;
     letter-spacing: 0.5px;
   }
-  .sbScoreCol.isBatting .sbScoreColSub { color: #3A0F04; }
+  .sbScoreCol.isBatting .sbScoreColSub { color: #143a0a; }
   .sbSub {
-    font-family: 'Share Tech Mono', monospace;
-    color: rgba(58,20,10,0.75);
-    font-size: 11px;
+    font-family: Arial, sans-serif;
+    color: rgba(19,58,10,0.8);
+    font-size: 12px;
     margin-top: 4px;
-    font-weight: 800;
+    font-weight: 900;
   }
   .sbMeta {
     display: flex;
     gap: 8px;
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px dashed rgba(58,20,10,0.3);
+    border-top: 1px dashed rgba(19,58,10,0.3);
     text-align: left;
     position: relative;
     z-index: 1;
@@ -600,13 +600,13 @@
     padding: 6px 10px;
   }
   .sbMetaCol.right { background: rgba(24,155,82,0.16); text-align: right; }
-  .sbMetaCol .lbl { font-size: 9px; letter-spacing: 1px; color: rgba(58,20,10,0.7); text-transform: uppercase; font-weight: 800; }
-  .sbMetaCol .val { font-size: 14px; font-weight: 800; margin-top: 1px; color: #3A0F04; }
+  .sbMetaCol .lbl { font-size: 10px; letter-spacing: 1px; color: rgba(19,58,10,0.75); text-transform: uppercase; font-weight: 900; }
+  .sbMetaCol .val { font-size: 16px; font-weight: 900; margin-top: 1px; color: #143a0a; }
   .sbMetaCol .valSub {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 13px;
-    font-weight: 800;
-    color: #8a3906;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 900;
+    color: #2f5f1a;
     margin-top: 1px;
   }
 
