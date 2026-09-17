@@ -115,15 +115,9 @@
   @keyframes overToastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
   @keyframes ballsProgressBlink { 50% { opacity: 0.3; } }
   #ballsProgressText { animation: ballsProgressBlink 1s step-start infinite; }
-  /* ---- Mini score bar flash — the whole pill briefly blinks bright whenever the live total
-         changes (a run scored, a wicket, or a score arriving from another phone's sync), so the
-         update is obvious at a glance without having to stare at the numbers. ---- */
-  @keyframes miniScoreFlash {
-    0% { box-shadow: 0 6px 14px rgba(200,80,110,0.28); filter: brightness(1); }
-    25% { box-shadow: 0 0 0 7px rgba(255,255,255,0.65), 0 6px 20px rgba(200,80,110,0.45); filter: brightness(1.35); }
-    100% { box-shadow: 0 6px 14px rgba(200,80,110,0.28); filter: brightness(1); }
-  }
-  .miniScoreBar.flash { animation: miniScoreFlash 0.6s ease-out; }
+  /* ---- Mini score bar blinks continuously, exactly like the "X of 6 balls bowled" line above —
+         same step-start blink, so the live total up top is always visibly "live". ---- */
+  .miniScoreBar { animation: ballsProgressBlink 1s step-start infinite; }
   @media (prefers-reduced-motion: reduce) {
     #ballsProgressText { animation: none; }
   }
@@ -145,6 +139,33 @@
     color: var(--ink);
   }
   .hdr h1 span { color: var(--ball); }
+
+  /* ---- Top action bar (admin lock + refresh) — moved down out of the old fixed floating
+         corner into a normal watercolor + bordered box, same design language as the bowler/
+         batter chips elsewhere in the app. ---- */
+  #topActionBar {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    background: linear-gradient(135deg, var(--bowl-bg) 0%, var(--bat-bg) 100%);
+    border: 1.5px solid var(--bowl-border);
+    border-radius: 14px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+  }
+  #topActionBar button {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1.5px solid var(--line);
+    color: var(--muted);
+    font-size: 14px;
+    padding: 0;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  #topActionBar button:active { transform: scale(0.93); }
 
   /* ---- Card ---- */
   .panel {
@@ -886,15 +907,19 @@
 </head>
 <body>
 <div id="overToastWrap"></div>
-<div id="topActionBar" style="position:fixed; top:10px; right:14px; z-index:60; display:flex; gap:8px;">
-  <button id="adminToggleBtn" title="Admin unlock/lock" style="width:30px; height:30px; border-radius:50%; background:var(--panel-2); border:1.5px solid var(--line); color:var(--muted); font-size:13px; padding:0; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.25);">🔐</button>
-  <button id="refreshAppBtn" title="Clear cache & refresh app" style="width:30px; height:30px; border-radius:50%; background:var(--panel-2); border:1.5px solid var(--line); color:var(--muted); font-size:13px; padding:0; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.25);">🔄</button>
-</div>
 <div class="wrap">
 
   <div class="hdr" style="position:relative;">
     <div class="eyebrow">🏏 Live Scorer</div>
     <h1>BOX <span>CRICKET</span></h1>
+  </div>
+
+  <!-- Moved down out of the old fixed top-right floating corner into a normal watercolor +
+       border box, same design language as the rest of the app — sits right under the header on
+       every screen (setup, match, final) since the admin lock/unlock is needed on all of them. -->
+  <div id="topActionBar">
+    <button id="adminToggleBtn" title="Admin unlock/lock">🔐</button>
+    <button id="refreshAppBtn" title="Clear cache & refresh app">🔄</button>
   </div>
 
   <!-- Offscreen JPEG-export render target -->
@@ -908,7 +933,7 @@
       <button class="btn-primary" id="loadScheduledBannerBtn" style="width:100%;">▶ Load This Match</button>
     </div>
 
-    <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623);">
+    <div class="panel" id="scorerAccessPanel" style="border:1.5px solid var(--amber, #f5a623); background:linear-gradient(135deg, rgba(232,137,12,0.1) 0%, rgba(255,209,102,0.12) 100%);">
       <h2>🔐 Scoring Access</h2>
       <div class="setupHint" style="margin-top:0;">Simple rule: only UNLOCKED phones can tap the scoring buttons — everyone else can still watch live, view-only. There's no name list to manage — tap the 🔐 icon at the top of any phone and enter the PIN to unlock scoring on THAT phone (any time, even mid-match). Anyone who knows the PIN has full access.</div>
       <div id="scorerAccessStatus" style="margin-top:10px; font-weight:700; font-size:13px;"></div>
@@ -1123,7 +1148,7 @@
       <span class="miniScoreTeam" id="miniScoreLabel">Team B</span><span class="miniScoreRuns" id="miniScoreRuns">0/0</span>
     </div>
 
-    <div class="panel" id="scoreAccessStatusPanel" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+    <div class="panel" id="scoreAccessStatusPanel" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:linear-gradient(135deg, rgba(232,137,12,0.1) 0%, rgba(255,209,102,0.12) 100%); border:1.5px solid var(--amber, #f5a623);">
       <span id="scoreAccessStatusText" style="font-weight:800; font-size:13px;"></span>
       <a href="#" id="changePinLinkMatch" class="hidden" style="color:var(--led,#16a34a); font-weight:700; font-size:12.5px; text-decoration:underline; white-space:nowrap;">🔑 Change PIN</a>
     </div>
@@ -2374,7 +2399,6 @@ function renderTeamsHeaderRow(containerId, bowlingIsTeam1) {
   `;
 }
 
-let lastMiniScoreKey = null; // tracks the last-shown live total so the mini score bar only flashes on an actual change
 function renderMatch() {
   const oIdx = state.currentOverIdx;
   const teamsHeaderInnings1Len = innings1OversCount();
@@ -2404,21 +2428,12 @@ function renderMatch() {
   // Sticky mini score line at the very top — shows just the batting side's live total, since
   // the full scoreboard box now sits further down, below the Retire Batter row. Updates on
   // every render (so it's always live — a ball scored here, or a ball synced in from another
-  // phone), and the whole pill briefly flashes whenever the actual total changes, so an update
-  // is obvious even to someone just glancing at the phone.
-  const miniBarEl = document.getElementById('miniScoreBar');
+  // phone) — it blinks continuously via CSS, same as the balls-bowled line above.
   const miniLabelEl = document.getElementById('miniScoreLabel');
   const miniRunsEl = document.getElementById('miniScoreRuns');
   if (miniLabelEl && miniRunsEl) {
     miniLabelEl.textContent = isInnings1 ? team2Name : team1Name;
     miniRunsEl.textContent = `${state.totalRuns}/${state.totalWkts}`;
-    const miniScoreKey = `${isInnings1 ? team2Name : team1Name}|${state.totalRuns}/${state.totalWkts}`;
-    if (miniBarEl && lastMiniScoreKey !== null && lastMiniScoreKey !== miniScoreKey) {
-      miniBarEl.classList.remove('flash');
-      void miniBarEl.offsetWidth; // force reflow so the animation restarts even if it's still mid-flash
-      miniBarEl.classList.add('flash');
-    }
-    lastMiniScoreKey = miniScoreKey;
   }
   const colA = document.getElementById('sbScoreColA');
   const colB = document.getElementById('sbScoreColB');
