@@ -5051,9 +5051,39 @@ function todayDateISO(d = new Date()) {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
-function isMonthPaid(val) {
+// ---- Two different questions about a month's cell, kept separate on purpose ----
+// hasPayment: "was ANY amount recorded here?" — true the moment a deposit (even a partial one)
+// is entered. Used anywhere we're logging/reviewing an actual payment received, regardless of
+// whether it covers the full monthly due (ledger entries, the Collections export list, and
+// reviewing an existing entry in the admin edit form).
+function hasPayment(val) {
   const v = String(val || '').trim();
   return !!v && v !== '—' && Number(v) !== 0;
+}
+// isMonthPaid: "is this month's due FULLY SETTLED?" — requires the recorded amount to be at
+// least the full monthly due. A partial deposit (e.g. ₹150 against a ₹500 due) must NOT count as
+// paid here, or the person would wrongly show as "Paid up to" a month they still owe money for.
+function isMonthPaid(val) {
+  const v = String(val || '').trim();
+  if (!v || v === '—') return false;
+  const n = Number(v);
+  return !isNaN(n) && n >= MONTHLY_DUE_AMOUNT;
+}
+// How much is still owed for one month's cell — 0 if unpaid/blank, the shortfall if a partial
+// amount was recorded, 0 (never negative) once it's at or past the full due.
+function amountDueForMonth(val) {
+  const v = String(val || '').trim();
+  const paid = (!v || v === '—') ? 0 : (Number(v) || 0);
+  return Math.max(MONTHLY_DUE_AMOUNT - paid, 0);
+}
+// Total still owed across every pending month up to curIdx, correctly crediting any partial
+// amount already paid instead of charging the full ₹500 again on top of it.
+function pendingAmountFor(contribution, person, curIdx) {
+  let sum = 0;
+  for (let i = 0; i <= curIdx; i++) {
+    if (!isMonthPaid(person.values[i])) sum += amountDueForMonth(person.values[i]);
+  }
+  return sum;
 }
 // Index (within contribution.months) of the latest month that is not later than today's real
 // month — i.e. the real "current month" column if present, else the most recent past one.
@@ -5101,15 +5131,22 @@ function renderAccountsDues(contribution) {
   const rows = contribution.people.map((p) => {
     const pending = pendingMonthsFor(contribution, p, curIdx);
     const paid = pending.length === 0;
-    const amt = pending.length * MONTHLY_DUE_AMOUNT;
+    const amt = pendingAmountFor(contribution, p, curIdx);
     const paidLabel = paid ? personPaidThroughLabel(contribution, p, curIdx) : monthLabel;
+    // Show what's already been part-paid for a pending month, e.g. "Oct-26 (₹150 paid)", so a
+    // partial deposit isn't mistaken for nothing having been received at all.
+    const pendingLabel = pending.map((m, idx) => {
+      const monthIdx = contribution.months.indexOf(m);
+      const paidSoFar = hasPayment(p.values[monthIdx]) ? Number(p.values[monthIdx]) || 0 : 0;
+      return paidSoFar > 0 ? `${m} (₹${paidSoFar} paid)` : m;
+    }).join(', ');
     return `<div class="fineRow ${paid ? 'rowPaidUp' : 'fined'}">
       <span class="fineName">${p.name}</span>
-      <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
+      <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pendingLabel + ' · ₹' + amt + ' due')}</span>
     </div>`;
   }).join('');
   const duePeople = contribution.people.filter((p) => pendingMonthsFor(contribution, p, curIdx).length > 0);
-  const totalDue = duePeople.reduce((sum, p) => sum + pendingMonthsFor(contribution, p, curIdx).length * MONTHLY_DUE_AMOUNT, 0);
+  const totalDue = duePeople.reduce((sum, p) => sum + pendingAmountFor(contribution, p, curIdx), 0);
   accountsDuesCard.style.display = '';
   accountsDuesCard.classList.toggle('hasDue', duePeople.length > 0);
   accountsDuesCard.classList.toggle('allPaid', duePeople.length === 0);
@@ -5427,14 +5464,19 @@ function renderMyDuesAndBalance() {
   }
   const pending = pendingMonthsFor(contribution, me, curIdx);
   const paid = pending.length === 0;
-  const amt = pending.length * MONTHLY_DUE_AMOUNT;
+  const amt = pendingAmountFor(contribution, me, curIdx);
   const paidLabel = paid ? personPaidThroughLabel(contribution, me, curIdx) : monthLabel;
+  const pendingLabel = pending.map((m) => {
+    const monthIdx = contribution.months.indexOf(m);
+    const paidSoFar = hasPayment(me.values[monthIdx]) ? Number(me.values[monthIdx]) || 0 : 0;
+    return paidSoFar > 0 ? `${m} (₹${paidSoFar} paid)` : m;
+  }).join(', ');
   myDuesTitleEl.textContent = `📋 DUES UP TO ${monthLabel}`;
   myDuesCard.classList.toggle('hasDue', !paid);
   myDuesCard.classList.toggle('allPaid', paid);
   myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? 'rowPaidUp' : 'fined'}">
     <span class="fineName">${me.name}</span>
-    <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pending.join(', ') + ' · ₹' + amt)}</span>
+    <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pendingLabel + ' · ₹' + amt + ' due')}</span>
   </div>`;
 }
 
@@ -5496,7 +5538,7 @@ document.getElementById('exportSummaryBtn').addEventListener('click', () => {
   }
 
   const collectionsRows = curIdx >= 0
-    ? contribution.people.filter((p) => isMonthPaid(p.values[curIdx])).map((p) => `
+    ? contribution.people.filter((p) => hasPayment(p.values[curIdx])).map((p) => `
       <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #EFE9D8;">
         <span>${p.name}</span><span style="font-weight:800; color:#189B4E;">₹${p.values[curIdx]}</span>
       </div>`).join('')
@@ -5658,7 +5700,7 @@ function openPersonModal(name) {
     if (curIdx === -1) return true; // no real "current month" found — show everything as a fallback
     if (i === curIdx) return true;
     const val = filteredPerson ? filteredPerson.values[i] : '';
-    if (i > curIdx) return isMonthPaid(val); // a future month only shows up by default to review/fix an existing entry
+    if (i > curIdx) return hasPayment(val); // a future month only shows up by default to review/fix an existing entry
     return !isMonthPaid(val); // a past month only shows up by default while still pending
   });
   renderPersonModalMonthFields();
@@ -5762,7 +5804,7 @@ document.getElementById('personModalSaveBtn').addEventListener('click', () => {
     if (values[i] === oldValues[i]) return;
     const linkTag = `${name}|${monthLabel}`;
     const linkedIdx = expenses.findIndex((e) => e.linkedContribution === linkTag);
-    if (!isMonthPaid(values[i])) {
+    if (!hasPayment(values[i])) {
       // Went from paid back to blank/0 — remove the auto-added ledger entry so it doesn't linger.
       if (linkedIdx >= 0) expenses.splice(linkedIdx, 1);
       return;
