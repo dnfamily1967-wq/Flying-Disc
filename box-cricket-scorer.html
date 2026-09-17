@@ -115,6 +115,15 @@
   @keyframes overToastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
   @keyframes ballsProgressBlink { 50% { opacity: 0.3; } }
   #ballsProgressText { animation: ballsProgressBlink 1s step-start infinite; }
+  /* ---- Mini score bar flash — the whole pill briefly blinks bright whenever the live total
+         changes (a run scored, a wicket, or a score arriving from another phone's sync), so the
+         update is obvious at a glance without having to stare at the numbers. ---- */
+  @keyframes miniScoreFlash {
+    0% { box-shadow: 0 6px 14px rgba(200,80,110,0.28); filter: brightness(1); }
+    25% { box-shadow: 0 0 0 7px rgba(255,255,255,0.65), 0 6px 20px rgba(200,80,110,0.45); filter: brightness(1.35); }
+    100% { box-shadow: 0 6px 14px rgba(200,80,110,0.28); filter: brightness(1); }
+  }
+  .miniScoreBar.flash { animation: miniScoreFlash 0.6s ease-out; }
   @media (prefers-reduced-motion: reduce) {
     #ballsProgressText { animation: none; }
   }
@@ -396,6 +405,38 @@
   }
   .setupHint { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 4px; }
 
+  /* ---- Mini score bar: the only score visible at the very top now (the full orange
+         scoreboard moved below the Retire Batter row) — stays pinned while scrolling through
+         the scoring pad so the live total is never out of sight. ---- */
+  .miniScoreBar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: linear-gradient(135deg, #FFD166 0%, #FDA84B 40%, #F97B57 100%);
+    border-radius: 12px;
+    padding: 6px 14px;
+    margin-bottom: 8px;
+    text-align: center;
+    box-shadow: 0 6px 14px rgba(200,80,110,0.28);
+  }
+  .miniScoreBar .miniScoreTeam {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(58,20,10,0.7);
+    margin-right: 10px;
+  }
+  .miniScoreBar .miniScoreRuns {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 19px;
+    font-weight: 800;
+    color: #3A0F04;
+    letter-spacing: 0.5px;
+  }
+  body.onMatch .miniScoreBar { padding: 5px 12px; margin-bottom: 5px; }
+
   /* ---- Scoreboard: multi-color carnival gradient with colorful accents — playful and
          attractive, while keeping bold dark text for strong readability. ---- */
   .scoreboard {
@@ -669,6 +710,19 @@
     padding: 12px 0;
   }
   .outUndoRow #undoBtn:active { transform: scale(0.96); }
+  .retireRow { margin-top: 8px; }
+  .retireRow #retireBtn {
+    width: 100%;
+    background: rgba(232,137,12,0.12);
+    border: 1.5px solid var(--amber);
+    color: #8a5306;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    border-radius: 11px;
+    padding: 11px 0;
+  }
+  .retireRow #retireBtn:active { transform: scale(0.97); }
 
   /* ---- Leaderboard ---- */
   table.stats { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -1063,35 +1117,10 @@
   <div id="matchScreen" class="hidden">
   <div id="matchScaleWrap">
 
-    <div class="scoreboard">
-      <div id="matchNameLabel" class="hidden" style="text-align:center; font-weight:800; font-size:12.5px; letter-spacing:0.5px; color:var(--muted); margin-bottom:4px; text-transform:uppercase;"></div>
-      <div class="teamsHeaderRow teamsHeaderRowIn" id="matchTeamsHeaderRow"></div>
-      <div class="sbOver" id="sbOverLabel">OVER 1 OF 8 · 0.0 OVERS BOWLED</div>
-      <div class="sbScoreSplit">
-        <div class="sbScoreCol" id="sbScoreColA">
-          <div class="sbScoreColName" id="sbTeamAName">Team A</div>
-          <div class="sbScoreBig"><span id="sbRunsA">0</span>/<span class="wkt" id="sbWktsA">0</span></div>
-          <div class="sbScoreColSub" id="sbTeamASub">Yet to bat</div>
-        </div>
-        <div class="sbScoreDivider"></div>
-        <div class="sbScoreCol" id="sbScoreColB">
-          <div class="sbScoreColName" id="sbTeamBName">Team B</div>
-          <div class="sbScoreBig"><span id="sbRunsB">0</span>/<span class="wkt" id="sbWktsB">0</span></div>
-          <div class="sbScoreColSub" id="sbTeamBSub">Yet to bat</div>
-        </div>
-      </div>
-      <div class="sbMeta">
-        <div class="sbMetaCol">
-          <div class="lbl">Bowling</div>
-          <div class="val" id="sbBowlerName">—</div>
-          <div class="valSub" id="sbBowlerFigures">0 runs</div>
-        </div>
-        <div class="sbMetaCol right">
-          <div class="lbl">On Strike 🟢</div>
-          <div class="val" id="sbBatterName">—</div>
-          <div class="valSub batterRuns" id="sbBatterRuns">0 runs</div>
-        </div>
-      </div>
+    <!-- Slim sticky run line — the full orange scoreboard now lives further down (below the
+         Retire Batter row), so this is the only score visible without scrolling while scoring. -->
+    <div class="miniScoreBar" id="miniScoreBar">
+      <span class="miniScoreTeam" id="miniScoreLabel">Team B</span><span class="miniScoreRuns" id="miniScoreRuns">0/0</span>
     </div>
 
     <div class="panel" id="scoreAccessStatusPanel" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
@@ -1138,6 +1167,40 @@
       <div class="outUndoRow">
         <button class="padBtn out" id="outBtn">OUT</button>
         <button id="undoBtn">↩ Undo last ball</button>
+      </div>
+      <div class="retireRow">
+        <button id="retireBtn" type="button">🚶 Retire Batter (no penalty)</button>
+      </div>
+    </div>
+
+    <div class="scoreboard">
+      <div id="matchNameLabel" class="hidden" style="text-align:center; font-weight:800; font-size:12.5px; letter-spacing:0.5px; color:var(--muted); margin-bottom:4px; text-transform:uppercase;"></div>
+      <div class="teamsHeaderRow teamsHeaderRowIn" id="matchTeamsHeaderRow"></div>
+      <div class="sbOver" id="sbOverLabel">OVER 1 OF 8 · 0.0 OVERS BOWLED</div>
+      <div class="sbScoreSplit">
+        <div class="sbScoreCol" id="sbScoreColA">
+          <div class="sbScoreColName" id="sbTeamAName">Team A</div>
+          <div class="sbScoreBig"><span id="sbRunsA">0</span>/<span class="wkt" id="sbWktsA">0</span></div>
+          <div class="sbScoreColSub" id="sbTeamASub">Yet to bat</div>
+        </div>
+        <div class="sbScoreDivider"></div>
+        <div class="sbScoreCol" id="sbScoreColB">
+          <div class="sbScoreColName" id="sbTeamBName">Team B</div>
+          <div class="sbScoreBig"><span id="sbRunsB">0</span>/<span class="wkt" id="sbWktsB">0</span></div>
+          <div class="sbScoreColSub" id="sbTeamBSub">Yet to bat</div>
+        </div>
+      </div>
+      <div class="sbMeta">
+        <div class="sbMetaCol">
+          <div class="lbl">Bowling</div>
+          <div class="val" id="sbBowlerName">—</div>
+          <div class="valSub" id="sbBowlerFigures">0 runs</div>
+        </div>
+        <div class="sbMetaCol right">
+          <div class="lbl">On Strike 🟢</div>
+          <div class="val" id="sbBatterName">—</div>
+          <div class="valSub batterRuns" id="sbBatterRuns">0 runs</div>
+        </div>
       </div>
     </div>
 
@@ -1384,13 +1447,28 @@ const firebaseConfig = {
   messagingSenderId: "774852929390",
   appId: "1:774852929390:web:509d7f6e6d85cba5a6037f"
 };
-firebase.initializeApp(firebaseConfig);
-const cricketDb = firebase.firestore();
-// Reuses the SAME Firestore collection ('disc_team') the Flying Disc app already writes to —
-// under its own document name so it never clashes with players/attendance/accounts/etc. Doing
-// it this way means the existing Firestore security rules (already set up and working for that
-// collection) cover this too, with no extra Firebase Console configuration needed.
-const liveMatchRef = cricketDb.collection('disc_team').doc('box_cricket_live_match');
+// Guarded init — if the Firebase scripts fail to load (slow/blocked network, offline preview
+// straight from a downloaded file, etc.) this used to throw immediately and silently kill the
+// ENTIRE rest of the app's script (every render function, every button's event listener), which
+// is why a network hiccup could make the whole page look broken — no players, no scoreboard,
+// nothing tappable — with no visible error. Now a failed Firebase load just disables cloud sync
+// for this device; scoring still works fully off localStorage on this phone.
+let firebaseReady = false;
+let cricketDb = null;
+let liveMatchRef = null;
+try {
+  if (typeof firebase === 'undefined') throw new Error('Firebase SDK did not load (check internet connection)');
+  firebase.initializeApp(firebaseConfig);
+  cricketDb = firebase.firestore();
+  // Reuses the SAME Firestore collection ('disc_team') the Flying Disc app already writes to —
+  // under its own document name so it never clashes with players/attendance/accounts/etc. Doing
+  // it this way means the existing Firestore security rules (already set up and working for that
+  // collection) cover this too, with no extra Firebase Console configuration needed.
+  liveMatchRef = cricketDb.collection('disc_team').doc('box_cricket_live_match');
+  firebaseReady = true;
+} catch (e) {
+  console.error('[Cloud sync] Firebase init failed — continuing offline on this device.', e);
+}
 
 function showSyncErrorBanner(msg) {
   console.error('[Cloud sync]', msg);
@@ -1407,6 +1485,7 @@ function showSyncErrorBanner(msg) {
 let applyingRemoteUpdate = false; // true while we're applying someone ELSE's update, so we don't immediately echo it straight back to the cloud
 let pushTimer = null;
 function doCloudPush() {
+  if (!firebaseReady) return; // cloud sync unavailable this session — localStorage save already happened
   try {
     // Firestore rejects `undefined` values — a clean JSON round-trip strips those out safely.
     // Roster (master player list) and teamsState (this match's Team A/B split) are synced
@@ -1439,6 +1518,10 @@ window.addEventListener('pagehide', () => {
 
 let cloudSyncStarted = false;
 function startCloudSync() {
+  if (!firebaseReady) {
+    showSyncErrorBanner('Firebase did not load (offline or blocked) — scoring on this device only, nothing will sync to other phones until you reload with a working connection.');
+    return;
+  }
   liveMatchRef.onSnapshot((doc) => {
     if (!doc.exists) {
       // Nothing in the cloud yet (first-ever use) — push whatever we have locally so other
@@ -2291,6 +2374,7 @@ function renderTeamsHeaderRow(containerId, bowlingIsTeam1) {
   `;
 }
 
+let lastMiniScoreKey = null; // tracks the last-shown live total so the mini score bar only flashes on an actual change
 function renderMatch() {
   const oIdx = state.currentOverIdx;
   const teamsHeaderInnings1Len = innings1OversCount();
@@ -2317,6 +2401,25 @@ function renderMatch() {
   const team2Name = state.team2Name || 'Team B';
   document.getElementById('sbTeamAName').textContent = team1Name;
   document.getElementById('sbTeamBName').textContent = team2Name;
+  // Sticky mini score line at the very top — shows just the batting side's live total, since
+  // the full scoreboard box now sits further down, below the Retire Batter row. Updates on
+  // every render (so it's always live — a ball scored here, or a ball synced in from another
+  // phone), and the whole pill briefly flashes whenever the actual total changes, so an update
+  // is obvious even to someone just glancing at the phone.
+  const miniBarEl = document.getElementById('miniScoreBar');
+  const miniLabelEl = document.getElementById('miniScoreLabel');
+  const miniRunsEl = document.getElementById('miniScoreRuns');
+  if (miniLabelEl && miniRunsEl) {
+    miniLabelEl.textContent = isInnings1 ? team2Name : team1Name;
+    miniRunsEl.textContent = `${state.totalRuns}/${state.totalWkts}`;
+    const miniScoreKey = `${isInnings1 ? team2Name : team1Name}|${state.totalRuns}/${state.totalWkts}`;
+    if (miniBarEl && lastMiniScoreKey !== null && lastMiniScoreKey !== miniScoreKey) {
+      miniBarEl.classList.remove('flash');
+      void miniBarEl.offsetWidth; // force reflow so the animation restarts even if it's still mid-flash
+      miniBarEl.classList.add('flash');
+    }
+    lastMiniScoreKey = miniScoreKey;
+  }
   const colA = document.getElementById('sbScoreColA');
   const colB = document.getElementById('sbScoreColB');
   if (isInnings1) {
@@ -2967,6 +3070,49 @@ document.getElementById('undoBtn').addEventListener('click', () => {
   Object.assign(state, prev);
   saveState();
   renderMatch();
+});
+
+// Manual "Retire Batter" — lets the scorer voluntarily send the striker or non-striker back to
+// the pavilion mid-innings (injury, giving someone else strike, etc.) with NO run penalty and
+// NOT counted as a wicket. Uses the exact same retiredBatters/return-threshold/quota-baseline
+// machinery as the Auto-Retire ball/run quota above, so it behaves consistently with the rest of
+// the app: the retired batter can come back later only if "Retired Batter Returns After" allows
+// it, and if nobody at all is left to come in as a replacement, the innings ends the same way a
+// genuine last-wicket dismissal would.
+document.getElementById('retireBtn').addEventListener('click', () => {
+  withScoringLock(() => {
+    if (!state.striker && !state.nonStriker) {
+      alert('No one is currently batting to retire.');
+      return;
+    }
+    let who;
+    if (state.striker && state.nonStriker) {
+      const choice = confirm(`Retire ${state.striker} (striker)?\n\nOK = retire ${state.striker}\nCancel = retire ${state.nonStriker} (non-striker) instead`);
+      who = choice ? state.striker : state.nonStriker;
+    } else {
+      who = state.striker || state.nonStriker;
+    }
+    if (!confirm(`Retire ${who}? No run penalty, not out — you'll pick their replacement next. (Comes back later only if "Retired Batter Returns After" allows it.)`)) return;
+    pushHistory();
+    hapticTap(15);
+    if (!state.retiredBatters) state.retiredBatters = [];
+    if (!state.retiredBatters.includes(who)) state.retiredBatters.push(who);
+    markRetireEligibility(who);
+    snapshotRetireBaseline(who);
+    if (state.battingStats[who]) state.battingStats[who].faced = true;
+    if (state.striker === who) {
+      state.striker = state.nonStriker;
+      state.nonStriker = null;
+    } else if (state.nonStriker === who) {
+      state.nonStriker = null;
+    }
+    // Nobody left to come in as a partner — same "all out" handling as a genuine wicket.
+    if (state.striker && !hasPickableReplacement([state.striker])) {
+      endInningsAllOut();
+    }
+    saveState();
+    renderMatch();
+  });
 });
 
 // Tap any earlier ball in "This Over" to undo everything back to right before THAT ball — for
