@@ -1543,19 +1543,24 @@ function doCloudPush() {
   if (!firebaseReady) return; // cloud sync unavailable this session — localStorage save already happened
   try {
     // Firestore rejects `undefined` values — a clean JSON round-trip strips those out safely.
-    // Roster (master player list), teamsState (this match's Team A/B split), and the scheduled-
-    // matches list are all synced alongside the live match itself, so setup screens — and
-    // scheduled matches saved on one phone — match on every phone too, not just the scoring
-    // once a match is underway.
+    // Roster (master player list) and teamsState (this match's Team A/B split) are synced
+    // alongside the live match itself, so setup screens match on every phone too, not just
+    // the scoring once a match is underway.
+    // NOTE: the scheduled-matches list is intentionally NOT included here. This push fires very
+    // frequently (every ball scored during live play), and each device only ever has its OWN
+    // last-known copy of the scheduled list in localStorage. A plain `.set()` of the whole
+    // document would replace `scheduled` in Firestore with that stale local copy on every single
+    // ball, silently erasing any match another phone had just scheduled. `{ merge: true }` below
+    // means this push only touches the fields listed here and never touches `scheduled` at all —
+    // that field is written only by pushScheduledToCloud(), below.
     const payload = {
       state: JSON.parse(JSON.stringify(state)),
       roster: JSON.parse(JSON.stringify(roster)),
       teamsState: JSON.parse(JSON.stringify(teamsState)),
-      scheduled: JSON.parse(JSON.stringify(loadScheduledList())),
       adminPin: adminPin,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-    liveMatchRef.set(payload)
+    liveMatchRef.set(payload, { merge: true })
       .catch((err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'blocked by Firestore rules (permission-denied)' : (err.message || 'write failed')));
   } catch (e) {}
 }
@@ -1563,6 +1568,20 @@ function pushStateToCloud() {
   if (applyingRemoteUpdate) return;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(doCloudPush, 400); // small debounce so a burst of taps doesn't spam the network
+}
+// Dedicated, merge-only push for the scheduled-matches list. Kept completely separate from
+// doCloudPush() above so that routine ball-by-ball scoring pushes (which happen far more often
+// than scheduling a match) can never race with, and overwrite, a match another phone just scheduled.
+function pushScheduledToCloud() {
+  if (!firebaseReady) return;
+  try {
+    const payload = {
+      scheduled: JSON.parse(JSON.stringify(loadScheduledList())),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    liveMatchRef.set(payload, { merge: true })
+      .catch((err) => showSyncErrorBanner(err.code === 'permission-denied' ? 'blocked by Firestore rules (permission-denied)' : (err.message || 'write failed')));
+  } catch (e) {}
 }
 // If the phone switches app / locks the screen / closes this tab right after a ball is scored,
 // don't lose that ball to the 400ms debounce window — push immediately instead of waiting.
@@ -1601,6 +1620,14 @@ function startCloudSync() {
     if (data.teamsState) {
       teamsState = data.teamsState;
       try { localStorage.setItem(TEAMS_KEY, JSON.stringify(teamsState)); } catch (e) {}
+    }
+    if (data.scheduled) {
+      try { localStorage.setItem(SCHEDULED_KEY, JSON.stringify(data.scheduled)); } catch (e) {}
+      // Refresh the scheduled list/banner right away if setup screen happens to be showing —
+      // otherwise it'll pick up the synced list the next time renderSetup() runs anyway.
+      if (document.getElementById('setupScreen') && !document.getElementById('setupScreen').classList.contains('hidden')) {
+        renderScheduled();
+      }
     }
     if (typeof data.adminPin === 'string' && data.adminPin) {
       adminPin = data.adminPin;
@@ -3337,7 +3364,7 @@ function loadScheduledList() {
 }
 function saveScheduledListToStorage(list) {
   try { localStorage.setItem(SCHEDULED_KEY, JSON.stringify(list)); } catch (e) {}
-  pushStateToCloud();
+  pushScheduledToCloud(); // own merge-only cloud write — never clobbered by routine scoring pushes
 }
 function isSameLocalDay(isoStr) {
   const d = new Date(isoStr);
