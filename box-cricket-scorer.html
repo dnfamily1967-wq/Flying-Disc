@@ -122,6 +122,55 @@
   .overToast.fadeOut { animation: overToastOut 0.35s ease-in forwards; }
   @keyframes overToastIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes overToastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+
+  /* ---- Full-screen popup for OUT / RETIRE / MAN OF THE MATCH — bigger and harder to miss than
+         the small over-complete toast, since these are the moments everyone on the ground wants
+         called out loud. Tap anywhere to dismiss early; otherwise it clears itself. ---- */
+  #statPopupOverlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(15,20,10,0.55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    animation: statPopupBgIn 0.2s ease-out;
+  }
+  #statPopupOverlay.hidden { display: none; }
+  #statPopupOverlay.fadeOut { animation: statPopupBgOut 0.3s ease-in forwards; }
+  @keyframes statPopupBgIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes statPopupBgOut { from { opacity: 1; } to { opacity: 0; } }
+  .statPopupCard {
+    background: #fff;
+    border: 3px solid #1a1a1a;
+    border-radius: 16px;
+    padding: 26px 22px;
+    text-align: center;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    animation: statPopupCardIn 0.3s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes statPopupCardIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+  .statPopupEmoji { font-size: 42px; line-height: 1; margin-bottom: 6px; }
+  .statPopupTitle {
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: #a01f1f;
+    margin-bottom: 6px;
+  }
+  .statPopupTitle.retireTitle { color: #8a5306; }
+  .statPopupTitle.motmTitle { color: #143a0a; }
+  .statPopupName { font-size: 26px; color: #0F2A44; margin-bottom: 4px; }
+  .statPopupDetail { font-size: 16px; color: var(--muted); }
+  .statPopupCloseBtn {
+    margin-top: 18px;
+    width: 100%;
+    padding: 12px 0;
+    border-radius: 10px;
+    border: 2px solid #1a1a1a;
+    background: var(--pitch);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
   /* Smooth glow — brightness rises and falls gradually like a slow pulsing light, instead of an
      instant on/off flicker. */
   @keyframes ballsProgressBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -935,6 +984,15 @@
 </head>
 <body>
 <div id="overToastWrap"></div>
+<div id="statPopupOverlay" class="hidden">
+  <div class="statPopupCard">
+    <div class="statPopupEmoji" id="statPopupEmoji">🏏</div>
+    <div class="statPopupTitle" id="statPopupTitle">OUT!</div>
+    <div class="statPopupName" id="statPopupName"></div>
+    <div class="statPopupDetail" id="statPopupDetail"></div>
+    <button class="statPopupCloseBtn" id="statPopupCloseBtn" type="button">OK</button>
+  </div>
+</div>
 <div class="wrap">
 
   <div class="hdr" style="position:relative;">
@@ -1317,6 +1375,11 @@
     <div class="panel">
       <h2>🎯 Best Bowler</h2>
       <div id="topBowlerBlock"></div>
+    </div>
+
+    <div class="panel">
+      <h2>🏅 Man of the Match</h2>
+      <div id="motmBlock"></div>
     </div>
 
     <div class="panel">
@@ -2666,6 +2729,34 @@ function renderMatch() {
 
 }
 
+// ---- Big popup for OUT / RETIRE / MAN OF THE MATCH — shows the batter's name and runs so
+// everyone scoring or watching sees it called out clearly, not just a quiet number update.
+// Auto-dismisses after a few seconds, but a tap (on the card or the backdrop) closes it early.
+let statPopupTimer = null;
+function showStatPopup({ emoji, titleClass, title, name, detail }) {
+  const overlay = document.getElementById('statPopupOverlay');
+  if (!overlay) return;
+  document.getElementById('statPopupEmoji').textContent = emoji || '🏏';
+  const titleEl = document.getElementById('statPopupTitle');
+  titleEl.textContent = title || '';
+  titleEl.className = 'statPopupTitle' + (titleClass ? ' ' + titleClass : '');
+  document.getElementById('statPopupName').textContent = name || '';
+  document.getElementById('statPopupDetail').textContent = detail || '';
+  overlay.classList.remove('hidden', 'fadeOut');
+  if ('vibrate' in navigator) { try { navigator.vibrate(50); } catch (e) {} }
+  clearTimeout(statPopupTimer);
+  statPopupTimer = setTimeout(hideStatPopup, 4000);
+}
+function hideStatPopup() {
+  const overlay = document.getElementById('statPopupOverlay');
+  if (!overlay || overlay.classList.contains('hidden')) return;
+  clearTimeout(statPopupTimer);
+  overlay.classList.add('fadeOut');
+  setTimeout(() => overlay.classList.add('hidden'), 280);
+}
+document.getElementById('statPopupOverlay').addEventListener('click', hideStatPopup);
+document.getElementById('statPopupCloseBtn').addEventListener('click', (e) => { e.stopPropagation(); hideStatPopup(); });
+
 function showOverCompleteAlert() {
   const wrap = document.getElementById('overToastWrap');
   if (!wrap) return;
@@ -2804,6 +2895,13 @@ function recordBall(entry) {
       if (!state.retiredBatters.includes(state.striker)) state.retiredBatters.push(state.striker);
       if (!state.genuineOutBatters) state.genuineOutBatters = [];
       if (!state.genuineOutBatters.includes(state.striker)) state.genuineOutBatters.push(state.striker);
+      showStatPopup({
+        emoji: '❌',
+        titleClass: '',
+        title: 'OUT!',
+        name: state.striker,
+        detail: `${state.battingStats[state.striker].runs || 0} run${(state.battingStats[state.striker].runs || 0) === 1 ? '' : 's'}`
+      });
       state.striker = state.nonStriker;
       state.nonStriker = null;
       // If nobody else on the batting side is left un-dismissed to come in as a partner, this
@@ -2823,6 +2921,18 @@ function recordBall(entry) {
     endInningsAllOut();
     saveState();
     renderMatch();
+    return;
+  }
+  // Chase won mid-over — real cricket ends the match the instant the winning run is scored, it
+  // doesn't wait for the over (or the innings' full overs) to finish. Only applies in the 2nd
+  // innings (state.firstInningsRuns is set once the 1st innings freezes its score as the target);
+  // going STRICTLY past the target (not just equal to it) is a win, a tie needs the overs played out.
+  if (state.firstInningsRuns !== undefined && state.totalRuns > state.firstInningsRuns) {
+    // Count the current partial over into the bowling card too, same as "End Match Now" does.
+    if (state.thisOverBalls.length && !state.oversLog.find((o) => o.bowler === state.currentBowler)) {
+      state.oversLog.push({ bowler: state.currentBowler, runsConceded: currentOverRunsConceded(), wkts: currentOverWkts() });
+    }
+    goToFinal();
     return;
   }
   // Batter Auto-Retire quota: once the batter who just faced this ball reaches EITHER configured
@@ -2852,6 +2962,13 @@ function recordBall(entry) {
       if (!state.retiredBatters.includes(facingBatter)) state.retiredBatters.push(facingBatter);
       markRetireEligibility(facingBatter);
       snapshotRetireBaseline(facingBatter);
+      showStatPopup({
+        emoji: '🚶',
+        titleClass: 'retireTitle',
+        title: 'RETIRED',
+        name: facingBatter,
+        detail: `${state.battingStats[facingBatter].runs || 0} run${(state.battingStats[facingBatter].runs || 0) === 1 ? '' : 's'}`
+      });
       if (state.striker === facingBatter) { state.striker = state.nonStriker; state.nonStriker = null; }
       else if (state.nonStriker === facingBatter) { state.nonStriker = null; }
     }
@@ -3195,6 +3312,13 @@ document.getElementById('retireBtn').addEventListener('click', () => {
     markRetireEligibility(who);
     snapshotRetireBaseline(who);
     if (state.battingStats[who]) state.battingStats[who].faced = true;
+    showStatPopup({
+      emoji: '🚶',
+      titleClass: 'retireTitle',
+      title: 'RETIRED',
+      name: who,
+      detail: `${(state.battingStats[who] && state.battingStats[who].runs) || 0} run${((state.battingStats[who] && state.battingStats[who].runs) || 0) === 1 ? '' : 's'}`
+    });
     if (state.striker === who) {
       state.striker = state.nonStriker;
       state.nonStriker = null;
@@ -3285,6 +3409,18 @@ function goToFinal() {
   if (!state.savedToHistory) {
     saveMatchToHistory();
     state.savedToHistory = true;
+    // Only announce Man of the Match the first time the match actually ends — not on every later
+    // visit back to this final screen (e.g. after reopening the app).
+    const motm = computeManOfMatch();
+    if (motm) {
+      setTimeout(() => showStatPopup({
+        emoji: '🏅',
+        titleClass: 'motmTitle',
+        title: 'MAN OF THE MATCH',
+        name: motm.name,
+        detail: `${motm.runs} run${motm.runs === 1 ? '' : 's'}${motm.wkts ? `, ${motm.wkts} wicket${motm.wkts === 1 ? '' : 's'}` : ''}`
+      }), 400);
+    }
   }
   saveState();
   render();
@@ -3332,6 +3468,29 @@ function renderFinal() {
   document.getElementById('topBowlerBlock').innerHTML = topBowler
     ? `<div class="rowName" style="font-size:18px;">${topBowler.name}</div><div class="rowSub">${topBowler.wkts} wicket(s), ${topBowler.runs} runs conceded</div>`
     : `<div class="rowSub">No overs bowled</div>`;
+
+  const motm = computeManOfMatch();
+  document.getElementById('motmBlock').innerHTML = motm
+    ? `<div class="rowName" style="font-size:18px;">${motm.name}</div><div class="rowSub">${motm.runs} run${motm.runs === 1 ? '' : 's'}${motm.wkts ? `, ${motm.wkts} wicket${motm.wkts === 1 ? '' : 's'}` : ''}</div>`
+    : `<div class="rowSub">Not enough data</div>`;
+}
+
+// Simple combined batting+bowling points so ONE overall best-performer can be picked automatically
+// instead of separately naming a top scorer and a top bowler — runs count 1 point each, a wicket
+// counts as 20 (roughly matching how much a wicket is usually worth vs. a single run in these
+// house-rule box matches). Ties go to whoever is found first (highest runs generally, since the
+// name list is built batting-stats-first).
+function computeManOfMatch() {
+  const names = new Set([...Object.keys(state.battingStats || {}), ...Object.keys(state.bowlingStats || {})]);
+  let best = null;
+  names.forEach((name) => {
+    const runs = (state.battingStats[name] && state.battingStats[name].runs) || 0;
+    const wkts = (state.bowlingStats[name] && state.bowlingStats[name].wkts) || 0;
+    const points = runs + wkts * 20;
+    if (points <= 0) return;
+    if (!best || points > best.points) best = { name, runs, wkts, points };
+  });
+  return best;
 }
 
 document.getElementById('exportJpegBtn').addEventListener('click', () => {
