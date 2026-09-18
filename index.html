@@ -1662,6 +1662,8 @@
             </div>
             <div id="matchExportLeaderboard"></div>
 
+            <div id="matchExportExcludedWrap"></div>
+
             <div style="border-top:1px dashed #D8D2BE; margin-top:20px; padding-top:14px; font-size:11.5px; color:#A8A38C; text-align:center;">Generated from the team app &middot; <span id="matchExportGeneratedDate"></span></div>
           </div>
         </div>
@@ -3376,6 +3378,28 @@ function populateMatchExportTemplate(rec) {
       </div>`;
   }).join('');
   document.getElementById('matchExportLeaderboard').innerHTML = rows || '<div style="color:#A8A38C; font-size:13px;">No player win record found.</div>';
+
+  // Anyone left out of the ranking for playing under the threshold is shown here too, in the
+  // same pink "not ranked" styling as the live app — so the exported image matches what's on
+  // screen instead of silently dropping them.
+  const excludedWrapEl = document.getElementById('matchExportExcludedWrap');
+  if (excludedWrapEl) {
+    if (rec.excludedLowAttendance && rec.excludedLowAttendance.length) {
+      const excludedRows = rec.excludedLowAttendance.map((p) => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 16px; border-radius:10px; margin-bottom:6px; background:#FBE0E0; border:1.5px solid #F0C3C3; box-sizing:border-box;">
+          <span style="font-weight:700; font-size:13.5px; color:#A02A2A;">${p.name}</span>
+          <span style="background:#fff; color:#A02A2A; font-weight:700; font-size:11.5px; padding:3px 9px; border-radius:9px;">${p.played}/${rec.totalMatches} played</span>
+        </div>`).join('');
+      excludedWrapEl.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; margin:22px 0 14px;">
+          <span style="font-family:'Outfit',sans-serif; font-size:14px; font-weight:800; color:#A02A2A;">🚫 NOT RANKED (played under ${minPlayPct}% of matches)</span>
+          <span style="flex:1; height:2px; background:linear-gradient(90deg,#A02A2A,transparent);"></span>
+        </div>
+        ${excludedRows}`;
+    } else {
+      excludedWrapEl.innerHTML = '';
+    }
+  }
 }
 
 document.getElementById('shareMonthlyRecordJpegBtn').addEventListener('click', () => {
