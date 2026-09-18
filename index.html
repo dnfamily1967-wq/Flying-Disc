@@ -1396,6 +1396,11 @@
       <input type="month" id="monthlyRecordMonthInput">
       <button class="secondary" id="loadMonthlyRecordBtn">👁️ VIEW</button>
     </div>
+    <div class="attnRow" style="margin-top:6px; align-items:center;">
+      <span class="sortLabel" style="white-space:nowrap;">MIN. MATCHES TO RANK:</span>
+      <input type="number" id="minPlayPctInput" min="0" max="100" step="5" style="max-width:70px;">
+      <span class="sortLabel">%</span>
+    </div>
     <div id="monthlyRecordResult"></div>
     <div class="attnRow" id="monthlyRecordSortRow" style="display:none; margin-top:6px; flex-wrap:wrap; row-gap:6px;">
       <span class="sortLabel">SORT:</span>
@@ -1405,6 +1410,7 @@
       <button class="sortBtn" id="mrSortNameBtn" data-mode="name">NAME <span id="mrNameArrow">↕</span></button>
     </div>
     <div id="monthlyRecordRows"></div>
+    <div id="monthlyRecordExcludedNote" style="font-size:11.5px; color:var(--muted); margin-top:16px; padding-top:12px; border-top:1px dashed #E4DEC8; line-height:1.6;"></div>
     <div id="monthlyRecordActions" style="display:none; gap:8px; margin-top:10px; flex-wrap:wrap;">
       <button class="secondary" id="saveMonthlyRecordBtn" style="margin:0; flex-basis:100%;">💾 SAVE RECORD</button>
       <button id="shareMonthlyRecordJpegBtn" style="margin:0; flex-basis:100%; background:var(--green-deep);">📸 SHARE AS IMAGE (JPEG)</button>
@@ -3059,6 +3065,34 @@ if (monthlyRecordMonthInput) {
 }
 let lastMonthlyRecord = null; // cached result of the last computed month, used by Save/Export
 
+// Minimum share of this month's matches a player must have played to be ranked at all —
+// changeable from the input box above the leaderboard instead of a fixed 50%. Remembered per
+// device (like the other view preferences in this app), defaulting to 50%.
+let minPlayPct = (() => {
+  const raw = localStorage.getItem('disc-team-min-play-pct');
+  if (raw === null) return 50;
+  const saved = Number(raw);
+  return (Number.isFinite(saved) && saved >= 0 && saved <= 100) ? saved : 50;
+})();
+const minPlayPctInput = document.getElementById('minPlayPctInput');
+if (minPlayPctInput) {
+  minPlayPctInput.value = String(minPlayPct);
+  minPlayPctInput.addEventListener('change', () => {
+    let val = Number(minPlayPctInput.value);
+    if (!Number.isFinite(val) || val < 0) val = 0;
+    if (val > 100) val = 100;
+    minPlayPct = val;
+    minPlayPctInput.value = String(val);
+    try { localStorage.setItem('disc-team-min-play-pct', String(val)); } catch (e) {}
+    // Re-rank the month already on screen (if any) against the new threshold right away,
+    // instead of making the person hit VIEW again to see it take effect.
+    if (lastMonthlyRecord && monthlyRecordMonthInput && monthlyRecordMonthInput.value === lastMonthlyRecord.month) {
+      const btn = document.getElementById('loadMonthlyRecordBtn');
+      if (btn) btn.click();
+    }
+  });
+}
+
 function computeMonthlyRecord(monthStr, docs, absentByDate) {
   // monthStr = "YYYY-MM"
   const wins = {};      // name -> matches won
@@ -3092,14 +3126,26 @@ function computeMonthlyRecord(monthStr, docs, absentByDate) {
     });
   });
 
-  const leaderboard = Object.keys(played)
-    .map((name) => ({ name, wins: wins[name] || 0, played: played[name] || 0 }))
+  // A player who played fewer than the configured share of this month's total (decided) matches
+  // doesn't have enough of a sample to be ranked fairly against someone who played every match —
+  // so they're left out of the leaderboard (and therefore out of Player of the Month too)
+  // entirely, rather than showing a misleading 100% win rate off just one or two games. The
+  // threshold itself is the "MIN. MATCHES TO RANK %" input above the leaderboard (default 50%),
+  // not a fixed number.
+  const minPlayedRequired = totalMatches > 0 ? totalMatches * (minPlayPct / 100) : 0;
+  const allPlayers = Object.keys(played)
+    .map((name) => ({ name, wins: wins[name] || 0, played: played[name] || 0 }));
+  const leaderboard = allPlayers
+    .filter((p) => p.played >= minPlayedRequired)
     .sort((a, b) => b.wins - a.wins || a.name.localeCompare(b.name));
+  const excludedLowAttendance = allPlayers
+    .filter((p) => p.played < minPlayedRequired)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const topWins = leaderboard.length ? leaderboard[0].wins : 0;
   const playersOfMonth = topWins > 0 ? leaderboard.filter((p) => p.wins === topWins).map((p) => p.name) : [];
 
-  return { month: monthStr, dayCount, totalMatches, teamAWins, teamBWins, draws, leaderboard, playersOfMonth, topWins };
+  return { month: monthStr, dayCount, totalMatches, teamAWins, teamBWins, draws, leaderboard, playersOfMonth, topWins, excludedLowAttendance };
 }
 
 let mrSortMode = 'wins';
@@ -3121,11 +3167,28 @@ function renderMonthlyRecordRows() {
     if (mrSortMode !== 'name' && cmp === 0) cmp = a.name.localeCompare(b.name);
     return cmp * mrSortDir;
   });
-  rowsEl.innerHTML = list.map((p, i) => `
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #F2EFE4; flex-wrap:nowrap;">
-      <span style="font-weight:700; flex:1 1 0%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${i + 1}. ${p.name}${rec.playersOfMonth.includes(p.name) ? ' 🏆' : ''}</span>
-      <span style="font-weight:800; color:var(--green-deep); flex-shrink:0; white-space:nowrap; font-size:13.5px;">${p.wins}W <span style="color:var(--orange);">(${p.pct}%)</span> <span style="color:var(--muted); font-weight:500; font-size:11.5px;">— ${p.played}P</span></span>
-    </div>`).join('') || '<div class="legend">No player win record found.</div>';
+  // Each rank gets its own badge/row color — gold/silver/bronze for the top 3, a plain blue
+  // badge for everyone else — and W/%/Played are shown as small colored pills instead of plain
+  // text, so the whole leaderboard reads as a proper colorful ranking rather than a bare list.
+  rowsEl.innerHTML = list.map((p, i) => {
+    const rank = i + 1;
+    const badgeBg = rank === 1 ? 'var(--gold)' : rank === 2 ? '#B9BFC6' : rank === 3 ? '#C97A3D' : 'var(--blue-soft)';
+    const badgeColor = rank <= 3 ? '#fff' : 'var(--blue)';
+    const rowBg = rank === 1 ? 'var(--gold-soft)' : rank === 2 ? '#EFF1F3' : rank === 3 ? '#FBE9DC' : '#fff';
+    const rowBorder = rank === 1 ? '#E9CB7C' : rank === 2 ? '#D5DAE0' : rank === 3 ? '#EAC5A5' : 'var(--line)';
+    return `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; margin-bottom:6px; border-radius:10px; background:${rowBg}; border:1px solid ${rowBorder}; flex-wrap:nowrap;">
+      <span style="display:flex; align-items:center; gap:8px; flex:1 1 0%; min-width:0;">
+        <span style="flex-shrink:0; width:22px; height:22px; border-radius:50%; background:${badgeBg}; color:${badgeColor}; font-weight:800; font-size:11.5px; display:flex; align-items:center; justify-content:center;">${rank}</span>
+        <span style="font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.name}${rec.playersOfMonth.includes(p.name) ? ' 🏆' : ''}</span>
+      </span>
+      <span style="display:flex; gap:4px; flex-shrink:0; white-space:nowrap;">
+        <span style="background:var(--green-deep); color:#fff; font-weight:800; font-size:11px; padding:3px 7px; border-radius:8px;">${p.wins}W</span>
+        <span style="background:var(--orange-soft); color:#B34A1D; font-weight:800; font-size:11px; padding:3px 7px; border-radius:8px;">${p.pct}%</span>
+        <span style="background:var(--blue-soft); color:var(--blue); font-weight:700; font-size:11px; padding:3px 7px; border-radius:8px;">${p.played}P</span>
+      </span>
+    </div>`;
+  }).join('') || '<div class="legend">No player win record found.</div>';
 
   ['wins', 'pct', 'played', 'name'].forEach((mode) => {
     const btn = document.getElementById('mrSort' + mode.charAt(0).toUpperCase() + mode.slice(1) + 'Btn');
@@ -3157,6 +3220,8 @@ function renderMonthlyRecord(rec) {
     if (actionsEl) actionsEl.style.display = 'none';
     if (sortRowEl) sortRowEl.style.display = 'none';
     if (rowsEl) rowsEl.innerHTML = '';
+    const excludedElEmpty = document.getElementById('monthlyRecordExcludedNote');
+    if (excludedElEmpty) excludedElEmpty.innerHTML = '';
     return;
   }
   const [yy, mm] = rec.month.split('-');
@@ -3180,9 +3245,9 @@ function renderMonthlyRecord(rec) {
     <div class="legend" style="margin-top:0; font-weight:700; color:var(--ink);">${monthLabel}</div>
     ${potHtml}
     <div style="display:flex; gap:8px; margin:10px 0;">
-      <div style="flex:1; text-align:center; background:#F5F1E6; border-radius:10px; padding:8px 4px;"><div style="font-size:17px; font-weight:800;">${rec.dayCount}</div><div style="font-size:10.5px; color:var(--muted);">MATCH DAYS</div></div>
-      <div style="flex:1; text-align:center; background:#F5F1E6; border-radius:10px; padding:8px 4px;"><div style="font-size:17px; font-weight:800;">${rec.totalMatches}</div><div style="font-size:10.5px; color:var(--muted);">MATCHES</div></div>
-      <div style="flex:1; text-align:center; background:#F5F1E6; border-radius:10px; padding:8px 4px;"><div style="font-size:17px; font-weight:800;">🟢${rec.teamAWins} 🟠${rec.teamBWins}</div><div style="font-size:10.5px; color:var(--muted);">A vs B WINS</div></div>
+      <div style="flex:1; text-align:center; background:var(--blue-soft); border-radius:10px; padding:9px 4px;"><div style="font-size:17px; font-weight:800; color:var(--blue);">${rec.dayCount}</div><div style="font-size:10px; font-weight:700; color:var(--blue); opacity:0.75;">MATCH DAYS</div></div>
+      <div style="flex:1; text-align:center; background:var(--purple-soft); border-radius:10px; padding:9px 4px;"><div style="font-size:17px; font-weight:800; color:var(--purple);">${rec.totalMatches}</div><div style="font-size:10px; font-weight:700; color:var(--purple); opacity:0.75;">MATCHES</div></div>
+      <div style="flex:1; text-align:center; background:var(--orange-soft); border-radius:10px; padding:9px 4px;"><div style="font-size:17px; font-weight:800; color:#B34A1D;">🟢${rec.teamAWins} 🟠${rec.teamBWins}</div><div style="font-size:10px; font-weight:700; color:#B34A1D; opacity:0.75;">A vs B WINS</div></div>
     </div>
   `;
   if (actionsEl) actionsEl.style.display = isAdmin ? 'flex' : 'none';
@@ -3190,6 +3255,17 @@ function renderMonthlyRecord(rec) {
   mrSortMode = 'wins';
   mrSortDir = -1;
   renderMonthlyRecordRows();
+  const excludedEl = document.getElementById('monthlyRecordExcludedNote');
+  if (excludedEl) {
+    excludedEl.innerHTML = (rec.excludedLowAttendance && rec.excludedLowAttendance.length)
+      ? `<div style="display:inline-block; font-weight:800; font-size:11px; letter-spacing:0.3px; color:#A02A2A; background:var(--red-soft); padding:5px 10px; border-radius:8px; margin-bottom:8px;">🚫 NOT RANKED — played under ${minPlayPct}% of this month's matches</div>`
+        + rec.excludedLowAttendance.map((p) => `
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; margin-bottom:6px; border-radius:10px; background:var(--red-soft); border:1px solid #F0C3C3;">
+            <span style="font-weight:700; color:#A02A2A; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.name}</span>
+            <span style="background:#fff; color:#A02A2A; font-weight:700; font-size:11px; padding:3px 8px; border-radius:8px; flex-shrink:0;">${p.played}/${rec.totalMatches} played</span>
+          </div>`).join('')
+      : '';
+  }
   const saveBtn = document.getElementById('saveMonthlyRecordBtn');
   if (saveBtn) saveBtn.style.display = isAdmin ? '' : 'none'; // saving the snapshot is admin-only
   const shareBtn = document.getElementById('shareMonthlyRecordJpegBtn');
