@@ -1396,11 +1396,6 @@
       <input type="month" id="monthlyRecordMonthInput">
       <button class="secondary" id="loadMonthlyRecordBtn">👁️ VIEW</button>
     </div>
-    <div id="pctThresholdRow" style="display:none; align-items:center; gap:8px; margin-top:10px;">
-      <label for="pctThresholdInput" style="font-size:12.5px; color:var(--muted); white-space:nowrap;">Min. % matches played for % ranking:</label>
-      <input type="number" id="pctThresholdInput" min="0" max="100" step="1" style="width:70px; border:1.5px solid var(--line); border-radius:9px; padding:6px 8px; font-size:13px;">
-      <button class="secondary" id="pctThresholdSaveBtn" style="padding:6px 12px; font-size:12px;">💾 SAVE</button>
-    </div>
     <div id="monthlyRecordResult"></div>
     <div class="attnRow" id="monthlyRecordSortRow" style="display:none; margin-top:6px; flex-wrap:wrap; row-gap:6px;">
       <span class="sortLabel">SORT:</span>
@@ -1981,8 +1976,6 @@ function applyAdminVisibility() {
   if (!isAdmin) { const p = document.getElementById('editAttnPanel'); if (p) p.style.display = 'none'; }
   const fineRateRowEl = document.getElementById('fineRateRow');
   if (fineRateRowEl) fineRateRowEl.style.display = isAdmin ? 'flex' : 'none';
-  const pctThresholdRowEl = document.getElementById('pctThresholdRow');
-  if (pctThresholdRowEl) pctThresholdRowEl.style.display = isAdmin ? 'flex' : 'none';
   const accountsUploadCard = document.getElementById('accountsUploadCard');
   if (accountsUploadCard) accountsUploadCard.style.display = isFullAdmin ? '' : 'none';
   const navHolidayBtn = document.getElementById('navHolidayBtn');
@@ -3112,68 +3105,27 @@ function computeMonthlyRecord(monthStr, docs, absentByDate) {
 let mrSortMode = 'wins';
 let mrSortDir = -1; // -1 = descending (default: best first), 1 = ascending
 
-// A player who was absent most of the month may have played only 1-2 matches — winning even
-// one of those gives a 50-100% win rate that isn't really comparable to a regular player's
-// rate over 20+ matches. So when sorting by %, only players who've played at least this % of
-// the month's total matches are ranked by their win-percentage; everyone else is shown below
-// them (marked with *) so the number is still visible but doesn't unfairly outrank the regulars.
-// DEFAULT_MIN_ATTEND_PCT_FOR_RANK is just the starting value — admins can change the live
-// threshold from the Monthly Match Record card itself (stored in matchSettingsDocRef.minAttendPct
-// further down, right after `db` is set up), so this constant is only what's used before any
-// value has ever been saved.
-const DEFAULT_MIN_ATTEND_PCT_FOR_RANK = 50;
-let minAttendPctForRank = DEFAULT_MIN_ATTEND_PCT_FOR_RANK;
-// updatePctThresholdDisplay and the matchSettingsDocRef wiring live further down (right after
-// `const db = firebase.firestore();`), since they need `db` to already exist.
-function updatePctThresholdDisplay() {
-  const input = document.getElementById('pctThresholdInput');
-  if (input && document.activeElement !== input) input.value = minAttendPctForRank;
-  const row = document.getElementById('pctThresholdRow');
-  if (row) row.style.display = isAdmin ? 'flex' : 'none';
-}
-
 function renderMonthlyRecordRows() {
   const rowsEl = document.getElementById('monthlyRecordRows');
   if (!rowsEl || !lastMonthlyRecord) return;
   const rec = lastMonthlyRecord;
-  // What share of the month's total matches a player actually played — this is what the %
-  // threshold is measured against, not a raw match count, so it stays fair across months with
-  // more or fewer match days.
-  const attendPctOf = (p) => rec.totalMatches > 0 ? (p.played / rec.totalMatches) * 100 : 0;
   const list = rec.leaderboard.filter((p) => p.wins > 0).map((p) => ({
     ...p, pct: p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0
   }));
   list.sort((a, b) => {
-    if (mrSortMode === 'pct') {
-      // Qualified (played enough % of the month's matches) players always rank above
-      // unqualified ones, no matter which sort direction is selected — direction only
-      // reorders within each group.
-      const aQual = attendPctOf(a) >= minAttendPctForRank;
-      const bQual = attendPctOf(b) >= minAttendPctForRank;
-      if (aQual !== bQual) return aQual ? -1 : 1;
-      let cmp = a.pct - b.pct || a.wins - b.wins;
-      if (cmp === 0) cmp = a.name.localeCompare(b.name);
-      return cmp * mrSortDir;
-    }
     let cmp;
     if (mrSortMode === 'name') cmp = a.name.localeCompare(b.name);
+    else if (mrSortMode === 'pct') cmp = a.pct - b.pct || a.wins - b.wins;
     else if (mrSortMode === 'played') cmp = a.played - b.played || a.wins - b.wins;
     else cmp = a.wins - b.wins || a.pct - b.pct; // wins (default)
     if (mrSortMode !== 'name' && cmp === 0) cmp = a.name.localeCompare(b.name);
     return cmp * mrSortDir;
   });
-  rowsEl.innerHTML = list.map((p, i) => {
-    const lowSample = attendPctOf(p) < minAttendPctForRank;
-    return `
+  rowsEl.innerHTML = list.map((p, i) => `
     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #F2EFE4; flex-wrap:nowrap;">
       <span style="font-weight:700; flex:1 1 0%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${i + 1}. ${p.name}${rec.playersOfMonth.includes(p.name) ? ' 🏆' : ''}</span>
-      <span style="font-weight:800; color:var(--green-deep); flex-shrink:0; white-space:nowrap; font-size:13.5px;">${p.wins}W <span style="color:var(--orange);">(${p.pct}%${lowSample ? '*' : ''})</span> <span style="color:var(--muted); font-weight:500; font-size:11.5px;">— ${p.played}P</span></span>
-    </div>`;
-  }).join('') || '<div class="legend">No player win record found.</div>';
-  const hasLowSample = list.some((p) => attendPctOf(p) < minAttendPctForRank);
-  rowsEl.innerHTML += hasLowSample
-    ? `<div class="legend" style="margin-top:6px;">* played fewer than ${minAttendPctForRank}% of this month's matches — % isn't ranked against regulars</div>`
-    : '';
+      <span style="font-weight:800; color:var(--green-deep); flex-shrink:0; white-space:nowrap; font-size:13.5px;">${p.wins}W <span style="color:var(--orange);">(${p.pct}%)</span> <span style="color:var(--muted); font-weight:500; font-size:11.5px;">— ${p.played}P</span></span>
+    </div>`).join('') || '<div class="legend">No player win record found.</div>';
 
   ['wins', 'pct', 'played', 'name'].forEach((mode) => {
     const btn = document.getElementById('mrSort' + mode.charAt(0).toUpperCase() + mode.slice(1) + 'Btn');
@@ -3447,29 +3399,6 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-
-// ---- Match-record settings: kept in its own tiny doc so it can be tweaked live from any admin's
-// phone and stay in sync everywhere, the same way the fine ₹ rate does. Needs `db` above. ----
-const matchSettingsDocRef = db.collection('disc_team').doc('matchSettings');
-function setPctThreshold(newVal) {
-  const n = Number(newVal);
-  if (!Number.isFinite(n) || n < 0 || n > 100) { alert('Please enter a valid % (0 to 100).'); return; }
-  matchSettingsDocRef.set({ minAttendPct: n, updatedAt: Date.now() }, { merge: true }).catch((e) => {
-    console.error('Match settings save failed', e);
-    alert('Could not save the new threshold: ' + e.message);
-  });
-}
-matchSettingsDocRef.onSnapshot((doc) => {
-  minAttendPctForRank = (doc.exists && typeof doc.data().minAttendPct === 'number') ? doc.data().minAttendPct : DEFAULT_MIN_ATTEND_PCT_FOR_RANK;
-  updatePctThresholdDisplay();
-  // Re-render the record view if one is already on screen, so a threshold change from another
-  // phone (or admin) shows up live here too, without needing a reload.
-  if (lastMonthlyRecord) renderMonthlyRecordRows();
-}, (err) => console.error('Match settings sync error', err));
-document.getElementById('pctThresholdSaveBtn').addEventListener('click', () => {
-  setPctThreshold(document.getElementById('pctThresholdInput').value);
-});
-
 // On some mobile carriers/corporate Wi-Fi (common in India), Firestore's default realtime
 // connection (WebChannel/WebSockets) gets throttled or blocked by network proxies, which is what
 // makes live updates across devices feel slow or stuck until a manual refresh. Auto-detecting and
