@@ -1396,7 +1396,7 @@
       <input type="month" id="monthlyRecordMonthInput">
       <button class="secondary" id="loadMonthlyRecordBtn">👁️ VIEW</button>
     </div>
-    <div class="attnRow" style="margin-top:6px; align-items:center;">
+    <div class="attnRow" id="minPlayPctRow" style="display:none; margin-top:6px; align-items:center;">
       <span class="sortLabel" style="white-space:nowrap;">MIN. MATCHES TO RANK:</span>
       <input type="number" id="minPlayPctInput" min="0" max="100" step="5" style="max-width:70px;">
       <span class="sortLabel">%</span>
@@ -1984,6 +1984,8 @@ function applyAdminVisibility() {
   if (fineRateRowEl) fineRateRowEl.style.display = isAdmin ? 'flex' : 'none';
   const accountsUploadCard = document.getElementById('accountsUploadCard');
   if (accountsUploadCard) accountsUploadCard.style.display = isFullAdmin ? '' : 'none';
+  const minPlayPctRowEl = document.getElementById('minPlayPctRow');
+  if (minPlayPctRowEl) minPlayPctRowEl.style.display = isAdmin ? 'flex' : 'none'; // ranking threshold — admin-only, everyone else just sees the resulting list
   const navHolidayBtn = document.getElementById('navHolidayBtn');
   if (navHolidayBtn) {
     navHolidayBtn.style.display = isAdmin ? '' : 'none';
