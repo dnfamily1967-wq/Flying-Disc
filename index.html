@@ -475,6 +475,22 @@
   .team.b h3 { color: #A0451F; }
   .team ol { margin: 0; padding-left: 20px; font-size: 13.8px; line-height: 2; font-weight: 600; }
   .team li span { color: var(--muted); font-size: 11.5px; font-weight: 500; }
+  .team li { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .team li .plNameWrap { flex: 1; }
+  .removeFromTeamBtn {
+    border: none;
+    background: rgba(178,58,46,0.08);
+    color: #B23A2E;
+    font-weight: 800;
+    font-size: 12px;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    line-height: 1;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .removeFromTeamBtn:hover { background: rgba(178,58,46,0.18); }
 
   .status {
     font-size: 13px;
@@ -2808,6 +2824,52 @@ function addPlayer() {
 document.getElementById('addBtn').addEventListener('click', addPlayer);
 nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addPlayer(); });
 
+// Single source of truth for drawing Team A / Team B <li>s from lastTeamA/lastTeamB —
+// used by makeTeams(), addLatePlayerToTeam(), and the live draft listener, so the
+// remove button behaves the same everywhere teams get rendered.
+function teamLiHtml(name, teamLetter) {
+  const p = players.find((pl) => pl.name === name);
+  const ratingLabel = p ? p.rating : 'Guest';
+  const removeBtn = isAdmin
+    ? `<button type="button" class="removeFromTeamBtn" data-remove-name="${name}" data-remove-team="${teamLetter}" title="Remove from team">✕</button>`
+    : '';
+  return `<li><span class="plNameWrap">${name} <span>(${ratingLabel})</span></span>${removeBtn}</li>`;
+}
+
+function renderTeamLists() {
+  teamAEl.innerHTML = lastTeamA.map((name) => teamLiHtml(name, 'A')).join('');
+  teamBEl.innerHTML = lastTeamB.map((name) => teamLiHtml(name, 'B')).join('');
+}
+
+function updateTeamStatusText() {
+  statusEl.textContent = lastTeamA.length === lastTeamB.length
+    ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
+    : lastTeamA.length + ' vs ' + lastTeamB.length + ' (odd count, 1 extra)';
+}
+
+// Removes a player from whichever team they're on. They're not deleted from the roster —
+// they just drop out of today's split, so they immediately reappear in the "Late Arrival?"
+// dropdown below and can be added back to EITHER team from there.
+function removeFromTeam(name, teamLetter) {
+  const arr = teamLetter === 'A' ? lastTeamA : lastTeamB;
+  const idx = arr.indexOf(name);
+  if (idx === -1) return;
+  arr.splice(idx, 1);
+  renderTeamLists();
+  updateTeamStatusText();
+  refreshLateArrivalUI();
+  pushTeamDraft();
+}
+
+teamsOut.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-remove-name]');
+  if (!btn || !isAdmin) return;
+  const name = btn.dataset.removeName;
+  const teamLetter = btn.dataset.removeTeam;
+  if (!confirm(`Remove ${name} from Team ${teamLetter}? You can add them back to either team from "Late Arrival?" below.`)) return;
+  removeFromTeam(name, teamLetter);
+});
+
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -2838,18 +2900,14 @@ function makeTeams() {
     turn = 1 - turn;
   });
 
-  teamAEl.innerHTML = teamA.map(p => `<li>${p.name} <span>(${p.rating})</span></li>`).join('');
-  teamBEl.innerHTML = teamB.map(p => `<li>${p.name} <span>(${p.rating})</span></li>`).join('');
+  lastTeamA = teamA.map(p => p.name);
+  lastTeamB = teamB.map(p => p.name);
+  renderTeamLists();
   teamsOut.style.display = 'flex';
   reshuffleBtn.style.display = 'block';
   cancelTeamBtn.style.display = 'block';
   statusEl.style.display = 'block';
-  statusEl.textContent = teamA.length === teamB.length
-    ? teamA.length + ' vs ' + teamB.length + ' — even ✅'
-    : teamA.length + ' vs ' + teamB.length + ' (odd count, 1 extra)';
-
-  lastTeamA = teamA.map(p => p.name);
-  lastTeamB = teamB.map(p => p.name);
+  updateTeamStatusText();
   matchResults = [1, 2, 3].map((n) => ({ match: n, winner: null }));
   const matchResultsDateEl = document.getElementById('matchResultsDate');
   if (matchResultsDateEl) matchResultsDateEl.textContent = todayStr();
@@ -2910,13 +2968,8 @@ function addLatePlayerToTeam(teamLetter) {
   const targetArr = teamLetter === 'A' ? lastTeamA : lastTeamB;
   if (targetArr.includes(name)) return;
   targetArr.push(name);
-  const playerObj = players.find((p) => p.name === name);
-  const ratingLabel = playerObj ? playerObj.rating : 'Guest';
-  const li = `<li>${name} <span>(${ratingLabel})</span></li>`;
-  (teamLetter === 'A' ? teamAEl : teamBEl).insertAdjacentHTML('beforeend', li);
-  statusEl.textContent = lastTeamA.length === lastTeamB.length
-    ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
-    : lastTeamA.length + ' vs ' + lastTeamB.length + ' (odd count, 1 extra)';
+  renderTeamLists();
+  updateTeamStatusText();
   pushTeamDraft();
   if (guestInput) guestInput.value = '';
   refreshLateArrivalUI();
@@ -3639,19 +3692,12 @@ draftTeamsDocRef.onSnapshot((doc) => {
   lastTeamA = data.teamA || [];
   lastTeamB = data.teamB || [];
   matchResults = data.matchResults || [];
-  const ratingFor = (name) => {
-    const p = players.find((pl) => pl.name === name);
-    return p ? p.rating : '';
-  };
-  teamAEl.innerHTML = lastTeamA.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
-  teamBEl.innerHTML = lastTeamB.map((name) => `<li>${name} <span>(${ratingFor(name)})</span></li>`).join('');
+  renderTeamLists();
   teamsOut.style.display = 'flex';
   reshuffleBtn.style.display = 'block';
   cancelTeamBtn.style.display = 'block';
   statusEl.style.display = 'block';
-  statusEl.textContent = lastTeamA.length === lastTeamB.length
-    ? lastTeamA.length + ' vs ' + lastTeamB.length + ' — even ✅'
-    : lastTeamA.length + ' vs ' + lastTeamB.length + ' (odd count, 1 extra)';
+  updateTeamStatusText();
   const matchResultsDateEl = document.getElementById('matchResultsDate');
   if (matchResultsDateEl) matchResultsDateEl.textContent = todayStr();
   const matchResultsCard = document.getElementById('matchResultsCard');
