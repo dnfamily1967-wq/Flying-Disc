@@ -2777,6 +2777,7 @@ let undoTimer = null;
 let undoState = null; // { i, prevStatus }
 function showUndoToast(i, prevStatus, newStatus, name) {
   clearTimeout(undoTimer);
+  fineUndoState = null;
   undoState = { i, prevStatus };
   const el = document.getElementById('undoToast');
   document.getElementById('undoToastMsg').textContent = newStatus === 'present'
@@ -2785,7 +2786,26 @@ function showUndoToast(i, prevStatus, newStatus, name) {
   el.style.display = 'flex';
   undoTimer = setTimeout(() => { el.style.display = 'none'; undoState = null; }, 5000);
 }
+// Same UNDO snackbar, reused for "Mark Paid" in the Monthly Fine Sheet — a wrong tap can be
+// reversed right away with one tap (the UNDO PAID button on the row also stays available).
+let fineUndoState = null; // { month, name }
+function showFineUndoToast(month, name) {
+  clearTimeout(undoTimer);
+  undoState = null;
+  fineUndoState = { month, name };
+  const el = document.getElementById('undoToast');
+  document.getElementById('undoToastMsg').textContent = `${name} ka fine PAID mark hua`;
+  el.style.display = 'flex';
+  undoTimer = setTimeout(() => { el.style.display = 'none'; fineUndoState = null; }, 6000);
+}
 document.getElementById('undoToastBtn').addEventListener('click', () => {
+  if (fineUndoState) {
+    setFinePaid(fineUndoState.month, fineUndoState.name, false);
+    fineUndoState = null;
+    document.getElementById('undoToast').style.display = 'none';
+    clearTimeout(undoTimer);
+    return;
+  }
   if (!undoState || !players[undoState.i]) { document.getElementById('undoToast').style.display = 'none'; return; }
   players[undoState.i].status = undoState.prevStatus;
   render();
@@ -4500,7 +4520,7 @@ function renderMonthlySheet(month, totals, daysCounted) {
         ? `<span class="fineVerdict good">✅ PAID ₹${amt}</span>`
         : `<span class="fineVerdict bad blink">⚠️ UNPAID ₹${amt}</span>`;
     const payBtn = (fined && isAdmin)
-      ? `<button class="secondary fineToggleBtn" data-month="${month}" data-name="${name}" data-paid="${paid ? '1' : '0'}" style="width:auto; margin:0; padding:4px 10px; font-size:10px; cursor:pointer;">${paid ? '↩️ Unmark' : '💰 Mark Paid'}</button>`
+      ? `<button class="secondary fineToggleBtn" data-month="${month}" data-name="${name}" data-paid="${paid ? '1' : '0'}" style="width:auto; margin:0; padding:4px 10px; font-size:10px; cursor:pointer;${paid ? ' border-color:var(--red); color:#8C2E2E;' : ''}">${paid ? '↩️ UNMARK' : '💰 Mark Paid'}</button>`
       : '';
     return `
     <div class="fineRow ${fined ? 'fined' : ''}">
@@ -4519,6 +4539,7 @@ function renderMonthlySheet(month, totals, daysCounted) {
   if (isAdmin) {
     monthlySheetResultEl.querySelectorAll('.fineToggleBtn').forEach((btn) => {
       btn.addEventListener('click', () => {
+        // Simple toggle: tap once = PAID, tap the same button again = back to UNPAID.
         setFinePaid(btn.dataset.month, btn.dataset.name, btn.dataset.paid === '0');
       });
     });
