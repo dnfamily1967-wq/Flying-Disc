@@ -3946,7 +3946,7 @@ const DEFAULT_FINE_AMOUNT_PER_ABSENT = 10;
 let finePerAbsentAmount = DEFAULT_FINE_AMOUNT_PER_ABSENT;
 
 function fineAmountFor(t) {
-  if (!isFined(t)) return 0;
+  if (!t || t.absent <= FINE_ABSENT_THRESHOLD) return 0;
   return (t.absent - FINE_ABSENT_THRESHOLD) * finePerAbsentAmount;
 }
 
@@ -3959,9 +3959,17 @@ let finesPaidMap = {}; // key "YYYY-MM|NAME" -> true
 function fineKey(month, name) { return month + '|' + name; }
 function isFinePaid(month, name) { return !!finesPaidMap[fineKey(month, name)]; }
 function setFinePaid(month, name, paid) {
-  const update = { updatedAt: Date.now() };
-  update['paid.' + fineKey(month, name)] = paid ? true : firebase.firestore.FieldValue.delete();
-  finesDocRef.set(update, { merge: true }).catch((e) => {
+  // Must be a real nested map — set() with a dotted key like 'paid.2026-09|NAME' creates a
+  // literal top-level field instead, which is why Mark Paid appeared to do nothing.
+  const key = fineKey(month, name);
+  if (paid) finesPaidMap = { ...finesPaidMap, [key]: true };
+  else { finesPaidMap = { ...finesPaidMap }; delete finesPaidMap[key]; }
+  if (monthlySheetInput && monthlySheetInput.value) loadMonthlySheet(monthlySheetInput.value);
+  refreshMyFineCard();
+  finesDocRef.set({
+    paid: { [key]: paid ? true : firebase.firestore.FieldValue.delete() },
+    updatedAt: Date.now()
+  }, { merge: true }).catch((e) => {
     console.error('Fine paid toggle failed', e);
     alert('Could not update fine status: ' + e.message);
   });
@@ -4461,8 +4469,9 @@ function computeMonthlyTotals(month, onDone, onErr) {
 }
 
 function isFined(t) {
-  // The fine only depends on the count of "unexcused absences" (not marked holiday).
-  return !!t && t.absent > FINE_ABSENT_THRESHOLD;
+  // The fine only depends on the count of "unexcused absences" (not marked holiday) — and a
+  // ₹0 fine (e.g. rate set to 0) doesn't count as fined at all: no red box, no Mark Paid.
+  return !!t && t.absent > FINE_ABSENT_THRESHOLD && fineAmountFor(t) > 0;
 }
 
 const monthlySheetResultEl = document.getElementById('monthlySheetResult');
@@ -4491,7 +4500,7 @@ function renderMonthlySheet(month, totals, daysCounted) {
         ? `<span class="fineVerdict good">✅ PAID ₹${amt}</span>`
         : `<span class="fineVerdict bad blink">⚠️ UNPAID ₹${amt}</span>`;
     const payBtn = (fined && isAdmin)
-      ? `<button class="secondary fineToggleBtn" data-month="${month}" data-name="${name}" data-paid="${paid ? '1' : '0'}" style="padding:2px 8px; font-size:10px;">${paid ? '↩️ Unmark' : '💰 Mark Paid'}</button>`
+      ? `<button class="secondary fineToggleBtn" data-month="${month}" data-name="${name}" data-paid="${paid ? '1' : '0'}" style="width:auto; margin:0; padding:4px 10px; font-size:10px; cursor:pointer;">${paid ? '↩️ Unmark' : '💰 Mark Paid'}</button>`
       : '';
     return `
     <div class="fineRow ${fined ? 'fined' : ''}">
