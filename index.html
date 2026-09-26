@@ -996,6 +996,17 @@
   .fineVerdict { font-size: 9.5px; font-weight: 800; padding: 3px 7px; border-radius: 12px; white-space: nowrap; flex-shrink: 0; }
   .fineVerdict.good { background: #E4F5E7; color: #2E7D42; }
   .fineVerdict.bad { background: var(--red-soft); color: #8C2E2E; }
+  /* Monthly Fine Sheet: UNPAID badge blinks just like the Dues card's pending amount */
+  .fineVerdict.bad.blink {
+    color: #fff;
+    border: 1px solid rgba(140,31,31,0.4);
+    background: linear-gradient(135deg, #C43A3A 0%, #9B2323 100%);
+    box-shadow: 0 1px 4px rgba(140,31,31,0.35);
+    animation: bbNameBlink 1s step-start infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fineVerdict.bad.blink { animation: none; }
+  }
 
   .monthRow { display: flex; gap: 8px; align-items: center; }
   .monthRow input[type="month"] {
@@ -4478,7 +4489,7 @@ function renderMonthlySheet(month, totals, daysCounted) {
       ? `<span class="fineVerdict good">✅ PAID ₹0</span>`
       : paid
         ? `<span class="fineVerdict good">✅ PAID ₹${amt}</span>`
-        : `<span class="fineVerdict bad">⚠️ UNPAID ₹${amt}</span>`;
+        : `<span class="fineVerdict bad blink">⚠️ UNPAID ₹${amt}</span>`;
     const payBtn = (fined && isAdmin)
       ? `<button class="secondary fineToggleBtn" data-month="${month}" data-name="${name}" data-paid="${paid ? '1' : '0'}" style="padding:2px 8px; font-size:10px;">${paid ? '↩️ Unmark' : '💰 Mark Paid'}</button>`
       : '';
