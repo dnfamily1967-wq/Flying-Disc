@@ -1560,7 +1560,6 @@
   <div class="tabPanel" id="tab-teams" style="display:none;">
   <div class="card accent-green" id="resetCard">
     <button id="makeBtn">🏆 MAKE TEAMS</button>
-    <button class="secondary" id="reshuffleBtn" style="display:none;">🔀 RESHUFFLE</button>
 
     <div class="card accent-gold" id="lateArrivalCard" style="display:none; margin:14px 0 0; box-shadow:none;">
       <h2>🚶 LATE ARRIVAL?</h2>
@@ -2436,7 +2435,6 @@ const teamsOut = document.getElementById('teamsOut');
 const teamAEl = document.getElementById('teamA');
 const teamBEl = document.getElementById('teamB');
 const statusEl = document.getElementById('status');
-const reshuffleBtn = document.getElementById('reshuffleBtn');
 const cancelTeamBtn = document.getElementById('cancelTeamBtn');
 
 let sortMode = 'name';
@@ -3100,7 +3098,6 @@ function makeTeams() {
   if (present.length < 2) {
     errEl.style.display = 'block';
     teamsOut.style.display = 'none';
-    reshuffleBtn.style.display = 'none';
     cancelTeamBtn.style.display = 'none';
     statusEl.style.display = 'none';
     refreshLateArrivalUI();
@@ -3120,7 +3117,6 @@ function makeTeams() {
   lastTeamB = teamB.map(p => p.name);
   renderTeamLists();
   teamsOut.style.display = 'flex';
-  reshuffleBtn.style.display = 'block';
   cancelTeamBtn.style.display = 'block';
   statusEl.style.display = 'block';
   updateTeamStatusText();
@@ -3137,7 +3133,6 @@ function makeTeams() {
 }
 
 document.getElementById('makeBtn').addEventListener('click', makeTeams);
-reshuffleBtn.addEventListener('click', makeTeams);
 
 // ---- Match results: record who won each match today, saved date-wise ----
 let matchResults = []; // [{ match: 1, winner: null | 'A' | 'B' | 'draw' }]
@@ -3243,7 +3238,6 @@ document.getElementById('cancelTeamBtn').addEventListener('click', () => {
   lastTeamB = [];
   matchResults = [];
   teamsOut.style.display = 'none';
-  reshuffleBtn.style.display = 'none';
   cancelTeamBtn.style.display = 'none';
   statusEl.style.display = 'none';
   const matchResultsCard = document.getElementById('matchResultsCard');
@@ -3894,7 +3888,6 @@ draftTeamsDocRef.onSnapshot((doc) => {
     lastTeamB = [];
     matchResults = [];
     teamsOut.style.display = 'none';
-    reshuffleBtn.style.display = 'none';
     cancelTeamBtn.style.display = 'none';
     statusEl.style.display = 'none';
     const matchResultsCardEl = document.getElementById('matchResultsCard');
@@ -3910,7 +3903,6 @@ draftTeamsDocRef.onSnapshot((doc) => {
   matchResults = data.matchResults || [];
   renderTeamLists();
   teamsOut.style.display = 'flex';
-  reshuffleBtn.style.display = 'block';
   cancelTeamBtn.style.display = 'block';
   statusEl.style.display = 'block';
   updateTeamStatusText();
