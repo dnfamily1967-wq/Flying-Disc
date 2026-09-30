@@ -870,6 +870,7 @@
   }
   .duesCard.hasDue h2 { color: #8C1F1F; }
   .duesCard.allPaid h2 { color: #145C34; }
+  .advNote { margin: 4px 2px 2px; padding: 6px 12px; border-radius: 10px; background: #FFF4D6; color: #8A6D1F; font-size: 13px; font-weight: 700; }
   .duesCard h2 {
     font-family: 'Outfit', sans-serif;
     font-size: 15px;
@@ -5484,6 +5485,18 @@ function personPaidThroughLabel(contribution, person, curIdx) {
   return contribution.months[i];
 }
 
+// Payments already recorded for months AFTER the current one (paid ahead, even if partial).
+// Returns HTML for a small note line, or '' if nothing was paid ahead.
+function advanceNoteHtml(contribution, person, curIdx) {
+  const parts = [];
+  for (let i = curIdx + 1; i < contribution.months.length; i++) {
+    if (hasPayment(person.values[i])) {
+      parts.push(`${contribution.months[i]}: ₹${Number(person.values[i]) || person.values[i]}`);
+    }
+  }
+  return parts.length ? `<div class="advNote">🔜 Advance paid — ${parts.join(' · ')}</div>` : '';
+}
+
 // ---- Dues: for every month up to the real current month, who still hasn't paid ----
 function renderAccountsDues(contribution) {
   if (!contribution || !contribution.people || !contribution.people.length || !contribution.months.length) {
@@ -5511,7 +5524,7 @@ function renderAccountsDues(contribution) {
     return `<div class="fineRow ${paid ? 'rowPaidUp' : 'fined'}">
       <span class="fineName">${p.name}</span>
       <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pendingLabel + ' · ₹' + amt + ' due')}</span>
-    </div>`;
+    </div>${advanceNoteHtml(contribution, p, curIdx)}`;
   }).join('');
   const duePeople = contribution.people.filter((p) => pendingMonthsFor(contribution, p, curIdx).length > 0);
   const totalDue = duePeople.reduce((sum, p) => sum + pendingAmountFor(contribution, p, curIdx), 0);
@@ -5845,7 +5858,7 @@ function renderMyDuesAndBalance() {
   myDuesResultEl.innerHTML = `<div class="fineRow ${paid ? 'rowPaidUp' : 'fined'}">
     <span class="fineName">${me.name}</span>
     <span class="fineCounts ${paid ? 'paidUp' : 'dueRed'}">${paid ? ('Paid up to ' + paidLabel) : (pendingLabel + ' · ₹' + amt + ' due')}</span>
-  </div>`;
+  </div>${advanceNoteHtml(contribution, me, curIdx)}`;
 }
 
 // ---- Export a shareable JPEG summary (this month's collections + expenses + balance, with logo).
