@@ -1566,9 +1566,9 @@
 
     <div class="card accent-gold" id="lateArrivalCard" style="display:none; margin:14px 0 0; box-shadow:none;">
       <h2>🚶 LATE ARRIVAL?</h2>
-      <div class="legend" style="margin-top:0;">Agar koi player team banne ke baad aaya ho, ya koi guest khel raha ho, use yahan se team mein add karo — taaki match mein khelne ke baad uska win record bhi sahi se count ho.</div>
+      <div class="legend" style="margin-top:0;">If a player arrived after the teams were made, or a guest is playing, add them to a team here — so their win record is counted correctly after the match.</div>
       <select id="lateArrivalSelect" style="width:100%; margin-bottom:8px;"></select>
-      <input type="text" id="lateArrivalGuestName" placeholder="Guest ka naam likhein…" style="display:none; width:100%; margin-bottom:8px; box-sizing:border-box; border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; font-size:15px; font-family:inherit; background:#FCFBF7;">
+      <input type="text" id="lateArrivalGuestName" placeholder="Enter guest name…" style="display:none; width:100%; margin-bottom:8px; box-sizing:border-box; border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; font-size:15px; font-family:inherit; background:#FCFBF7;">
       <div class="attnRow">
         <button class="secondary" id="addToTeamABtn" style="margin:0; flex:1;">🟢 ADD TO TEAM A</button>
         <button id="addToTeamBBtn" style="margin:0; flex:1; background:var(--orange);">🟠 ADD TO TEAM B</button>
@@ -1957,7 +1957,7 @@
       <h2>🔑 SET NEW PASSWORD</h2>
       <div class="legend" id="setPassHint" style="margin-top:0;">First time logging in — set your new password.</div>
       <label class="modalLabel" id="newPassLabel">New password</label>
-      <input type="password" id="newPassInput" placeholder="Naya password" autocomplete="off" maxlength="12">
+      <input type="password" id="newPassInput" placeholder="New password" autocomplete="off" maxlength="12">
       <label class="modalLabel">Re-enter (confirm)</label>
       <input type="password" id="confirmPassInput" placeholder="Confirm password" autocomplete="off" maxlength="12">
       <div class="err" id="setPassErr">Something's wrong, please try again.</div>
@@ -2980,7 +2980,7 @@ function showFineUndoToast(month, name) {
   undoState = null;
   fineUndoState = { month, name };
   const el = document.getElementById('undoToast');
-  document.getElementById('undoToastMsg').textContent = `${name} ka fine PAID mark hua`;
+  document.getElementById('undoToastMsg').textContent = `${name}'s fine marked as PAID`;
   el.style.display = 'flex';
   undoTimer = setTimeout(() => { el.style.display = 'none'; fineUndoState = null; }, 6000);
 }
@@ -3495,9 +3495,11 @@ function renderMonthlyRecord(rec) {
     return;
   }
   const [yy, mm] = rec.month.split('-');
-  const monthLabel = new Date(Number(yy), Number(mm) - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const monthLabel = new Date(Number(yy), Number(mm) - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
-  const potHtml = rec.playersOfMonth.length
+  const potHtml = !isAwardsUnlocked(rec.month)
+    ? `<div class="legend">🏆 Player of the Month will be shown after the 15th of this month.</div>`
+    : rec.playersOfMonth.length
     ? `<div style="background:var(--gold-soft); border-radius:12px; padding:12px 14px; margin:10px 0; display:flex; align-items:center; gap:10px;">
         <span style="font-size:26px;">🏆</span>
         <div>
@@ -3611,10 +3613,12 @@ function populateMatchExportTemplate(rec) {
   document.getElementById('matchExportTotalMatches').textContent = rec.totalMatches;
   document.getElementById('matchExportTeamAWins').textContent = rec.teamAWins;
   document.getElementById('matchExportTeamBWins').textContent = rec.teamBWins;
-  document.getElementById('matchExportGeneratedDate').textContent = new Date().toLocaleDateString();
+  document.getElementById('matchExportGeneratedDate').textContent = new Date().toLocaleDateString('en-IN');
 
   const potEl = document.getElementById('matchExportPot');
-  if (rec.playersOfMonth.length) {
+  if (!isAwardsUnlocked(rec.month)) {
+    potEl.innerHTML = `<div style="font-size:13px; color:#8A8570;">Player of the Month will be announced after the 15th.</div>`;
+  } else if (rec.playersOfMonth.length) {
     const namesHtml = rec.playersOfMonth.map((n) => {
       const p = rec.leaderboard.find((x) => x.name === n);
       const pct = p && p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
@@ -3974,7 +3978,7 @@ function renderLoginLog(entries) {
   loginLogCard.style.display = '';
   const rows = latestPerPerson.slice(0, 20).map((e) => {
     const d = new Date(e.ts);
-    const when = d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const when = d.toLocaleDateString('en-IN') + ' · ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
     return `<div class="fineRow"><span class="fineName">${e.name}</span><span class="fineCounts">${when}</span></div>`;
   }).join('');
   loginLogResultEl.innerHTML = rows;
@@ -4783,9 +4787,20 @@ function refreshPlayerListPHA() {
 // A poster celebrating whoever has the HIGHEST attendance (most "present" days) this month,
 // with their name flashing. Shown automatically once per day per device the first time the
 // app is opened that day (re-appears again next month once totals restart).
+// Player of the Month / Top Attendance are only shown after the 15th of the month (day 16+),
+// so there is a fair sample of matches/days. Past months are always allowed.
+function isAwardsUnlocked(ym) {
+  const now = new Date();
+  const cur = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  if (ym < cur) return true;
+  if (ym > cur) return false;
+  return now.getDate() > 15;
+}
+
 function maybeShowTopAttendancePoster() {
   const today = todayStr();
   const m = monthStr();
+  if (!isAwardsUnlocked(m)) return; // first 15 days of the month — don't show yet
   const shownKey = 'top-attend-poster-shown-' + m;
   if (localStorage.getItem(shownKey) === today) return;
 
@@ -5700,7 +5715,7 @@ function renderAccounts() {
   }
   if (updatedAt) {
     const d = new Date(updatedAt);
-    accountsMetaEl.textContent = `Updated ${d.toLocaleDateString()} ${d.toLocaleTimeString()}${uploadedBy ? ' · by ' + uploadedBy : ''}`;
+    accountsMetaEl.textContent = `Updated ${d.toLocaleDateString('en-IN')} ${d.toLocaleTimeString('en-IN')}${uploadedBy ? ' · by ' + uploadedBy : ''}`;
   } else {
     accountsMetaEl.textContent = '';
   }
@@ -5908,7 +5923,7 @@ document.getElementById('exportSummaryBtn').addEventListener('click', () => {
   document.getElementById('exportTotalExp').textContent = '₹' + totalExp;
   document.getElementById('exportBalance').textContent = '₹' + balanceNow;
   document.getElementById('exportCurrentBalance').textContent = '₹' + currentBalance;
-  document.getElementById('exportGeneratedDate').textContent = new Date().toLocaleDateString();
+  document.getElementById('exportGeneratedDate').textContent = new Date().toLocaleDateString('en-IN');
 
   const collectedNoteEl = document.getElementById('exportCollectedAdvanceNote');
   if (totalAdvance > 0) {
@@ -6324,7 +6339,7 @@ loadAccounts(); // show the latest uploaded accounts (contributions + expenses) 
 
 const todayDateLineEl = document.getElementById('todayDateLine');
 if (todayDateLineEl) {
-  todayDateLineEl.textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  todayDateLineEl.textContent = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // ---- Bottom nav: switch between Home / Teams / Attendance / Holiday sections ----
@@ -6357,7 +6372,7 @@ document.getElementById('navCricketBtn').addEventListener('click', () => {
 // ---------------- SMART INSTALL HELP ----------------
 // The generic "open your browser menu" hint doesn't work for everyone: iPhones use a Share
 // icon (not a menu), and links opened inside WhatsApp/Instagram/Facebook's built-in browser
-// often can't install PWAs at all — this is the #1 reason "install nahi ho raha" on many
+// often can't install PWAs at all — this is the #1 reason "install is not working" on many
 // phones. Detect the situation and show the right instructions, or a real Install button
 // where the browser supports it.
 (function () {
@@ -6376,7 +6391,7 @@ document.getElementById('navCricketBtn').addEventListener('click', () => {
 
   if (isInAppBrowser) {
     // WhatsApp / Instagram / Facebook's built-in browser cannot install PWAs — this is almost
-    // always why "install nahi ho raha". The fix is opening the link in the real browser.
+    // always why "install is not working". The fix is opening the link in the real browser.
     if (warnEl) {
       warnEl.style.display = 'block';
       warnEl.innerHTML = '⚠️ This link is currently open inside the WhatsApp/Instagram in-app browser — "Install" won\'t work here. Tap the <b>⋮ (3 dots)</b> in the top-right corner and choose <b>"Open in Chrome"</b> or <b>"Open in browser"</b>, then install from there.';
