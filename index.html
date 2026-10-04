@@ -705,11 +705,12 @@
     max-width: 360px;
     background: radial-gradient(120% 140% at 20% 0%, #FBEBC9 0%, var(--gold) 45%, #A67815 100%);
     border-radius: 26px;
-    padding: 34px 24px 28px;
+    padding: 30px 20px 26px;
     text-align: center;
     box-shadow: 0 20px 60px rgba(0,0,0,0.45);
     animation: bdayPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     overflow: hidden;
+    max-height: 94vh;
   }
   .topAttendConfetti {
     font-size: 30px;
@@ -726,24 +727,83 @@
     text-shadow: 0 2px 8px rgba(0,0,0,0.25);
     margin-bottom: 10px;
   }
-  .topAttendAvatarWrap { display: flex; justify-content: center; margin: 4px 0 14px; }
-  .topAttendAvatarWrap img, .topAttendAvatarWrap .topAttendInitial {
-    width: 84px;
-    height: 84px;
+  .topAttendAvatarWrap {
+    --av: 84px;
+    --cols: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px 0;
+    margin: 6px 0 16px;
+    max-height: min(46vh, 340px);
+    overflow-y: auto;
+    padding: 4px 2px 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.55) transparent;
+  }
+  .topAttendPerson {
+    flex: 0 0 calc(100% / var(--cols));
+    max-width: calc(100% / var(--cols));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    animation: topAttendPersonIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: calc(var(--i, 0) * 60ms);
+  }
+  @keyframes topAttendPersonIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.8); }
+    to   { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .topAttendPerson { animation: none; }
+  }
+  .topAttendPerson img, .topAttendPerson .topAttendInitial {
+    width: var(--av);
+    height: var(--av);
     border-radius: 50%;
     object-fit: cover;
     border: 3px solid #fff;
     box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    flex: none;
   }
-  .topAttendAvatarWrap .topAttendInitial {
+  .topAttendPerson .topAttendInitial {
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgba(255,255,255,0.25);
     font-family: 'Outfit', sans-serif;
-    font-size: 30px;
+    font-size: calc(var(--av) * 0.36);
     font-weight: 800;
     color: #fff;
+  }
+  .topAttendPersonName {
+    max-width: 100%;
+    font-family: 'Outfit', sans-serif;
+    font-size: var(--nm, 13px);
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 2px;
+  }
+  .topAttendCount {
+    display: inline-block;
+    background: rgba(255,255,255,0.22);
+    border: 1px solid rgba(255,255,255,0.55);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 3px 12px;
+    border-radius: 14px;
+    margin-bottom: 10px;
   }
   .topAttendName {
     display: inline-block;
@@ -2015,6 +2075,7 @@
   <div class="topAttendPosterCard">
     <div class="topAttendConfetti">🏆</div>
     <div class="topAttendTitle">Top Attendance This Month</div>
+    <div class="topAttendCount" id="topAttendCount" style="display:none;"></div>
     <div class="topAttendAvatarWrap" id="topAttendAvatarWrap"></div>
     <div class="topAttendName" id="topAttendName"></div>
     <div class="topAttendSub" id="topAttendSub"></div>
@@ -4787,8 +4848,8 @@ function refreshPlayerListPHA() {
 // A poster celebrating whoever has the HIGHEST attendance (most "present" days) this month,
 // with their name flashing. Shown automatically once per day per device the first time the
 // app is opened that day (re-appears again next month once totals restart).
-// Player of the Month / Top Attendance are only shown after the 15th of the month (day 16+),
-// so there is a fair sample of matches/days. Past months are always allowed.
+// Player of the Month is only shown after the 15th of the month (day 16+),
+// so there is a fair sample of matches. Past months are always allowed.
 function isAwardsUnlocked(ym) {
   const now = new Date();
   const cur = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
@@ -4800,7 +4861,6 @@ function isAwardsUnlocked(ym) {
 function maybeShowTopAttendancePoster() {
   const today = todayStr();
   const m = monthStr();
-  if (!isAwardsUnlocked(m)) return; // first 15 days of the month — don't show yet
   const shownKey = 'top-attend-poster-shown-' + m;
   if (localStorage.getItem(shownKey) === today) return;
 
@@ -4817,14 +4877,46 @@ function maybeShowTopAttendancePoster() {
   const avatarWrap = document.getElementById('topAttendAvatarWrap');
   const nameEl = document.getElementById('topAttendName');
   const subEl = document.getElementById('topAttendSub');
+  const countEl = document.getElementById('topAttendCount');
+  const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const n = top.length;
+
+  // Layout adapts to how many people share the top spot
+  let cols, av, nm;
+  if (n === 1) { cols = 1; av = 112; nm = 26; }
+  else if (n === 2) { cols = 2; av = 96; nm = 16; }
+  else if (n === 3) { cols = 3; av = 84; nm = 14; }
+  else if (n === 4) { cols = 2; av = 78; nm = 15; }
+  else if (n <= 6) { cols = 3; av = 74; nm = 13; }
+  else if (n <= 9) { cols = 3; av = 68; nm = 13; }
+  else if (n <= 12) { cols = 4; av = 58; nm = 11; }
+  else { cols = 5; av = 48; nm = 10; }
+
   if (avatarWrap) {
-    avatarWrap.innerHTML = top.map((p) => p.photo
-      ? `<img src="${p.photo}" alt="${p.name}">`
-      : `<div class="topAttendInitial">${p.name.charAt(0).toUpperCase()}</div>`
-    ).join('');
+    avatarWrap.style.setProperty('--av', av + 'px');
+    avatarWrap.style.setProperty('--cols', cols);
+    avatarWrap.style.setProperty('--nm', nm + 'px');
+    avatarWrap.scrollTop = 0;
+    avatarWrap.innerHTML = top.map((p, i) => {
+      const pic = p.photo
+        ? `<img src="${p.photo}" alt="${esc(p.name)}">`
+        : `<div class="topAttendInitial">${esc(p.name.charAt(0).toUpperCase())}</div>`;
+      // a single winner gets the big flashing name below instead of a label
+      const label = n === 1 ? '' : `<div class="topAttendPersonName" title="${esc(p.name)}">${esc(p.name)}</div>`;
+      return `<div class="topAttendPerson" style="--i:${i}">${pic}${label}</div>`;
+    }).join('');
   }
-  if (nameEl) nameEl.textContent = top.map((p) => p.name).join(' & ');
-  if (subEl) subEl.textContent = `${maxPresent} day${maxPresent === 1 ? '' : 's'} present in ${m} — most in the group! 🥏`;
+  if (nameEl) {
+    nameEl.textContent = n === 1 ? top[0].name : '';
+    nameEl.style.display = n === 1 ? '' : 'none';
+  }
+  if (countEl) {
+    countEl.textContent = n === 1 ? '' : `${n} PLAYERS TIED`;
+    countEl.style.display = n === 1 ? 'none' : '';
+  }
+  const [yy, mm] = m.split('-').map(Number);
+  const monthLabel = new Date(yy, mm - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  if (subEl) subEl.textContent = `${maxPresent} day${maxPresent === 1 ? '' : 's'} present in ${monthLabel} — most in the group! 🥏`;
   document.getElementById('topAttendPosterOverlay').classList.add('show');
 }
 document.getElementById('topAttendPosterCloseBtn').addEventListener('click', () => {
