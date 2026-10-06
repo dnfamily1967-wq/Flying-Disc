@@ -940,19 +940,153 @@
     align-items: center;
     gap: 6px;
   }
-  .bdayBanner .bbTitle { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .bdayBanner .bbRow { font-size: 13.5px; font-weight: 700; color: var(--ink); padding: 3px 0; }
-  .bdayBanner .bbRow .bbWhen { font-weight: 600; color: var(--muted); }
-  .bdayBanner .bbRow.today .bbWhen { color: var(--pink); font-weight: 800; }
-  .bdayBanner .bbName {
-    display: inline-block;
-    animation: bbNameBlink 1s step-start infinite;
+  .bdayBanner .bbTitle { text-transform: uppercase; margin-bottom: 4px; }
+  /* Banner: colour-cycling border + glow */
+  .bdayBanner { animation: bbBannerGlow 3s linear infinite; }
+  @keyframes bbBannerGlow {
+    0%   { border-color: #FF4FA3; box-shadow: 0 0 14px rgba(255, 79, 163, 0.55); }
+    20%  { border-color: #FF9F1C; box-shadow: 0 0 14px rgba(255, 159, 28, 0.55); }
+    40%  { border-color: #2EC4B6; box-shadow: 0 0 14px rgba(46, 196, 182, 0.55); }
+    60%  { border-color: #3A86FF; box-shadow: 0 0 14px rgba(58, 134, 255, 0.55); }
+    80%  { border-color: #8338EC; box-shadow: 0 0 14px rgba(131, 56, 236, 0.55); }
+    100% { border-color: #FF4FA3; box-shadow: 0 0 14px rgba(255, 79, 163, 0.55); }
   }
-  @keyframes bbNameBlink {
-    50% { opacity: 0.25; }
+  .bdayBanner .bbTitle {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, #FF4FA3, #FF9F1C, #F4D000, #2EC4B6, #3A86FF, #8338EC, #FF4FA3);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: bbRainbowSlide 3s linear infinite;
+  }
+  @keyframes bbRainbowSlide {
+    from { background-position: 0% 50%; }
+    to   { background-position: 300% 50%; }
+  }
+
+  /* Each birthday row: rainbow background that flashes + shimmering sweep */
+  .bdayBanner .bbRow {
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+    font-size: 14px;
+    font-weight: 800;
+    color: #2B1B3D;
+    padding: 10px 66px 10px 46px;
+    margin-top: 6px;
+    border-radius: 12px;
+    border: 2px solid #fff;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.7);
+    animation: bbRowPop 1s ease-in-out infinite;
+  }
+  .bdayBanner .bbRow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #FF7EB6, #FFB347, #FFE66D, #7BE495, #5ED7E8, #9B8CFF, #FF7EB6);
+    background-size: 300% 100%;
+    opacity: 0.45;
+    animation: bbRainbowSlide 2.4s linear infinite, bbRowFlash 0.9s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .bdayBanner .bbRow.today { animation-duration: 0.7s; font-size: 15px; }
+  .bdayBanner .bbRow.today::before { animation-duration: 1.6s, 0.6s; }
+  @keyframes bbRowFlash {
+    0%, 100% { opacity: 0.30; filter: saturate(1); }
+    50%      { opacity: 0.85; filter: saturate(1.5) brightness(1.08); }
+  }
+  @keyframes bbRowPop {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.015); }
+  }
+  .bdayBanner .bbRow .bbWhen { font-weight: 700; color: #5B3A78; }
+  .bdayBanner .bbRow.today .bbWhen { color: #D10F6F; font-weight: 900; }
+  .bdayBanner .bbName { display: inline-block; letter-spacing: 0.4px; }
+
+  /* Fuljhari (sparkler) — one at each end of every birthday row */
+  .bbSparkler {
+    position: absolute;
+    top: 50%;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+  .bbSparkler.right { right: 34px; }
+  .bbSparkler.left  { left: 24px; }
+  .bbSparkler .bbStick {
+    position: absolute;
+    left: -1px;
+    top: 2px;
+    width: 3px;
+    height: 20px;
+    border-radius: 2px;
+    background: linear-gradient(#cfcfcf, #6d6d6d);
+    transform: rotate(-18deg);
+    transform-origin: top center;
+  }
+  .bbSparkler.left .bbStick { transform: rotate(18deg); }
+  .bbSparkler .bbCore {
+    position: absolute;
+    left: -7px;
+    top: -7px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 0%, #FFF1A8 40%, rgba(255,160,40,0) 75%);
+    box-shadow: 0 0 12px 4px rgba(255, 210, 70, 0.95), 0 0 22px 8px rgba(255, 105, 180, 0.45);
+    animation: bbCorePulse 0.3s ease-in-out infinite alternate;
+  }
+  @keyframes bbCorePulse {
+    from { transform: scale(0.8); }
+    to   { transform: scale(1.3); }
+  }
+  .bbSparkler b {
+    position: absolute;
+    left: -2.5px;
+    top: -2.5px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--c, #FFD34D);
+    box-shadow: 0 0 5px 1.5px var(--c, #FFD34D);
+    opacity: 0;
+    animation: bbSparkFly 0.9s ease-out infinite;
+    animation-delay: var(--dl, 0s);
+  }
+  @keyframes bbSparkFly {
+    0%   { opacity: 1; transform: rotate(var(--a)) translateX(2px) scale(1.1); }
+    100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--r, 30px)) scale(0.2); }
+  }
+
+  /* Floating party emojis drifting up the banner */
+  .bdayBanner { position: relative; }
+  .bbFloat {
+    position: absolute;
+    bottom: 4px;
+    font-size: 16px;
+    opacity: 0;
+    pointer-events: none;
+    animation: bbFloatUp 3.2s ease-in infinite;
+    animation-delay: var(--dl, 0s);
+    left: var(--x, 50%);
+    z-index: 2;
+  }
+  @keyframes bbFloatUp {
+    0%   { opacity: 0;   transform: translateY(0) rotate(0deg) scale(0.8); }
+    15%  { opacity: 0.95; }
+    100% { opacity: 0;   transform: translateY(-70px) rotate(25deg) scale(1.15); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .bdayBanner .bbName { animation: none; }
+    .bdayBanner, .bdayBanner .bbTitle, .bdayBanner .bbRow, .bdayBanner .bbRow::before,
+    .bbSparkler .bbCore, .bbSparkler b, .bbFloat { animation: none; }
+    .bbFloat { display: none; }
+    .bbSparkler b { opacity: 0.8; }
   }
 
   /* Birthday list card (Teams tab) */
@@ -2808,6 +2942,27 @@ document.getElementById('bdayHeading').addEventListener('click', () => {
 });
 applyBdayExpanded();
 
+// A little fuljhari (sparkler): glowing tip + multicolour sparks flying out in all directions.
+const BDAY_SPARK_COLORS = ['#FF4FA3', '#FFD34D', '#FF9F1C', '#2EC4B6', '#3A86FF', '#8338EC', '#FFFFFF', '#7BE495'];
+function bdaySparklerHtml(side) {
+  const sparks = [];
+  const N = 18;
+  for (let i = 0; i < N; i++) {
+    const angle = Math.round((360 / N) * i + (i % 2 ? 8 : -5));
+    const dist = 28 + (i % 3) * 9;
+    const delay = ((i * 0.05) % 0.9).toFixed(2);
+    const col = BDAY_SPARK_COLORS[i % BDAY_SPARK_COLORS.length];
+    sparks.push(`<b style="--a:${angle}deg; --r:${dist}px; --dl:${delay}s; --c:${col}"></b>`);
+  }
+  return `<span class="bbSparkler ${side}" aria-hidden="true"><i class="bbStick"></i><i class="bbCore"></i>${sparks.join('')}</span>`;
+}
+
+// Party emojis that float up the banner (decorative)
+function bdayFloatersHtml() {
+  const em = ['🎈', '🎉', '✨', '🎊', '🎁', '🎈', '✨', '🎉'];
+  return em.map((e, i) => `<span class="bbFloat" aria-hidden="true" style="--x:${8 + i * 12}%; --dl:${(i * 0.42).toFixed(2)}s">${e}</span>`).join('');
+}
+
 // Shows a banner (on every tab) for anyone whose birthday is today or within the next 7 days.
 function refreshBdayBanner() {
   if (!bdayBannerEl) return;
@@ -2822,9 +2977,9 @@ function refreshBdayBanner() {
   bdayBannerEl.className = 'bdayBanner' + (hasToday ? ' today' : '');
   const rows = upcoming.map((x) => {
     const when = x.days === 0 ? '🎉 Today!' : x.days === 1 ? 'Tomorrow' : `in ${x.days} days (${formatBday(x.bday)})`;
-    return `<div class="bbRow ${x.days === 0 ? 'today' : ''}">🎂 <span class="bbName">${x.name}</span> — <span class="bbWhen">${when}</span></div>`;
+    return `<div class="bbRow ${x.days === 0 ? 'today' : ''}">🎂 <span class="bbName">${x.name}</span> — <span class="bbWhen">${when}</span>${bdaySparklerHtml('left')}${bdaySparklerHtml('right')}</div>`;
   }).join('');
-  bdayBannerEl.innerHTML = `<div class="bbTitle">Birthday Alert</div>${rows}`;
+  bdayBannerEl.innerHTML = `<div class="bbTitle">🎈 Birthday Alert 🎈</div>${rows}${bdayFloatersHtml()}`;
   bdayBannerEl.style.display = 'block';
   maybeShowBdayPoster();
 }
