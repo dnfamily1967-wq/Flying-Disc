@@ -3251,7 +3251,7 @@ function addLatePlayerToTeam(teamLetter) {
   const statusMsgEl = document.getElementById('lateArrivalStatus');
   if (statusMsgEl) {
     statusMsgEl.style.display = 'block';
-    statusMsgEl.textContent = `✅ ${name} added to Team ${teamLetter}. If today's match results were already saved, tap "SAVE MATCH RESULTS" again so the record picks this up.`;
+    statusMsgEl.textContent = `✅ ${name} added to Team ${teamLetter}. If today's match result was already saved, tap "SAVE MATCH RESULTS" again so the record picks this up.`;
   }
 }
 document.getElementById('addToTeamABtn').addEventListener('click', () => addLatePlayerToTeam('A'));
@@ -3369,6 +3369,11 @@ document.getElementById('loadMatchHistoryBtn').addEventListener('click', () => {
         <span class="matchRowLabel">Match ${m.match}</span>
         <span>${m.winner === 'A' ? '🟢 Team A won' : m.winner === 'B' ? '🟠 Team B won' : m.winner === 'draw' ? '🤝 Draw' : '—'}</span>
       </div>`).join('');
+    const canEditSaved = isFullAdmin && dateStr === todayStr(); // Dippu only
+    const editBtnHtml = canEditSaved
+      ? `<button class="secondary" id="editSavedMatchBtn" style="margin-top:12px;">✏️ EDIT THIS MATCH (add / remove players)</button>
+         <div class="legend">Reopens today's saved teams in the Teams section above, so you can add a late player or change a result, then save again.</div>`
+      : '';
     const removedNote = absentSet.size
       ? `<div class="legend" style="color:var(--red);">Removed for being marked absent: ${[...absentSet].join(', ')}</div>`
       : '';
@@ -3378,12 +3383,42 @@ document.getElementById('loadMatchHistoryBtn').addEventListener('click', () => {
       ${removedNote}
       <div style="font-weight:800; margin:8px 0;">Team A ${winsA} — ${winsB} Team B</div>
       ${rows}
+      ${editBtnHtml}
     `;
+    const editBtnEl = document.getElementById('editSavedMatchBtn');
+    if (editBtnEl) editBtnEl.addEventListener('click', () => reopenSavedMatchForEdit(teamA, teamB, results));
   }).catch((err) => {
     console.error('Load match history failed', err);
     resultEl.innerHTML = `<div class="err" style="display:block;">Failed to load: ${err.message}</div>`;
   });
 });
+
+// Reopens today's already-saved match as an editable draft. Saving a result clears the draft, which
+// hides the teams and the "Late Arrival?" card — this brings them back (on every phone) with the saved
+// teams and winners filled in. Add the missed player to a team, then tap SAVE MATCH RESULTS again;
+// that overwrites today's record with the corrected teams.
+function reopenSavedMatchForEdit(teamA, teamB, results) {
+  if (!isFullAdmin) return;
+  if (lastTeamA.length || lastTeamB.length) {
+    if (!confirm("Teams are already open for today. Replace them with the saved match so you can edit it?")) return;
+  } else if (!confirm("Reopen today's saved match for editing? Nothing changes until you tap SAVE MATCH RESULTS again.")) {
+    return;
+  }
+  lastTeamA = teamA.slice();
+  lastTeamB = teamB.slice();
+  matchResults = results.length ? results.map((m) => ({ match: m.match, winner: m.winner || null })) : [1, 2, 3].map((n) => ({ match: n, winner: null }));
+  draftTeamsDocRef.set({
+    date: todayStr(),
+    teamA: lastTeamA,
+    teamB: lastTeamB,
+    matchResults,
+    updatedAt: Date.now()
+  }).then(() => {
+    teamsOut.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }).catch((err) => {
+    alert('Could not reopen the match: ' + err.message);
+  });
+}
 
 // ---- Monthly Match Record: aggregate every saved match in a month, and work out who won the
 // most matches that month ("Player of the Month"). A match's winning team's players each get
