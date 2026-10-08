@@ -2481,6 +2481,7 @@ function completeLogin(name) {
   renderHeroAvatar();
   applyLoginGate();
   logLoginEvent(name);
+  lastHeartbeatAt = Date.now();
   renderLoginLog(lastLoginLogEntries);
   claimSession(name);
   showTab('home'); // always land on Home right after logging in, regardless of whichever tab was open before
@@ -4214,6 +4215,13 @@ setInterval(maybeSendHeartbeat, HEARTBEAT_INTERVAL_MS);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') maybeSendHeartbeat();
 });
+// People stay logged in on their phone, so most "logins" are really just opening the app — there is
+// no password step, so completeLogin() never runs. Record that visit right away on load (and when a
+// phone restores the page from its back/forward cache) instead of waiting 5 minutes for the first
+// heartbeat, which never fired if the person closed the app sooner.
+maybeSendHeartbeat();
+window.addEventListener('pageshow', (e) => { if (e.persisted) maybeSendHeartbeat(); });
+window.addEventListener('focus', maybeSendHeartbeat);
 function renderLoginLog(entries) {
   if (!isAdmin) { loginLogCard.style.display = 'none'; return; }
   if (!entries || !entries.length) { loginLogCard.style.display = 'none'; return; }
