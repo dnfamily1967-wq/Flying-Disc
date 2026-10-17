@@ -2481,7 +2481,6 @@ function completeLogin(name) {
   renderHeroAvatar();
   applyLoginGate();
   logLoginEvent(name);
-  lastHeartbeatAt = Date.now();
   renderLoginLog(lastLoginLogEntries);
   claimSession(name);
   showTab('home'); // always land on Home right after logging in, regardless of whichever tab was open before
@@ -3673,10 +3672,9 @@ function computeMonthlyRecord(monthStr, docs, absentByDate) {
 let mrSortMode = 'wins';
 let mrSortDir = -1; // -1 = descending (default: best first), 1 = ascending
 
-function renderMonthlyRecordRows() {
-  const rowsEl = document.getElementById('monthlyRecordRows');
-  if (!rowsEl || !lastMonthlyRecord) return;
-  const rec = lastMonthlyRecord;
+// Single source of truth for the leaderboard order — used by BOTH the on-screen list and the
+// exported JPEG, so the image always shows players in the same serial as the sort the admin chose.
+function getMonthlyRecordSortedList(rec) {
   const list = rec.leaderboard.filter((p) => p.wins > 0).map((p) => ({
     ...p, pct: p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0
   }));
@@ -3689,6 +3687,14 @@ function renderMonthlyRecordRows() {
     if (mrSortMode !== 'name' && cmp === 0) cmp = a.name.localeCompare(b.name);
     return cmp * mrSortDir;
   });
+  return list;
+}
+
+function renderMonthlyRecordRows() {
+  const rowsEl = document.getElementById('monthlyRecordRows');
+  if (!rowsEl || !lastMonthlyRecord) return;
+  const rec = lastMonthlyRecord;
+  const list = getMonthlyRecordSortedList(rec);
   // Each rank gets its own badge/row color — gold/silver/bronze for the top 3, a plain blue
   // badge for everyone else — and W/%/Played are shown as small colored pills instead of plain
   // text, so the whole leaderboard reads as a proper colorful ranking rather than a bare list.
@@ -3885,8 +3891,8 @@ function populateMatchExportTemplate(rec) {
     potEl.innerHTML = `<div style="font-size:13px; color:#8A8570;">No match has been decided yet this month.</div>`;
   }
 
-  const rows = rec.leaderboard.filter((p) => p.wins > 0).map((p, i) => {
-    const pct = p.played > 0 ? Math.round((p.wins / p.played) * 100) : 0;
+  const rows = getMonthlyRecordSortedList(rec).map((p, i) => {
+    const pct = p.pct;
     const isTop = rec.playersOfMonth.includes(p.name);
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
     return `
@@ -4215,13 +4221,6 @@ setInterval(maybeSendHeartbeat, HEARTBEAT_INTERVAL_MS);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') maybeSendHeartbeat();
 });
-// People stay logged in on their phone, so most "logins" are really just opening the app — there is
-// no password step, so completeLogin() never runs. Record that visit right away on load (and when a
-// phone restores the page from its back/forward cache) instead of waiting 5 minutes for the first
-// heartbeat, which never fired if the person closed the app sooner.
-maybeSendHeartbeat();
-window.addEventListener('pageshow', (e) => { if (e.persisted) maybeSendHeartbeat(); });
-window.addEventListener('focus', maybeSendHeartbeat);
 function renderLoginLog(entries) {
   if (!isAdmin) { loginLogCard.style.display = 'none'; return; }
   if (!entries || !entries.length) { loginLogCard.style.display = 'none'; return; }
