@@ -1880,6 +1880,7 @@
   <div class="tabPanel" id="tab-holiday" style="display:none;">
   <div class="card accent-purple" id="bulkHolidayCard">
     <h2>🏖️ BULK HOLIDAY (MULTI-DAY)</h2>
+    <div class="legend" style="margin-top:0;">Pick one player for just them, or "— ALL PLAYERS —" to mark the whole team on holiday for the date(s) below in one go.</div>
     <select id="bulkHolidayName"></select>
     <div class="bulkRow">
       <input type="date" id="bulkHolidayStart">
@@ -2780,12 +2781,15 @@ function render() {
   renderBirthdays();
 }
 
+const ALL_PLAYERS_VALUE = '__ALL_PLAYERS__';
 function populateBulkHolidaySelect() {
   const sel = document.getElementById('bulkHolidayName');
   if (!sel) return;
   const current = sel.value;
-  sel.innerHTML = '<option value="" selected disabled>Select a player…</option>' + players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
-  if (current && players.some(p => p.name === current)) sel.value = current;
+  sel.innerHTML = '<option value="" selected disabled>Select a player…</option>'
+    + `<option value="${ALL_PLAYERS_VALUE}">— ALL PLAYERS —</option>`
+    + players.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+  if (current && (current === ALL_PLAYERS_VALUE || players.some(p => p.name === current))) sel.value = current;
   else sel.value = '';
   populateResetPassSelect();
 }
@@ -5142,7 +5146,9 @@ async function bulkSetHoliday(name, startStr, endStr) {
     alert('Please choose a valid date range (end date must be on or after the start date).');
     return;
   }
-  if (!confirm(`Mark ${name} on holiday for ${dates.length} day(s) (${dates[0]} to ${dates[dates.length - 1]})?`)) return;
+  const allPlayers = name === ALL_PLAYERS_VALUE;
+  const whoLabel = allPlayers ? 'EVERYONE (the whole team)' : name;
+  if (!confirm(`Mark ${whoLabel} on holiday for ${dates.length} day(s) (${dates[0]} to ${dates[dates.length - 1]})?`)) return;
 
   const btn = document.getElementById('bulkHolidaySaveBtn');
   btn.disabled = true;
@@ -5161,14 +5167,26 @@ async function bulkSetHoliday(name, startStr, endStr) {
         // `undefined` field values outright and fails the WHOLE save, so default it to null.
         record = doc.data().players.map(p => ({ name: p.name, status: normalizeAttnStatus(p), source: p.source || null }));
         deliberate = !!doc.data().deliberate;
+      } else {
+        // No real attendance exists for this day yet.
+        record = [];
+      }
+      if (allPlayers) {
+        // Mark every current roster player on holiday for this day — this is a deliberate
+        // "whole team is off today" mark, unlike the single-player case below, so unlike that
+        // case we DO want to cover the full roster even when there's no attendance yet.
+        players.forEach((p) => {
+          const i = record.findIndex(r => r.name === p.name);
+          if (i >= 0) record[i] = { name: p.name, status: 'holiday', source: 'advance' };
+          else record.push({ name: p.name, status: 'holiday', source: 'advance' });
+        });
+      } else {
         const i = record.findIndex(p => p.name === name);
         if (i >= 0) record[i] = { name, status: 'holiday', source: 'advance' };
-        else record.push({ name, status: 'holiday', source: 'advance' });
-      } else {
-        // No real attendance exists for this day — only record this one person's holiday.
+        // No real attendance exists for this day — only add this one person's holiday.
         // Fabricating "present" for everyone else here was exactly what inflated attendance
         // counts on days (including future ones) that were never actually played.
-        record = [{ name, status: 'holiday', source: 'advance' }];
+        else record.push({ name, status: 'holiday', source: 'advance' });
       }
       await ref.set({ date: dateStr, players: record, savedAt: Date.now(), deliberate });
     } catch (e) {
@@ -5185,14 +5203,20 @@ async function bulkSetHoliday(name, startStr, endStr) {
   // If today itself is inside the approved range, reflect that on the live roster right away
   // instead of waiting for tomorrow's day-rollover to pick it up.
   if (dates.includes(todayStr())) {
-    const i = players.findIndex((p) => p.name === name);
-    if (i >= 0 && players[i].status !== 'holiday') {
-      players[i].status = 'holiday';
+    if (allPlayers) {
+      players.forEach((p) => { p.status = 'holiday'; });
       render();
       save();
+    } else {
+      const i = players.findIndex((p) => p.name === name);
+      if (i >= 0 && players[i].status !== 'holiday') {
+        players[i].status = 'holiday';
+        render();
+        save();
+      }
     }
   }
-  alert(`${dates.length} day(s) of holiday saved for ${name} ✅`);
+  alert(`${dates.length} day(s) of holiday saved for ${allPlayers ? 'everyone' : name} ✅`);
   loadAttendance(attnDateInput.value);
 }
 
@@ -5201,7 +5225,7 @@ document.getElementById('bulkHolidaySaveBtn').addEventListener('click', () => {
   const startStr = document.getElementById('bulkHolidayStart').value;
   const endStr = document.getElementById('bulkHolidayEnd').value;
   if (!name || !startStr || !endStr) {
-    alert('Please choose a player and both dates (start, end).');
+    alert('Please choose a player (or "— ALL PLAYERS —") and both dates (start, end).');
     return;
   }
   bulkSetHoliday(name, startStr, endStr);
@@ -5217,7 +5241,9 @@ async function bulkCancelHoliday(name, startStr, endStr) {
     alert('Please choose a valid date range (end date must be on or after the start date).');
     return;
   }
-  if (!confirm(`Cancel ${name}'s advance holiday for ${dates.length} day(s) (${dates[0]} to ${dates[dates.length - 1]})? Only the days actually scheduled this way will be cleared — nothing else is touched.`)) return;
+  const allPlayers = name === ALL_PLAYERS_VALUE;
+  const whoLabel = allPlayers ? "everyone's" : `${name}'s`;
+  if (!confirm(`Cancel ${whoLabel} advance holiday for ${dates.length} day(s) (${dates[0]} to ${dates[dates.length - 1]})? Only the days actually scheduled this way will be cleared — nothing else is touched.`)) return;
 
   const btn = document.getElementById('bulkHolidayCancelBtn');
   btn.disabled = true;
@@ -5232,12 +5258,23 @@ async function bulkCancelHoliday(name, startStr, endStr) {
       const doc = await ref.get();
       if (!doc.exists || !Array.isArray(doc.data().players)) continue;
       const record = doc.data().players.map(p => ({ name: p.name, status: normalizeAttnStatus(p), source: p.source || null }));
-      const i = record.findIndex(p => p.name === name && p.status === 'holiday' && p.source === 'advance');
-      if (i === -1) continue; // not an advance-scheduled holiday on this day — leave it alone
-      record.splice(i, 1);
+      let changed = false;
+      if (allPlayers) {
+        // Remove every advance-scheduled holiday entry on this day, whoever it belongs to.
+        for (let i = record.length - 1; i >= 0; i--) {
+          if (record[i].status === 'holiday' && record[i].source === 'advance') {
+            record.splice(i, 1);
+            clearedCount++;
+            changed = true;
+          }
+        }
+      } else {
+        const i = record.findIndex(p => p.name === name && p.status === 'holiday' && p.source === 'advance');
+        if (i !== -1) { record.splice(i, 1); clearedCount++; changed = true; }
+      }
+      if (!changed) continue; // nothing advance-scheduled on this day — leave it alone
       const deliberate = !!doc.data().deliberate;
       await ref.set({ date: dateStr, players: record, savedAt: Date.now(), deliberate });
-      clearedCount++;
     } catch (e) {
       console.error('Cancel bulk holiday failed for', dateStr, e);
       bulkStatusEl.style.display = 'none';
@@ -5250,14 +5287,20 @@ async function bulkCancelHoliday(name, startStr, endStr) {
   bulkStatusEl.style.display = 'none';
   btn.disabled = false;
   if (dates.includes(todayStr())) {
-    const i = players.findIndex((p) => p.name === name);
-    if (i >= 0 && advanceHolidayNamesToday.has(name)) {
-      players[i].status = 'present';
+    if (allPlayers) {
+      players.forEach((p) => { if (advanceHolidayNamesToday.has(p.name)) p.status = 'present'; });
       render();
       save();
+    } else {
+      const i = players.findIndex((p) => p.name === name);
+      if (i >= 0 && advanceHolidayNamesToday.has(name)) {
+        players[i].status = 'present';
+        render();
+        save();
+      }
     }
   }
-  alert(clearedCount ? `Cancelled ${clearedCount} day(s) of advance holiday for ${name} ✅` : `No advance-scheduled holiday found for ${name} in that range.`);
+  alert(clearedCount ? `Cancelled ${clearedCount} day(s) of advance holiday ✅` : `No advance-scheduled holiday found for ${allPlayers ? 'anyone' : name} in that range.`);
   loadAttendance(attnDateInput.value);
 }
 
@@ -5266,7 +5309,7 @@ document.getElementById('bulkHolidayCancelBtn').addEventListener('click', () => 
   const startStr = document.getElementById('bulkHolidayStart').value;
   const endStr = document.getElementById('bulkHolidayEnd').value;
   if (!name || !startStr || !endStr) {
-    alert('Please choose a player and both dates (start, end).');
+    alert('Please choose a player (or "— ALL PLAYERS —") and both dates (start, end).');
     return;
   }
   bulkCancelHoliday(name, startStr, endStr);
