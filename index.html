@@ -1903,6 +1903,29 @@
     <select id="forceLogoutName"></select>
     <button class="secondary" id="forceLogoutBtn" style="border-color:var(--red); color:#8C2E2E;">🔴 FORCE LOGOUT</button>
   </div>
+
+  <div class="card accent-red" id="accessControlCard" style="display:none;">
+    <h2>🚫 AUTO-DISABLE (INACTIVE PLAYERS)</h2>
+    <div class="legend" style="margin-top:0;">Agar koi player lagatar itne din app login/open na kare, ya itne din lagatar <b>absent (bina information)</b> rahe, to uska account apne aap <b>disable</b> ho jayega. Admin yahin se wapas <b>Activate</b> karega. 👑 Admins kabhi auto-disable nahi hote. 🏖️ Holiday = information, isliye absent streak mein nahi gina jata.</div>
+    <div style="display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap;">
+      <label style="font-size:12.5px; color:var(--muted);"><input type="checkbox" id="accessEnabledChk"> Auto-disable ON</label>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;">
+      <label for="accessLoginDaysInput" style="font-size:12.5px; color:var(--muted);">Login nahi kiya (din):</label>
+      <input type="number" id="accessLoginDaysInput" min="1" step="1" style="width:70px; border:1.5px solid var(--line); border-radius:9px; padding:6px 8px; font-size:13px;">
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;">
+      <label for="accessAbsentDaysInput" style="font-size:12.5px; color:var(--muted);">Lagatar absent (din):</label>
+      <input type="number" id="accessAbsentDaysInput" min="1" step="1" style="width:70px; border:1.5px solid var(--line); border-radius:9px; padding:6px 8px; font-size:13px;">
+    </div>
+    <button class="secondary" id="accessSaveBtn" style="margin-top:10px;">💾 SAVE SETTINGS</button>
+    <button class="secondary" id="accessCheckNowBtn" style="margin-top:8px;">🔍 CHECK NOW</button>
+    <div style="font-size:12.5px; font-weight:700; color:var(--muted); margin-top:14px;">DISABLED PLAYERS (<span id="accessDisabledCount">0</span>)</div>
+    <div id="accessDisabledList" style="margin-top:6px;"></div>
+    <div style="font-size:12.5px; font-weight:700; color:var(--muted); margin-top:14px;">KISI KO KHUD DISABLE KARNA HO</div>
+    <select id="accessManualName"></select>
+    <button class="secondary" id="accessManualBtn" style="border-color:var(--red); color:#8C2E2E;">🚫 DISABLE THIS PLAYER</button>
+  </div>
   </div>
 
   <div class="tabPanel" id="tab-accounts" style="display:none;">
@@ -2384,6 +2407,8 @@ function applyAdminVisibility() {
   if (resetPassCard) resetPassCard.style.display = isAdmin ? '' : 'none';
   const forceLogoutCard = document.getElementById('forceLogoutCard');
   if (forceLogoutCard) forceLogoutCard.style.display = isAdmin ? '' : 'none';
+  const accessControlCard = document.getElementById('accessControlCard');
+  if (accessControlCard) accessControlCard.style.display = isAdmin ? '' : 'none';
   const resetAttnDayBtn = document.getElementById('resetAttnDayBtn');
   if (resetAttnDayBtn) resetAttnDayBtn.style.display = isFullAdmin ? '' : 'none';
   const clearOldAttnBtn = document.getElementById('clearOldAttnBtn');
@@ -2570,6 +2595,11 @@ document.getElementById('loginSubmitBtn').addEventListener('click', () => {
   const name = loginNameSelect.value;
   if (!name) {
     loginErrEl.textContent = 'Please select your name first.';
+    loginErrEl.style.display = 'block';
+    return;
+  }
+  if (isAccessDisabled(name) && !isAdminName(name)) {
+    loginErrEl.textContent = accessDisabledMessage(name);
     loginErrEl.style.display = 'block';
     return;
   }
@@ -4200,6 +4230,7 @@ const loginLogDocRef = db.collection('disc_team').doc('loginLog');
 const loginLogCard = document.getElementById('loginLogCard');
 const loginLogResultEl = document.getElementById('loginLogResult');
 function logLoginEvent(name) {
+  accessOnActivity(name); // auto-disable check + "last active" stamp
   // Atomic append (no read-then-write) so two logins landing at nearly the same moment can never
   // silently overwrite each other — the previous get()-then-set() approach could lose an entry
   // if two people logged in close together.
@@ -4213,6 +4244,7 @@ function logLoginEvent(name) {
 // Quiet version for the background heartbeat below — a missed heartbeat write shouldn't ever
 // interrupt the person with an alert, it just tries again next time.
 function logHeartbeat(name) {
+  accessTouch(name);
   loginLogDocRef.set({
     entries: firebase.firestore.FieldValue.arrayUnion({ name, ts: Date.now() })
   }, { merge: true }).catch((err) => console.error('Login heartbeat failed', err));
@@ -6622,6 +6654,237 @@ document.getElementById('accountsFileInput').addEventListener('change', async (e
 });
 
 render();
+
+// ---- Access control: auto-disable players who stay inactive ----
+// Rule 1: no login/app-open for `loginDays` full days in a row  -> disabled.
+// Rule 2: `absentDays` recorded playing days in a row marked ABSENT (no holiday/information) -> disabled.
+// Admins are never auto-disabled. An admin re-activates a player from the Admin tab; the day-counters
+// for that player restart from the moment of re-activation. Counting starts from `startTs`
+// (the day this feature first ran), so nobody is disabled for things that happened before it.
+const accessDocRef = db.collection('disc_team').doc('accessControl');
+const ACCESS_DAY_MS = 86400000;
+let accessData = { settings: {}, startTs: 0, disabled: {}, lastActive: {}, resetAt: {} };
+let accessReady = false;
+let accessWaiters = [];
+let accessAttnCache = { at: 0, daysBack: 0, recs: [] };
+let accessLastTouch = {};
+let accessLastSweep = 0;
+
+function accessSettings() {
+  const s = accessData.settings || {};
+  return {
+    enabled: s.enabled !== false,
+    loginDays: Math.max(1, parseInt(s.loginDays, 10) || 3),
+    absentDays: Math.max(1, parseInt(s.absentDays, 10) || 5)
+  };
+}
+function isAccessDisabled(name) { return !!(accessData.disabled && accessData.disabled[name]); }
+function accessDayStart(ts) { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); }
+function accessYmd(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function accessDisabledMessage(name) {
+  const e = (accessData.disabled || {})[name] || {};
+  return `🚫 ${name} ka account disable hai${e.reason ? ' (' + e.reason + ')' : ''}. Admin se active karwayein.`;
+}
+function waitForAccess() {
+  if (accessReady) return Promise.resolve();
+  return new Promise((resolve) => { accessWaiters.push(resolve); setTimeout(resolve, 6000); });
+}
+
+async function accessFetchAttendance(daysBack) {
+  if (Date.now() - accessAttnCache.at < 60000 && accessAttnCache.daysBack >= daysBack) return accessAttnCache.recs;
+  const jobs = [];
+  for (let i = 0; i < daysBack; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = accessYmd(d.getTime());
+    jobs.push(attendanceDocRef(ds).get().then((doc) => (
+      doc.exists && doc.data().deliberate === true && Array.isArray(doc.data().players)
+        ? { date: ds, players: doc.data().players } : null
+    )).catch(() => null));
+  }
+  const recs = (await Promise.all(jobs)).filter(Boolean).sort((a, b) => (a.date < b.date ? 1 : -1)); // newest first
+  accessAttnCache = { at: Date.now(), daysBack, recs };
+  return recs;
+}
+
+// Returns { NAME: "reason" } for every given name that should be disabled right now.
+async function accessEvaluate(names) {
+  const res = {};
+  const s = accessSettings();
+  if (!s.enabled) return res;
+  const today = accessDayStart(Date.now());
+  const startDay = accessData.startTs ? accessDayStart(accessData.startTs) : 0;
+  const eligible = names.filter((n) => !isAdminName(n) && !isAccessDisabled(n));
+  eligible.forEach((name) => {
+    const base = Math.max((accessData.lastActive || {})[name] || 0, (accessData.resetAt || {})[name] || 0, accessData.startTs || 0);
+    if (!base) return;
+    const diff = Math.round((today - accessDayStart(base)) / ACCESS_DAY_MS);
+    if (diff > s.loginDays) res[name] = `${diff - 1} din se login nahi kiya`;
+  });
+  if (startDay && eligible.length) {
+    const daysBack = Math.min(45, Math.round((today - startDay) / ACCESS_DAY_MS) + 1);
+    const recs = await accessFetchAttendance(daysBack);
+    eligible.forEach((name) => {
+      if (res[name]) return;
+      const resetAt = (accessData.resetAt || {})[name];
+      const resetDate = resetAt ? accessYmd(resetAt) : '';
+      const mine = recs
+        .filter((r) => !resetDate || r.date > resetDate)
+        .map((r) => { const row = r.players.find((p) => p && p.name === name); return row ? normalizeAttnStatus(row) : null; })
+        .filter(Boolean);
+      if (mine.length >= s.absentDays && mine.slice(0, s.absentDays).every((st) => st === 'absent')) {
+        res[name] = `${s.absentDays} din lagatar absent (bina information)`;
+      }
+    });
+  }
+  return res;
+}
+
+function accessDisable(name, reason, auto) {
+  const entry = { ts: Date.now(), reason: reason || '', auto: !!auto };
+  accessData.disabled = { ...(accessData.disabled || {}), [name]: entry };
+  return accessDocRef.set({ disabled: { [name]: entry } }, { merge: true });
+}
+function accessActivate(name) {
+  const now = Date.now();
+  const d = { ...(accessData.disabled || {}) }; delete d[name];
+  accessData.disabled = d;
+  accessData.resetAt = { ...(accessData.resetAt || {}), [name]: now };
+  accessData.lastActive = { ...(accessData.lastActive || {}), [name]: now };
+  return accessDocRef.set({
+    disabled: { [name]: firebase.firestore.FieldValue.delete() },
+    resetAt: { [name]: now },
+    lastActive: { [name]: now }
+  }, { merge: true });
+}
+function accessTouch(name) {
+  if (!name || !accessReady || isAccessDisabled(name)) return;
+  const now = Date.now();
+  if (now - (accessLastTouch[name] || 0) < 60 * 60 * 1000) return; // at most once an hour per device
+  accessLastTouch[name] = now;
+  accessData.lastActive = { ...(accessData.lastActive || {}), [name]: now };
+  accessDocRef.set({ lastActive: { [name]: now } }, { merge: true }).catch((e) => console.error('lastActive save failed', e));
+}
+
+// Called whenever someone logs in or re-opens the app while remembered as logged in.
+async function accessOnActivity(name) {
+  if (!name) return;
+  await waitForAccess();
+  renderAccessCard();
+  if (name !== currentUser) return;
+  if (isAccessDisabled(name) && !isAdminName(name)) { forceLogoutLocal(accessDisabledMessage(name)); return; }
+  try {
+    const reasons = await accessEvaluate([name]);
+    if (reasons[name]) {
+      await accessDisable(name, reasons[name], true);
+      if (name === currentUser) forceLogoutLocal(accessDisabledMessage(name));
+      return;
+    }
+  } catch (e) { console.error('Access check failed', e); }
+  accessTouch(name);
+  if (isAdmin) setTimeout(() => accessSweep(false), 4000); // give the cloud roster a moment to arrive first
+}
+
+// Admin-side sweep over the whole roster (catches people who simply stopped opening the app).
+async function accessSweep(manual) {
+  if (!isAdmin || !accessReady) return;
+  if (!manual && Date.now() - accessLastSweep < 30 * 60 * 1000) return;
+  accessLastSweep = Date.now();
+  try {
+    const reasons = await accessEvaluate(players.map((p) => p.name));
+    const names = Object.keys(reasons);
+    for (const n of names) await accessDisable(n, reasons[n], true);
+    if (manual) alert(names.length ? `Disabled: ${names.join(', ')}` : 'Koi naya player disable nahi hua ✅');
+  } catch (e) {
+    console.error('Access sweep failed', e);
+    if (manual) alert('Check failed: ' + e.message);
+  }
+}
+setInterval(() => { if (isAdmin && document.visibilityState === 'visible') accessSweep(false); }, 30 * 60 * 1000);
+
+function renderAccessCard() {
+  const card = document.getElementById('accessControlCard');
+  if (!card || !isAdmin) return;
+  const s = accessSettings();
+  const active = document.activeElement;
+  const chk = document.getElementById('accessEnabledChk');
+  const li = document.getElementById('accessLoginDaysInput');
+  const ai = document.getElementById('accessAbsentDaysInput');
+  if (active !== chk) chk.checked = s.enabled;
+  if (active !== li) li.value = s.loginDays;
+  if (active !== ai) ai.value = s.absentDays;
+  const dis = Object.keys(accessData.disabled || {}).sort();
+  document.getElementById('accessDisabledCount').textContent = dis.length;
+  document.getElementById('accessDisabledList').innerHTML = dis.length
+    ? dis.map((n) => {
+        const e = accessData.disabled[n] || {};
+        const when = e.ts ? new Date(e.ts).toLocaleDateString('en-IN') : '';
+        return `<div class="fineRow"><span class="fineName">${n}<br><span style="font-size:11px; color:var(--muted); font-weight:400;">${e.reason || ''}${when ? ' · ' + when : ''}${e.auto ? ' · auto' : ' · manual'}</span></span><button class="secondary" data-access-activate="${n}" style="padding:6px 12px; font-size:12px;">✅ ACTIVATE</button></div>`;
+      }).join('')
+    : '<div class="legend" style="margin-top:0;">Abhi koi disabled nahi hai 👍</div>';
+  const sel = document.getElementById('accessManualName');
+  const cur = sel.value;
+  sel.innerHTML = players.filter((p) => !isAdminName(p.name) && !isAccessDisabled(p.name)).map((p) => `<option value="${p.name}">${p.name}</option>`).join('');
+  if (cur && Array.from(sel.options).some((o) => o.value === cur)) sel.value = cur;
+}
+
+document.getElementById('accessSaveBtn').addEventListener('click', () => {
+  const loginDays = parseInt(document.getElementById('accessLoginDaysInput').value, 10);
+  const absentDays = parseInt(document.getElementById('accessAbsentDaysInput').value, 10);
+  if (!(loginDays >= 1) || !(absentDays >= 1)) { alert('Din kam se kam 1 hone chahiye.'); return; }
+  const settings = { enabled: document.getElementById('accessEnabledChk').checked, loginDays, absentDays };
+  accessData.settings = settings;
+  accessDocRef.set({ settings }, { merge: true })
+    .then(() => { showSaved(); renderAccessCard(); })
+    .catch((e) => alert('Save failed: ' + e.message));
+});
+document.getElementById('accessCheckNowBtn').addEventListener('click', () => accessSweep(true));
+document.getElementById('accessManualBtn').addEventListener('click', () => {
+  const name = document.getElementById('accessManualName').value;
+  if (!name) return;
+  showConfirmModal(`${name} ko disable karein? Wo login nahi kar payega jab tak aap activate na karein.`, () => {
+    accessDisable(name, 'Admin ne disable kiya', false)
+      .then(() => { renderAccessCard(); showSaved(); })
+      .catch((e) => alert('Failed: ' + e.message));
+  });
+});
+document.getElementById('accessDisabledList').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-access-activate]');
+  if (!btn) return;
+  const name = btn.getAttribute('data-access-activate');
+  accessActivate(name)
+    .then(() => { renderAccessCard(); showSaved(); })
+    .catch((err) => alert('Failed: ' + err.message));
+});
+
+accessDocRef.onSnapshot((doc) => {
+  const d = doc.exists ? doc.data() : {};
+  accessData = {
+    settings: d.settings || {},
+    startTs: d.startTs || 0,
+    disabled: d.disabled || {},
+    lastActive: d.lastActive || {},
+    resetAt: d.resetAt || {}
+  };
+  accessReady = true;
+  accessWaiters.splice(0).forEach((r) => r());
+  // First ever run: stamp today as the day counting starts (nothing before it is held against anyone).
+  if (!accessData.startTs && !doc.metadata.fromCache) {
+    accessData.startTs = accessDayStart(Date.now());
+    accessDocRef.set({ startTs: accessData.startTs }, { merge: true }).catch((e) => console.error('startTs save failed', e));
+  }
+  if (currentUser && !isAdminName(currentUser) && isAccessDisabled(currentUser)) {
+    forceLogoutLocal(accessDisabledMessage(currentUser));
+  }
+  renderAccessCard();
+}, (err) => {
+  console.error('Access control sync error (not blocking anyone):', err);
+  accessReady = true;
+  accessWaiters.splice(0).forEach((r) => r());
+});
+
 applyLoginGate();
 if (currentUser) {
   // Record this too — not just a fresh password login. Otherwise "Recent Logins" only shows
