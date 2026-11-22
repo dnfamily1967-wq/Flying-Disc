@@ -2164,7 +2164,7 @@
       </div>
       <label class="modalLabel">Password</label>
       <input type="password" id="loginPassInput" placeholder="Password" autocomplete="off">
-      <div class="err" id="loginErr">Wrong password, please try again.</div>
+      <div class="err" id="loginErr" style="white-space:pre-line;">Wrong password, please try again.</div>
       <div class="modalBtnRow">
         <button class="secondary" id="loginCancelBtn" type="button">✖ CANCEL</button>
         <button id="loginSubmitBtn" type="button">🔓 LOGIN</button>
@@ -6685,8 +6685,8 @@ function accessYmd(ts) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 function accessDisabledMessage(name) {
-  const e = (accessData.disabled || {})[name] || {};
-  return `🚫 ${name} ka account disable hai${e.reason ? ' (' + e.reason + ')' : ''}. Admin se active karwayein.`;
+  // Polite, player-facing wording (the exact reason stays visible to admins only, in the Admin tab).
+  return `Dear ${name}, your account has been deactivated as the team norms were not met. Please contact an admin to reactivate it. Thank you.`;
 }
 function waitForAccess() {
   if (accessReady) return Promise.resolve();
