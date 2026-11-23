@@ -1711,6 +1711,18 @@
     <div id="loginLogResult" style="display:none;"></div>
   </div>
 
+  <div class="card accent-red" id="attemptsCard" style="display:none;">
+    <h2 id="attemptsHeading" style="cursor:pointer; justify-content:space-between;">
+      <span>⚠️ FAILED LOGIN ATTEMPTS <span id="attemptsCount"></span></span>
+      <span id="attemptsToggleIcon">▲</span>
+    </h2>
+    <div id="attemptsBody">
+      <div class="legend" style="margin-top:0;">Jab koi player login try kare par ho na paye (account disable ya galat password), to yahan dikhta hai. Disabled player ke saamne seedha ✅ ACTIVATE bhi hai.</div>
+      <div id="attemptsList" style="margin-top:8px;"></div>
+      <button class="secondary" id="attemptsClearBtn" style="margin-top:8px;">🧹 CLEAR LIST</button>
+    </div>
+  </div>
+
   <div class="card accent-orange">
     <div id="addPlayerBlock">
     <h2>➕ ADD A PLAYER</h2>
@@ -2601,6 +2613,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', () => {
   if (isAccessDisabled(name) && !isAdminName(name)) {
     loginErrEl.textContent = accessDisabledMessage(name);
     loginErrEl.style.display = 'block';
+    logLoginAttempt(name, 'disabled');
     return;
   }
   const pass = loginPassInput.value;
@@ -2609,6 +2622,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', () => {
   if (pass !== expected && pass !== MASTER_PASSWORD) {
     loginErrEl.textContent = 'Wrong password, please try again.';
     loginErrEl.style.display = 'block';
+    logLoginAttempt(name, 'wrong_password');
     return;
   }
   loginErrEl.style.display = 'none';
@@ -4267,6 +4281,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') maybeSendHeartbeat();
 });
 function renderLoginLog(entries) {
+  renderAttemptsCard();
   if (!isAdmin) { loginLogCard.style.display = 'none'; return; }
   if (!entries || !entries.length) { loginLogCard.style.display = 'none'; return; }
   // Sort newest-first explicitly (arrayUnion appends, it doesn't guarantee order), then keep
@@ -6774,11 +6789,12 @@ async function accessOnActivity(name) {
   await waitForAccess();
   renderAccessCard();
   if (name !== currentUser) return;
-  if (isAccessDisabled(name) && !isAdminName(name)) { forceLogoutLocal(accessDisabledMessage(name)); return; }
+  if (isAccessDisabled(name) && !isAdminName(name)) { logLoginAttempt(name, 'disabled'); forceLogoutLocal(accessDisabledMessage(name)); return; }
   try {
     const reasons = await accessEvaluate([name]);
     if (reasons[name]) {
       await accessDisable(name, reasons[name], true);
+      logLoginAttempt(name, 'disabled');
       if (name === currentUser) forceLogoutLocal(accessDisabledMessage(name));
       return;
     }
@@ -6855,7 +6871,7 @@ document.getElementById('accessDisabledList').addEventListener('click', (e) => {
   if (!btn) return;
   const name = btn.getAttribute('data-access-activate');
   accessActivate(name)
-    .then(() => { renderAccessCard(); showSaved(); })
+    .then(() => { renderAccessCard(); renderAttemptsCard(); showSaved(); })
     .catch((err) => alert('Failed: ' + err.message));
 });
 
@@ -6884,6 +6900,59 @@ accessDocRef.onSnapshot((doc) => {
   accessReady = true;
   accessWaiters.splice(0).forEach((r) => r());
 });
+
+
+// ---- Failed login attempts: every blocked/failed login is recorded so admins can see who tried. ----
+const attemptsDocRef = db.collection('disc_team').doc('loginAttempts');
+var attemptsEntries = [];
+let attemptsExpanded = true;
+function logLoginAttempt(name, reason) {
+  if (!name) return;
+  attemptsDocRef.set({
+    entries: firebase.firestore.FieldValue.arrayUnion({ name, ts: Date.now(), reason })
+  }, { merge: true }).catch((e) => console.error('Login attempt log failed', e));
+}
+function renderAttemptsCard() {
+  const card = document.getElementById('attemptsCard');
+  if (!card) return;
+  const entries = attemptsEntries || [];
+  if (!isAdmin || !entries.length) { card.style.display = 'none'; return; }
+  const sorted = entries.slice().sort((a, b) => b.ts - a.ts);
+  const recent = sorted.filter((e) => e.ts > Date.now() - 86400000).length;
+  const label = { disabled: '🚫 Account disabled', wrong_password: '🔑 Wrong password' };
+  card.style.display = '';
+  document.getElementById('attemptsCount').textContent = `(${recent} in 24h)`;
+  document.getElementById('attemptsList').innerHTML = sorted.slice(0, 30).map((e) => {
+    const d = new Date(e.ts);
+    const when = d.toLocaleDateString('en-IN') + ' · ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const act = (e.reason === 'disabled' && isAccessDisabled(e.name))
+      ? ` <button class="secondary" data-access-activate="${e.name}" style="padding:5px 10px; font-size:11.5px; margin-top:4px;">✅ ACTIVATE</button>` : '';
+    return `<div class="fineRow"><span class="fineName">${e.name}<br><span style="font-size:11px; color:var(--muted); font-weight:400;">${label[e.reason] || e.reason}</span>${act}</span><span class="fineCounts">${when}</span></div>`;
+  }).join('');
+  document.getElementById('attemptsBody').style.display = attemptsExpanded ? '' : 'none';
+  document.getElementById('attemptsToggleIcon').textContent = attemptsExpanded ? '▲' : '▼';
+}
+document.getElementById('attemptsHeading').addEventListener('click', () => { attemptsExpanded = !attemptsExpanded; renderAttemptsCard(); });
+document.getElementById('attemptsClearBtn').addEventListener('click', () => {
+  showConfirmModal('Failed login list saaf karein?', () => {
+    attemptsDocRef.set({ entries: [] }, { merge: true }).catch((e) => alert('Failed: ' + e.message));
+  });
+});
+document.getElementById('attemptsList').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-access-activate]');
+  if (!btn) return;
+  accessActivate(btn.getAttribute('data-access-activate'))
+    .then(() => { renderAttemptsCard(); renderAccessCard(); showSaved(); })
+    .catch((err) => alert('Failed: ' + err.message));
+});
+attemptsDocRef.onSnapshot((doc) => {
+  attemptsEntries = doc.exists ? (doc.data().entries || []) : [];
+  renderAttemptsCard();
+  if (isAdmin && attemptsEntries.length > 200) {
+    const trimmed = attemptsEntries.slice().sort((a, b) => b.ts - a.ts).slice(0, 100);
+    attemptsDocRef.set({ entries: trimmed }, { merge: true }).catch((e) => console.error('Attempts trim failed', e));
+  }
+}, (err) => console.error('Login attempts sync error', err));
 
 applyLoginGate();
 if (currentUser) {
