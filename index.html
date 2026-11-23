@@ -2871,6 +2871,7 @@ const bdayBannerEl = document.getElementById('bdayBanner');
 const saveBdayBtn = document.getElementById('saveBdayBtn');
 const bdayEditHintEl = document.getElementById('bdayEditHint');
 let bdayEditMode = false; // locked (read-only) by default — admin has to tap "Edit Birthdays" on purpose
+let bdayDraft = {}; // per-player half-entered birthday while editing (see change handler)
 let bdayEditSnapshot = null; // players' bday values as they were when edit mode opened, for Cancel
 
 function formatBday(b) {
@@ -2942,21 +2943,28 @@ bdayListEl && bdayListEl.addEventListener('change', (e) => {
   if (!field) return;
   const i = Number(target.dataset.i);
   if (isNaN(i) || !players[i]) return;
-  const bday = { ...(players[i].bday || {}) };
+  // Keep the half-filled value (day typed, month not chosen yet — or the other way round) in a draft.
+  // Before, the first change wiped it because a birthday only counts once BOTH day and month exist,
+  // so for a player with no birthday yet the day was lost the moment the month got picked (blank result).
+  const bday = bdayDraft[i] || (bdayDraft[i] = {
+    d: (players[i].bday && players[i].bday.d) || null,
+    m: (players[i].bday && players[i].bday.m) || null
+  });
   if (field === 'd') {
     let val = parseInt(target.value, 10);
     if (isNaN(val) || val < 1) val = null;
-    if (val > 31) val = 31;
+    if (val > 31) { val = 31; target.value = 31; }
     bday.d = val;
   } else if (field === 'm') {
     const val = parseInt(target.value, 10);
     bday.m = isNaN(val) ? null : val;
   }
-  players[i].bday = (bday.d && bday.m) ? bday : null;
+  players[i].bday = (bday.d && bday.m) ? { d: bday.d, m: bday.m } : null;
 });
 
 document.getElementById('editBdayBtn').addEventListener('click', () => {
   bdayEditSnapshot = players.map((p) => (p.bday ? { ...p.bday } : null));
+  bdayDraft = {};
   bdayEditMode = true;
   renderBirthdays();
 });
@@ -2967,6 +2975,7 @@ document.getElementById('cancelBdayBtn').addEventListener('click', () => {
   }
   bdayEditMode = false;
   bdayEditSnapshot = null;
+  bdayDraft = {};
   renderBirthdays();
 });
 
@@ -2979,6 +2988,7 @@ saveBdayBtn && saveBdayBtn.addEventListener('click', () => {
       refreshBdayBanner();
       bdayEditMode = false;
       bdayEditSnapshot = null;
+      bdayDraft = {};
       renderBirthdays();
     })
     .catch((err) => { console.error('Save birthdays failed', err); alert('Save failed: ' + err.message); });
