@@ -1904,7 +1904,7 @@
 
   <div class="card accent-purple" id="resetPassCard">
     <h2>🔁 RESET PLAYER PASSWORD</h2>
-    <div class="legend" style="margin-top:0;">If a player forgets their new password, you can reset it back to the default ("disc") from here. They'll be asked to set a new password the next time they log in — full detail shown automatically once reset.</div>
+    <div class="legend" style="margin-top:0;">If a player forgets their new password, you can reset it back to the default ("1234") from here. They'll be asked to set a new password the next time they log in — full detail shown automatically once reset.</div>
     <select id="resetPassName"></select>
     <button class="secondary" id="resetPassBtn">🔑 RESET PASSWORD</button>
   </div>
@@ -2656,7 +2656,7 @@ document.getElementById('setPassSubmitBtn').addEventListener('click', () => {
     return;
   }
   if (!admin && !/^\d{4}$/.test(newPass)) {
-    setPassErrEl.textContent = 'Player passwords must be a 4-digit number (e.g. 1234).';
+    setPassErrEl.textContent = 'Player passwords must be a 4-digit number (e.g. 5678).';
     setPassErrEl.style.display = 'block';
     return;
   }
@@ -4391,15 +4391,18 @@ document.getElementById('forceLogoutBtn').addEventListener('click', () => {
   });
 });
 
-// Each player's password is stored separately (default 'disc' until they change it)
+// Each player's password is stored separately (default '1234' until they change it)
 const passwordsDocRef = db.collection('disc_team').doc('passwords');
-const DEFAULT_PASSWORD = 'disc';
+const DEFAULT_PASSWORD = '1234';
+const LEGACY_DEFAULT_PASSWORD = 'disc'; // the old default — anyone still stored with it is moved onto the new default
 let passwordMap = {}; // name -> password
 let passwordsReady = false;
 let suppressNextPasswordSnapshot = false;
 
 function currentPasswordFor(name) {
-  return (passwordMap && passwordMap[name]) || DEFAULT_PASSWORD;
+  const stored = passwordMap && passwordMap[name];
+  if (!stored || stored === LEGACY_DEFAULT_PASSWORD) return DEFAULT_PASSWORD;
+  return stored;
 }
 
 function savePasswordFor(name, newPass) {
